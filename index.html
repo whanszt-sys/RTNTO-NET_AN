@@ -112,6 +112,57 @@
         .marker-bl { bottom: 8mm; left: 8mm; }
         .marker-br { bottom: 8mm; right: 8mm; }
 
+        /* Mid-Sheet & Column Timing / Alignment Markers (ตามแบบมาตรฐาน OMR) */
+        .fiducial-mid-left {
+            width: 18px;
+            height: 18px;
+            background-color: #000000 !important;
+            position: absolute;
+            top: 48%;
+            left: 8mm;
+            z-index: 20;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .fiducial-mid-right {
+            width: 18px;
+            height: 18px;
+            background-color: #000000 !important;
+            position: absolute;
+            top: 48%;
+            right: 8mm;
+            z-index: 20;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .omr-col-marker {
+            width: 12px;
+            height: 12px;
+            background-color: #000000 !important;
+            display: inline-block;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .omr-row-tick {
+            width: 8px;
+            height: 5px;
+            background-color: #000000 !important;
+            display: inline-block;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .omr-orientation-barcode {
+            position: absolute;
+            right: 8mm;
+            bottom: 24mm;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+            z-index: 20;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
         /* Print Media Styles */
         @media print {
             body {
@@ -164,6 +215,62 @@
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 no-print"></div>
 
+    <!-- ==========================================
+         AUTHENTICATION LOGIN OVERLAY (ต้องล็อกอินก่อนเข้าใช้งาน)
+    =========================================== -->
+    <div id="login-screen" class="fixed inset-0 z-50 bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 flex items-center justify-center p-4 no-print">
+        <div class="bg-white rounded-3xl max-w-md w-full p-7 sm:p-8 shadow-2xl border border-slate-200">
+            <div class="text-center space-y-2 mb-6">
+                <div class="w-24 h-24 rounded-full bg-slate-50 border-2 border-indigo-100 p-2 mx-auto flex items-center justify-center shadow-md overflow-hidden">
+                    <img src="https://drive.google.com/thumbnail?id=1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB&sz=w400"
+                         onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/d/1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB';"
+                         alt="ตราโรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์"
+                         class="w-full h-full object-contain">
+                </div>
+                <h1 class="text-lg sm:text-xl font-bold text-slate-900 pt-2">โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</h1>
+                <p class="text-xs text-slate-600 font-medium">ระบบสแกนตรวจข้อสอบและวิเคราะห์สถิติ O-NET ป.6 (พ.ป.น. / PPN)</p>
+            </div>
+
+            <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">ชื่อผู้ใช้งาน (รหัสสถานศึกษา / บัญชีครู)</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-user-shield absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                        <input type="text" id="login-username" required autocomplete="off"
+                               placeholder="ตัวอย่างเช่น teacher01 หรือรหัส 10 หลัก"
+                               class="w-full pl-10 pr-4 py-2.5 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1.5">รหัสผ่านเข้าสู่ระบบ</label>
+                    <div class="relative">
+                        <i class="fa-solid fa-lock absolute left-3.5 top-3 text-slate-400 text-sm"></i>
+                        <input type="password" id="login-password" required autocomplete="off"
+                               placeholder="ตัวอย่างเช่น pass1234"
+                               class="w-full pl-10 pr-10 py-2.5 border border-slate-300 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-600">
+                        <button type="button" onclick="togglePasswordVisibility()" class="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600">
+                            <i id="login-eye-icon" class="fa-solid fa-eye text-sm"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="login-error-msg" class="hidden p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                    <span>ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง กรุณาตรวจสอบอีกครั้ง</span>
+                </div>
+
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm">
+                    <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบ
+                </button>
+            </form>
+
+            <div class="mt-6 pt-4 border-t border-slate-100 text-center">
+                <p class="text-[11px] text-slate-500">สำหรับบุคลากรและครูผู้สอน โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Custom Modal Container -->
     <div id="custom-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4 no-print">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 transform transition-all">
@@ -187,14 +294,16 @@
         <div id="mobile-sidebar-backdrop" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-slate-900/50 z-40 hidden lg:hidden no-print"></div>
 
         <!-- Left Collapsible Sidebar -->
-        <aside id="app-sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between fixed lg:sticky top-0 left-0 h-screen z-50 -translate-x-full lg:translate-x-0 shadow-sm no-print">
+        <aside id="app-sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col justify-between fixed lg:sticky top-0 left-0 h-screen z-40 -translate-x-full lg:translate-x-0 shadow-sm no-print">
             <div>
                 <!-- School Brand Header -->
                 <div class="h-20 px-4 flex items-center justify-between border-b border-slate-100">
                     <div class="flex items-center gap-3 overflow-hidden">
-                        <div class="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex flex-col items-center justify-center shrink-0 shadow-sm">
-                            <i class="fa-solid fa-graduation-cap text-sm"></i>
-                            <span class="text-[10px] font-bold leading-none mt-0.5">พ.ป.น.</span>
+                        <div class="w-11 h-11 rounded-2xl bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0 shadow-sm overflow-hidden">
+                            <img src="https://drive.google.com/thumbnail?id=1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB&sz=w200"
+                                 onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/d/1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB';"
+                                 alt="ตราโรงเรียน"
+                                 class="w-full h-full object-contain">
                         </div>
                         <div class="sidebar-header-text overflow-hidden">
                             <h1 class="font-bold text-sm text-slate-900 truncate">ร.ร.บ้านโพนก้างปลาฯ</h1>
@@ -238,11 +347,15 @@
                 </nav>
             </div>
 
-            <!-- Sidebar Bottom Sync Button -->
-            <div class="p-3 border-t border-slate-100">
+            <!-- Sidebar Bottom Sync & Logout Buttons -->
+            <div class="p-3 border-t border-slate-100 space-y-2">
                 <button type="button" onclick="loadAllDataFromSupabase(false)" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold py-2.5 px-3 rounded-xl text-xs transition" title="ดึงข้อมูลล่าสุดจากฐานข้อมูล Supabase">
                     <i class="fa-solid fa-rotate"></i>
                     <span class="sidebar-label">ซิงค์ข้อมูลจาก Supabase</span>
+                </button>
+                <button type="button" onclick="handleLogout()" class="w-full flex items-center justify-center gap-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-semibold py-2 px-3 rounded-xl text-xs transition" title="ออกจากระบบ">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                    <span class="sidebar-label">ออกจากระบบ</span>
                 </button>
             </div>
         </aside>
@@ -257,9 +370,13 @@
                         <button type="button" onclick="toggleMobileSidebar()" class="lg:hidden w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center">
                             <i class="fa-solid fa-bars"></i>
                         </button>
+                        <img src="https://drive.google.com/thumbnail?id=1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB&sz=w200"
+                             onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/d/1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB';"
+                             alt="ตราโรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์"
+                             class="w-10 h-10 object-contain hidden sm:block">
                         <div>
                             <h2 class="font-bold text-base md:text-lg text-slate-900">โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์ (พ.ป.น. / PPN)</h2>
-                            <p class="text-xs text-slate-600 hidden sm:block">ระบบสแกนตรวจข้อสอบและวิเคราะห์สถิติ O-NET ชั้นประถมศึกษาปีที่ 6 (เชื่อมต่อ Supabase Cloud)</p>
+                            <p class="text-xs text-slate-600 hidden sm:block">ระบบสแกนตรวจข้อสอบและวิเคราะห์สถิติ O-NET ชั้นประถมศึกษาปีที่ 6</p>
                         </div>
                     </div>
 
@@ -443,22 +560,13 @@
                         <!-- Create / Edit Exam Session Form -->
                         <div class="lg:col-span-1 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 h-fit">
                             <h3 id="exam-session-form-title" class="font-bold text-slate-900 text-base flex items-center gap-2 mb-4">
-                                <i class="fa-solid fa-calendar-plus text-indigo-600"></i> เพิ่มการสอบรอบใหม่ (แยกรายวิชา)
+                                <i class="fa-solid fa-calendar-plus text-indigo-600"></i> เพิ่มการสอบรอบใหม่
                             </h3>
                             <form id="exam-session-form" onsubmit="handleExamSessionSubmit(event)" class="space-y-3.5">
                                 <input type="hidden" id="session-edit-id" value="">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 mb-1">ชื่อการสอบ / ครั้งที่สอบ</label>
                                     <input type="text" id="session-name" required placeholder="เช่น สอบพรีโอเน็ต ป.6 ครั้งที่ 1/2569" class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                </div>
-                                <div>
-                                    <label class="block text-xs font-bold text-slate-700 mb-1">รายวิชาที่จัดสอบ</label>
-                                    <select id="session-subject" required class="w-full border border-slate-300 rounded-xl px-3 py-2 text-sm font-semibold text-indigo-950 bg-indigo-50/60 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                        <option value="65">รหัส 65 : วิทยาศาสตร์ (20 ข้อ)</option>
-                                        <option value="64">รหัส 64 : คณิตศาสตร์ (15 ข้อ)</option>
-                                        <option value="63">รหัส 63 : ภาษาอังกฤษ (32 ข้อ)</option>
-                                        <option value="61">รหัส 61 : ภาษาไทย (22 ข้อ)</option>
-                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs font-bold text-slate-700 mb-1">วัน/เดือน/ปี ที่จัดสอบ</label>
@@ -470,7 +578,7 @@
                                 </div>
                                 <div class="pt-2 flex gap-2">
                                     <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm transition">
-                                        <i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกการสอบลง Supabase
+                                        <i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกข้อมูล
                                     </button>
                                     <button type="button" onclick="resetExamSessionForm()" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
                                         ล้างค่า
@@ -486,7 +594,7 @@
                                     <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
                                         <i class="fa-solid fa-folder-tree text-emerald-600"></i> รายการการสอบทั้งหมดในฐานข้อมูล
                                     </h3>
-                                    <p class="text-xs text-slate-600">คลิกปุ่ม <strong>"กำหนดเฉลย"</strong> ในรายการสอบที่ต้องการเพื่อตั้งค่าเฉลยและตัวชี้วัด</p>
+                                    <p class="text-xs text-slate-600">คลิกปุ่ม <strong>"กำหนดเฉลย"</strong> ในรายการสอบที่ต้องการเพื่อตั้งค่าเฉลยของทั้ง 4 รายวิชา</p>
                                 </div>
                             </div>
 
@@ -495,9 +603,8 @@
                                     <thead>
                                         <tr class="border-b-2 border-slate-200 text-xs uppercase text-slate-600 font-bold bg-slate-50">
                                             <th class="py-3 px-3">ชื่อการสอบ</th>
-                                            <th class="py-3 px-3 text-center">รายวิชา</th>
                                             <th class="py-3 px-3 text-center">วัน/เดือน/ปีที่สอบ</th>
-                                            <th class="py-3 px-3 text-center">ผลคะแนนเฉลี่ย</th>
+                                            <th class="py-3 px-3 text-center">ผลคะแนนเฉลี่ยรวม</th>
                                             <th class="py-3 px-3 text-right">การจัดการ & กำหนดเฉลย</th>
                                         </tr>
                                     </thead>
@@ -514,7 +621,7 @@
                                 <i class="fa-solid fa-lock"></i>
                             </div>
                             <h4 class="font-bold text-slate-800 text-base">ยังไม่สามารถกำหนดเฉลยได้</h4>
-                            <p class="text-xs text-slate-600">กรุณาเพิ่มการสอบรอบใหม่และเลือกรายวิชาด้านบนก่อน ระบบจึงจะเปิดให้กำหนดเฉลยของการสอบนั้น</p>
+                            <p class="text-xs text-slate-600">กรุณาเพิ่มการสอบรอบใหม่ด้านบนก่อน ระบบจึงจะเปิดให้กำหนดเฉลยของแต่ละรายวิชาในการสอบนั้น</p>
                         </div>
 
                         <div id="exam-key-active-panel">
@@ -529,12 +636,21 @@
                                         <span id="key-formcode-badge" class="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full">รหัสชุดข้อสอบ 100</span>
                                         <span id="key-total-points-badge" class="text-xs font-bold text-amber-900 bg-amber-100 px-2.5 py-1 rounded-full">คะแนนรวมทั้งฉบับ: 100.00 คะแนน</span>
                                     </div>
-                                    <h3 class="font-bold text-slate-900 text-lg mt-2">กำหนดเฉลย ตัวชี้วัด และน้ำหนักคะแนนรายข้อ (ชุดข้อสอบ 100 - 600)</h3>
-                                    <p class="text-xs text-slate-600">ระบุรหัสตัวชี้วัดและคะแนนเต็มของแต่ละข้อได้โดยอิสระ แล้วกดบันทึกเพื่ออัปเดตลงฐานข้อมูล Supabase</p>
+                                    <h3 class="font-bold text-slate-900 text-lg mt-2">กำหนดเฉลย ตัวชี้วัด และน้ำหนักคะแนนรายข้อ (เลือกสลับได้ทั้ง 4 วิชา)</h3>
+                                    <p class="text-xs text-slate-600">เลือกรายวิชาและรหัสชุดข้อสอบที่ต้องการตั้งค่าเฉลย ระบุรหัสตัวชี้วัดและคะแนนเต็มของแต่ละข้อ แล้วกดบันทึกข้อมูล</p>
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
+                                    <div class="flex items-center gap-1.5 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200">
+                                        <label class="text-xs font-bold text-indigo-950">เลือกรายวิชา:</label>
+                                        <select id="key-subject-select" onchange="handleSubjectChange(this.value)" class="bg-white border border-indigo-300 text-indigo-900 text-xs font-bold rounded-lg px-2.5 py-1 focus:outline-none">
+                                            <option value="65">รหัส 65 : วิทยาศาสตร์</option>
+                                            <option value="64">รหัส 64 : คณิตศาสตร์</option>
+                                            <option value="63">รหัส 63 : ภาษาอังกฤษ</option>
+                                            <option value="61">รหัส 61 : ภาษาไทย</option>
+                                        </select>
+                                    </div>
                                     <div class="flex items-center gap-1.5 bg-slate-100 px-3 py-1.5 rounded-xl border border-slate-300">
-                                        <label class="text-xs font-bold text-slate-800">เลือกชุดข้อสอบ:</label>
+                                        <label class="text-xs font-bold text-slate-800">ชุดข้อสอบ:</label>
                                         <select id="key-form-code-select" onchange="handleKeyFormCodeChange(this.value)" class="bg-white border border-slate-300 text-indigo-800 text-xs font-bold rounded-lg px-2.5 py-1 focus:outline-none">
                                             <option value="100">รหัสชุด 100</option>
                                             <option value="200">รหัสชุด 200</option>
@@ -548,7 +664,7 @@
                                         <i class="fa-solid fa-copy"></i> คัดลอกเฉลยชุดนี้ไปทุกชุด (100-600)
                                     </button>
                                     <button type="button" onclick="saveAnswerKey()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
-                                        <i class="fa-solid fa-check-double"></i> บันทึกเฉลยและคำนวณคะแนนใหม่
+                                        <i class="fa-solid fa-check-double"></i> บันทึกข้อมูล
                                     </button>
                                 </div>
                             </div>
@@ -612,9 +728,17 @@
                                         </div>
 
                                         <!-- Center Crosshair & Answer Area Guide -->
-                                        <div class="my-auto mx-4 border border-white/20 rounded-lg p-3 bg-slate-900/25 backdrop-blur-[1px] text-center">
-                                            <div class="text-[11px] font-bold text-white/90">พื้นที่ตรวจจับวงกลมคำตอบ (OMR Grid Area)</div>
-                                            <div class="text-[10px] text-emerald-300 mt-0.5">ให้สี่เหลี่ยมสีดำทั้ง 4 มุมของกระดาษอยู่ในช่องสี่เหลี่ยมมุมทั้ง 4 ด้าน</div>
+                                        <div class="my-auto mx-4 border border-white/20 rounded-lg p-3 bg-slate-900/25 backdrop-blur-[1px] text-center relative">
+                                            <!-- Mid-left & Mid-right Timing Marker Guides -->
+                                            <div class="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-4 border border-emerald-400 bg-black/50 rounded-sm" title="จุดมาร์กกลางซ้าย"></div>
+                                            <div class="absolute -right-5 top-1/2 -translate-y-1/2 w-4 h-4 border border-emerald-400 bg-black/50 rounded-sm" title="จุดมาร์กกลางขวา"></div>
+                                            <div class="text-[11px] font-bold text-white/90">พื้นที่ตรวจจับวงกลมคำตอบ + จุดมาร์กคั่นคอลัมน์ (Timing Marks)</div>
+                                            <div class="text-[10px] text-emerald-300 mt-0.5">ให้สี่เหลี่ยมสีดำทั้ง 4 มุมและจุดมาร์กด้านข้างอยู่ในกรอบกระดาษสีขาว</div>
+                                            <div class="flex items-center justify-center gap-3 mt-1.5 text-[10px] text-white/90">
+                                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500/70 border border-emerald-300 inline-block"></span> ตอบถูก</span>
+                                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500/70 border border-rose-300 inline-block"></span> ตอบผิด</span>
+                                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full border border-dashed border-amber-300 inline-block"></span> เฉลย</span>
+                                            </div>
                                         </div>
 
                                         <!-- Laser Line -->
@@ -714,11 +838,29 @@
                                     </div>
                                     <div id="scan-detected-answers" class="max-h-64 overflow-y-auto border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-2"></div>
                                 </div>
+
+                                <!-- Dedicated Thai Part 3 Subjective Score Box (เฉพาะวิชาภาษาไทย รหัส 61) -->
+                                <div id="thai-part3-manual-box" class="hidden p-3.5 rounded-xl bg-amber-50 border-2 border-amber-300 space-y-2">
+                                    <div class="flex items-center justify-between">
+                                        <div>
+                                            <span class="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                                                <i class="fa-solid fa-pen-clip text-amber-700"></i> ตอนที่ 3 : แบบอัตนัย ข้อ 22 (ครูกรอกคะแนนเอง)
+                                            </span>
+                                            <p class="text-[11px] text-amber-800">เขียนสรุปใจความสำคัญของบทอ่าน (กรอกคะแนนที่ได้)</p>
+                                        </div>
+                                        <div class="flex items-center gap-1.5">
+                                            <input type="number" id="scan-thai-essay-input" min="0" max="20" step="0.5" value="0"
+                                                   oninput="updateDraftThaiPart2('22', this.value)"
+                                                   class="w-20 text-center font-bold text-base py-1.5 px-2 rounded-xl border-2 border-amber-400 bg-white text-indigo-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                            <span id="scan-thai-essay-max" class="text-xs font-bold text-amber-900">/ 20 คะแนน</span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             <div class="pt-4 border-t border-slate-200 mt-4 flex gap-2">
                                 <button type="button" onclick="saveScannedResult()" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition text-sm">
-                                    <i class="fa-solid fa-floppy-disk"></i> บันทึกผลสอบลงฐานข้อมูล Supabase
+                                    <i class="fa-solid fa-floppy-disk"></i> บันทึกข้อมูล
                                 </button>
                             </div>
                         </div>
@@ -791,7 +933,7 @@
                                 </div>
                                 <div class="pt-2 flex gap-2">
                                     <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs shadow-sm transition">
-                                        <i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกนักเรียนลง Supabase
+                                        <i class="fa-solid fa-floppy-disk mr-1"></i> บันทึกข้อมูล
                                     </button>
                                     <button type="button" onclick="resetStudentForm()" class="px-3 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition">
                                         ล้างค่า
@@ -843,15 +985,15 @@
                         <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 pb-4 mb-6">
                             <div>
                                 <span id="stats-subject-badge" class="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">รหัสวิชา 65 : วิทยาศาสตร์</span>
-                                <h3 class="font-bold text-slate-900 text-lg mt-2">การวิเคราะห์สถิติรายข้อและตารางคำตอบรายบุคคล</h3>
-                                <p class="text-xs text-slate-600">คำนวณจากข้อมูลผลสอบจริงในฐานข้อมูล Supabase ของรอบการสอบและรายวิชาที่เลือก</p>
+                                <h3 class="font-bold text-slate-900 text-lg mt-2">การวิเคราะห์สถิติรายข้อและสรุปรายตัวชี้วัด</h3>
+                                <p class="text-xs text-slate-600">ดาวน์โหลดไฟล์ Excel (CSV) พร้อมสรุปรายตัวชี้วัดว่าแต่ละตัวชี้วัดนักเรียนตอบถูกกี่คนและคิดเป็นร้อยละเท่าไร</p>
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <button type="button" onclick="exportStudentResponseMatrixCSV()" class="px-3.5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
-                                    <i class="fa-solid fa-table-cells"></i> ดาวน์โหลดคำตอบนักเรียนรายข้อ (Matrix CSV)
+                                    <i class="fa-solid fa-file-excel"></i> ดาวน์โหลดคำตอบรายข้อ + สรุปตัวชี้วัด (Excel CSV)
                                 </button>
                                 <button type="button" onclick="exportItemStatsCSV()" class="px-3.5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-1.5">
-                                    <i class="fa-solid fa-chart-simple"></i> ดาวน์โหลด "วิเคราะห์สถิติรายข้อ" (CSV)
+                                    <i class="fa-solid fa-chart-simple"></i> ดาวน์โหลด "วิเคราะห์สถิติรายข้อ + ตัวชี้วัด" (Excel CSV)
                                 </button>
                             </div>
                         </div>
@@ -1171,103 +1313,114 @@
                     appState.sessionExamResults[s.id] = { '65': {}, '64': {}, '63': {}, '61': {} };
                 });
 
-                (resData || []).forEach(r => {
-                    const sesId = String(r.session_id || appState.currentSessionId || 'default_ses');
-                    const subCode = String(r.subject_code || '65').trim();
-                    const stuId = String(r.student_id || '').trim();
-                    const formCode = String(r.form_code || '100').trim();
-                    const parsedAnswers = safeParseJSON(r.answers_json, {});
-                    const storedScoreDetails = safeParseJSON(r.score_details_json, null);
+                if (resData && resData.length > 0) {
+                    resData.forEach(r => {
+                        const sesId = String(r.session_id || appState.currentSessionId || 'default_session');
+                        const subCode = String(r.subject_code || '65');
+                        const stuId = String(r.student_id || '');
+                        if (!stuId) return;
 
-                    // Calculate fresh scoreDetails from answers, and if total_score was explicitly saved in DB, honor it
-                    const freshScoreDetails = evaluateStudentSubmission(subCode, parsedAnswers, formCode);
-                    if (r.total_score !== null && r.total_score !== undefined && !isNaN(Number(r.total_score))) {
-                        freshScoreDetails.totalScore = Number(r.total_score);
-                    } else if (storedScoreDetails && !isNaN(Number(storedScoreDetails.totalScore))) {
-                        freshScoreDetails.totalScore = Number(storedScoreDetails.totalScore);
-                    }
+                        if (!appState.sessionExamResults[sesId]) {
+                            appState.sessionExamResults[sesId] = { '65': {}, '64': {}, '63': {}, '61': {} };
+                        }
+                        if (!appState.sessionExamResults[sesId][subCode]) {
+                            appState.sessionExamResults[sesId][subCode] = {};
+                        }
 
-                    if (!appState.sessionExamResults[sesId]) {
-                        appState.sessionExamResults[sesId] = { '65': {}, '64': {}, '63': {}, '61': {} };
-                    }
-                    if (!appState.sessionExamResults[sesId][subCode]) {
-                        appState.sessionExamResults[sesId][subCode] = {};
-                    }
+                        const formCode = String(r.form_code || '100');
+                        const parsedAnswers = safeParseJSON(r.answers_json, {});
+                        const recalculatedScore = evaluateStudentSubmission(subCode, parsedAnswers, formCode);
 
-                    const recordObj = {
-                        id: String(r.id),
-                        sessionId: sesId,
-                        subjectCode: subCode,
-                        studentId: stuId,
-                        formCode: formCode,
-                        answers: parsedAnswers,
-                        scoreDetails: freshScoreDetails,
-                        timestamp: r.scanned_at || '-'
-                    };
+                        const resultRecord = {
+                            sessionId: sesId,
+                            subjectCode: subCode,
+                            studentId: stuId,
+                            formCode: formCode,
+                            answers: parsedAnswers,
+                            scoreDetails: recalculatedScore,
+                            timestamp: r.scanned_at || ''
+                        };
 
-                    appState.sessionExamResults[sesId][subCode][stuId] = recordObj;
-                    appState.allRawResults.push(recordObj);
-                });
+                        appState.sessionExamResults[sesId][subCode][stuId] = resultRecord;
+                        appState.allRawResults.push(resultRecord);
+                    });
+                }
 
-                updateSupabaseStatusIndicator(true, `ซิงค์แล้ว (${appState.students.length} คน / ผลสอบ ${appState.allRawResults.length} ชุด)`);
+                updateSupabaseStatusIndicator(true, 'ซิงค์ฐานข้อมูลแล้ว');
                 refreshCurrentView();
                 if (!silent) {
-                    showToast(`ดึงข้อมูลจาก Supabase สำเร็จ! (นักเรียน ${appState.students.length} คน, ผลสอบ ${appState.allRawResults.length} รายการ)`, 'success');
+                    showToast(`ซิงค์ข้อมูลจาก Supabase สำเร็จ (นักเรียน ${appState.students.length} คน, ผลสอบ ${appState.allRawResults.length} ชุด)`, 'success');
                 }
             } catch (err) {
-                console.error('loadAllDataFromSupabase Error:', err);
+                console.error('Supabase Fetch Error:', err);
                 updateSupabaseStatusIndicator(false, 'ดึงข้อมูลไม่สำเร็จ');
-                if (!silent) showToast(`ดึงข้อมูลจาก Supabase ไม่สำเร็จ: ${err.message || err}`, 'error');
-                refreshCurrentView();
+                if (!silent) showToast(`ดึงข้อมูลจาก Supabase ไม่สำเร็จ: ${err.message}`, 'error');
             }
         }
 
-        function getItemMeta(subjectCode, qKey) {
-            if (!appState.itemMetadata[subjectCode]) {
-                appState.itemMetadata[subjectCode] = {};
-            }
-            const subMeta = appState.itemMetadata[subjectCode];
-            if (!subMeta[qKey]) {
-                const spec = SUBJECT_SPECS[subjectCode] || SUBJECT_SPECS['65'];
-                const defaultPts = spec.part1.pointsEach || 5;
-                subMeta[qKey] = { indicator: '-', points: defaultPts };
-            }
-            return subMeta[qKey];
-        }
+        // เก็บภาพกระดาษคำตอบที่สแกนล่าสุดไว้ เพื่อให้วาดจุดสีเขียวโปร่งทับใหม่ได้ทันทีเมื่อคลิกแก้ไขคำตอบหรือเปลี่ยนชุดข้อสอบ
+        let lastCapturedSheetImageCanvas = null;
+        let lastDetectedSheetCorners = null;
 
-        function getSubjectTotalPossiblePoints(subjectCode) {
-            const qKeys = getOrderedQuestionKeys(subjectCode);
-            return qKeys.reduce((acc, qKey) => acc + (Number(getItemMeta(subjectCode, qKey).points) || 0), 0);
-        }
-
+        /* --------------------------------------------------------------------------
+           3. CORE GRADING & SCORE CALCULATION ENGINE
+        -------------------------------------------------------------------------- */
         function getActiveSubjectKey(subjectCode, formCode = '100') {
             const subKeys = appState.answerKeys[subjectCode] || {};
             return subKeys[formCode] || subKeys['100'] || BASE_DEFAULT_KEYS[subjectCode];
         }
 
+        function getItemMeta(subjectCode, qKey) {
+            if (!appState.itemMetadata[subjectCode]) appState.itemMetadata[subjectCode] = {};
+            if (!appState.itemMetadata[subjectCode][qKey]) {
+                const spec = SUBJECT_SPECS[subjectCode] || SUBJECT_SPECS['65'];
+                let defaultPts = spec.part1.pointsEach || 5;
+                if (subjectCode === '65' && (qKey === '19' || qKey === '20')) defaultPts = 5;
+                if (subjectCode === '64' && ['12', '13', '14', '15'].includes(String(qKey))) defaultPts = 7.125;
+                if (subjectCode === '61' && (qKey === '21.1' || qKey === '21.2')) defaultPts = 5;
+                if (subjectCode === '61' && qKey === '22') defaultPts = 20;
+                appState.itemMetadata[subjectCode][qKey] = { indicator: '-', points: defaultPts };
+            }
+            return appState.itemMetadata[subjectCode][qKey];
+        }
+
+        function getSubjectTotalPossiblePoints(subjectCode) {
+            const spec = SUBJECT_SPECS[subjectCode] || SUBJECT_SPECS['65'];
+            let total = 0;
+            for (let q = spec.part1.start; q <= spec.part1.end; q++) {
+                total += Number(getItemMeta(subjectCode, q).points) || 0;
+            }
+            if (subjectCode === '65') {
+                ['19', '20'].forEach(qNo => { total += Number(getItemMeta(subjectCode, qNo).points) || 0; });
+            } else if (subjectCode === '64') {
+                ['12', '13', '14', '15'].forEach(qNo => { total += Number(getItemMeta(subjectCode, qNo).points) || 0; });
+            } else if (subjectCode === '61') {
+                ['21.1', '21.2', '22'].forEach(qNo => { total += Number(getItemMeta(subjectCode, qNo).points) || 0; });
+            }
+            return Number(total.toFixed(2));
+        }
+
         function getActiveSessionResults(subjectCode) {
-            const sub = String(subjectCode || appState.currentSubject);
+            const sub = String(subjectCode || appState.currentSubject || '65');
             const sesId = appState.currentSessionId;
             if (sesId && appState.sessionExamResults[sesId] && appState.sessionExamResults[sesId][sub]) {
-                const direct = appState.sessionExamResults[sesId][sub];
-                if (Object.keys(direct).length > 0) {
-                    return direct;
+                const directObj = appState.sessionExamResults[sesId][sub];
+                if (Object.keys(directObj).length > 0) {
+                    return directObj;
                 }
             }
-            // Fallback: ดึงผลสอบของวิชานี้จากทุกรอบการสอบในฐานข้อมูล เพื่อให้แสดงคะแนนและสถิติตรงกับ Supabase เสมอ
-            let merged = {};
+            const merged = {};
             Object.keys(appState.sessionExamResults).forEach(sId => {
-                const subMap = appState.sessionExamResults[sId]?.[sub] || {};
-                Object.keys(subMap).forEach(stuId => {
-                    merged[stuId] = subMap[stuId];
-                });
+                const subMap = appState.sessionExamResults[sId]?.[sub];
+                if (subMap) {
+                    Object.keys(subMap).forEach(stuId => {
+                        merged[stuId] = subMap[stuId];
+                    });
+                }
             });
             return merged;
         }
 
-        /* --------------------------------------------------------------------------
-           3. CORE SCORING & EVALUATION ENGINE
-        -------------------------------------------------------------------------- */
         function normalizeAnswerLookup(ansObj, qKey) {
             if (!ansObj || typeof ansObj !== 'object') return undefined;
             if (ansObj[qKey] !== undefined) return ansObj[qKey];
@@ -1441,8 +1594,7 @@
                 return;
             }
             sel.innerHTML = appState.examSessions.map(ses => {
-                const sp = SUBJECT_SPECS[ses.subjectCode || '65'];
-                return `<option value="${ses.id}">[${sp ? sp.name : 'รวม'}] ${ses.name} (${formatThaiDate(ses.examDate)})</option>`;
+                return `<option value="${ses.id}">${ses.name} (${formatThaiDate(ses.examDate)})</option>`;
             }).join('');
             if (appState.currentSessionId) {
                 sel.value = appState.currentSessionId;
@@ -1451,21 +1603,11 @@
 
         function handleSessionChange(sessionId) {
             appState.currentSessionId = sessionId;
-            const ses = appState.examSessions.find(s => s.id === sessionId);
-            if (ses && ses.subjectCode && SUBJECT_SPECS[ses.subjectCode]) {
-                appState.currentSubject = String(ses.subjectCode);
-                const globalSubSel = document.getElementById('global-subject');
-                if (globalSubSel) globalSubSel.value = appState.currentSubject;
-            }
             refreshCurrentView();
         }
 
         function handleSubjectChange(subjectCode) {
             appState.currentSubject = String(subjectCode);
-            const matchingSession = appState.examSessions.find(s => String(s.subjectCode) === String(subjectCode));
-            if (matchingSession) {
-                appState.currentSessionId = matchingSession.id;
-            }
             const scanFormCode = document.getElementById('scan-form-code')?.value || '100';
             appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, scanFormCode);
             refreshCurrentView();
@@ -1505,6 +1647,8 @@
 
             const globalSubSel = document.getElementById('global-subject');
             if (globalSubSel) globalSubSel.value = sub;
+            const keySubSel = document.getElementById('key-subject-select');
+            if (keySubSel) keySubSel.value = sub;
 
             renderDashboard();
             if (appState.currentTab === 'exams') {
@@ -1725,7 +1869,7 @@
             const activeKeyPanel = document.getElementById('exam-key-active-panel');
 
             if (appState.examSessions.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-500">ยังไม่มีรายการการสอบในฐานข้อมูล กรุณาเพิ่มการสอบรอบใหม่ด้านซ้ายมือก่อนกำหนดเฉลย</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-slate-500">ยังไม่มีรายการการสอบในฐานข้อมูล กรุณาเพิ่มการสอบรอบใหม่ด้านซ้ายมือก่อนกำหนดเฉลย</td></tr>`;
                 if (emptyKeyState) emptyKeyState.classList.remove('hidden');
                 if (activeKeyPanel) activeKeyPanel.classList.add('hidden');
                 return;
@@ -1736,34 +1880,29 @@
 
             tbody.innerHTML = appState.examSessions.map(ses => {
                 const isActive = ses.id === appState.currentSessionId;
-                const subCode = String(ses.subjectCode || '65');
-                const sp = SUBJECT_SPECS[subCode] || SUBJECT_SPECS['65'];
                 const sesRes = appState.sessionExamResults[ses.id] || {};
-                const entries = Object.values(sesRes[subCode] || {});
+                let allSessionEntries = [];
+                ['65', '64', '63', '61'].forEach(sc => {
+                    if (sesRes[sc]) {
+                        allSessionEntries.push(...Object.values(sesRes[sc]));
+                    }
+                });
                 let avgDisplay = `<span class="text-slate-400">ยังไม่ตรวจ</span>`;
-                if (entries.length > 0) {
-                    const avg = entries.reduce((a, b) => a + b.scoreDetails.totalScore, 0) / entries.length;
-                    avgDisplay = `<span class="font-bold text-indigo-700">${avg.toFixed(2)}</span> <span class="text-xs text-slate-600">(${entries.length} คน)</span>`;
+                if (allSessionEntries.length > 0) {
+                    const avg = allSessionEntries.reduce((a, b) => a + b.scoreDetails.totalScore, 0) / allSessionEntries.length;
+                    avgDisplay = `<span class="font-bold text-indigo-700">${avg.toFixed(2)}</span> <span class="text-xs text-slate-600">(${allSessionEntries.length} ชุด)</span>`;
                 }
 
                 return `
-                    <tr class="${isActive ? 'bg-emerald-50/80' : 'hover:bg-slate-50'} transition">
+                    <tr class="${isActive ? 'bg-indigo-50/50' : 'hover:bg-slate-50'} transition">
                         <td class="py-3 px-3">
-                            <div class="flex items-center gap-2">
-                                <span class="font-bold text-slate-900">${ses.name}</span>
-                                ${isActive ? `<span class="bg-emerald-600 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">กำลังเลือก</span>` : ''}
-                            </div>
+                            <div class="font-bold text-slate-900">${ses.name}</div>
                             <div class="text-xs text-slate-600">${ses.note || '-'}</div>
-                        </td>
-                        <td class="py-3 px-3 text-center">
-                            <span class="inline-block text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-800 border border-indigo-200">
-                                รหัส ${sp.code} : ${sp.name}
-                            </span>
                         </td>
                         <td class="py-3 px-3 text-center font-semibold text-slate-800">${formatThaiDate(ses.examDate)}</td>
                         <td class="py-3 px-3 text-center">${avgDisplay}</td>
                         <td class="py-3 px-3 text-right space-x-1 whitespace-nowrap">
-                            <button type="button" onclick="openAnswerKeyForSession('${ses.id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold ${isActive ? 'bg-emerald-600 text-white shadow-sm' : 'bg-indigo-600 text-white hover:bg-indigo-700'} transition">
+                            <button type="button" onclick="openAnswerKeyForSession('${ses.id}')" class="px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white hover:bg-indigo-700 transition">
                                 <i class="fa-solid fa-key mr-1"></i> กำหนดเฉลย
                             </button>
                             <button type="button" onclick="editExamSession('${ses.id}')" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded-lg" title="แก้ไขการสอบ">
@@ -1786,26 +1925,22 @@
                 return;
             }
             appState.currentSessionId = ses.id;
-            if (ses.subjectCode && SUBJECT_SPECS[ses.subjectCode]) {
-                appState.currentSubject = String(ses.subjectCode);
-            }
             switchTab('exams');
             const keyPanel = document.getElementById('exam-key-config-wrapper');
             if (keyPanel) {
                 keyPanel.scrollIntoView({ behavior: 'smooth', block: 'start' });
             }
             const sp = SUBJECT_SPECS[appState.currentSubject];
-            showToast(`เปิดส่วนกำหนดเฉลยสำหรับ "${ses.name}" (วิชา${sp.name})`, 'info');
+            showToast(`เปิดส่วนกำหนดเฉลยสำหรับ "${ses.name}" (สามารถเลือกสลับวิชาได้ทันที)`, 'info');
         }
 
         async function handleExamSessionSubmit(event) {
             event.preventDefault();
             const editId = document.getElementById('session-edit-id').value;
             const name = document.getElementById('session-name').value.trim();
-            const subjectCode = document.getElementById('session-subject').value;
+            const subjectCode = appState.currentSubject || '65';
             const examDate = document.getElementById('session-date').value;
             const note = document.getElementById('session-note').value.trim();
-            const sp = SUBJECT_SPECS[subjectCode];
 
             const targetId = editId || ('ses_' + Date.now());
             const sessionRecord = { id: targetId, name, subjectCode, examDate, note };
@@ -1819,7 +1954,6 @@
             }
 
             appState.currentSessionId = targetId;
-            appState.currentSubject = subjectCode;
 
             if (appState.supabaseClient) {
                 const { error } = await appState.supabaseClient.from('ppn_exam_sessions').upsert([{
@@ -1837,7 +1971,7 @@
 
             resetExamSessionForm();
             refreshCurrentView();
-            showToast(`บันทึกการสอบ "${name}" (วิชา${sp.name}) ลงฐานข้อมูลเรียบร้อยแล้ว`, 'success');
+            showSaveSuccessDialog(`บันทึกข้อมูลการสอบ "${name}" เรียบร้อยแล้ว`);
         }
 
         function editExamSession(sesId) {
@@ -1845,7 +1979,6 @@
             if (!ses) return;
             document.getElementById('session-edit-id').value = ses.id;
             document.getElementById('session-name').value = ses.name;
-            document.getElementById('session-subject').value = ses.subjectCode || '65';
             document.getElementById('session-date').value = ses.examDate;
             document.getElementById('session-note').value = ses.note || '';
             document.getElementById('exam-session-form-title').innerHTML = `<i class="fa-solid fa-calendar-pen text-amber-500"></i> แก้ไขการสอบ`;
@@ -1854,9 +1987,8 @@
         function resetExamSessionForm() {
             document.getElementById('session-edit-id').value = '';
             document.getElementById('exam-session-form').reset();
-            document.getElementById('session-subject').value = appState.currentSubject || '65';
             document.getElementById('session-date').value = new Date().toISOString().slice(0, 10);
-            document.getElementById('exam-session-form-title').innerHTML = `<i class="fa-solid fa-calendar-plus text-indigo-600"></i> เพิ่มการสอบรอบใหม่ (แยกรายวิชา)`;
+            document.getElementById('exam-session-form-title').innerHTML = `<i class="fa-solid fa-calendar-plus text-indigo-600"></i> เพิ่มการสอบรอบใหม่`;
         }
 
         async function deleteExamSession(sesId) {
@@ -1904,7 +2036,16 @@
         function handleScannerFormCodeChange(formCode) {
             appState.currentScanDraft.formCode = formCode;
             if (!appState.cameraStream) {
-                drawSimulatedSheetOnCanvas();
+                if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                    const canvas = document.getElementById('scanner-canvas');
+                    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(lastCapturedSheetImageCanvas, 0, 0);
+                    drawDetectedContourPolygon(ctx, lastDetectedSheetCorners);
+                    analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, lastDetectedSheetCorners, true);
+                } else {
+                    drawSimulatedSheetOnCanvas();
+                }
             }
             renderScannerDetectedAnswers();
             showToast(`สลับรหัสชุดข้อสอบที่ใช้ตรวจเป็น ชุดที่ ${formCode}`, 'info');
@@ -2008,44 +2149,141 @@
         }
 
         function detectFourFiducialCorners(ctx, w, h) {
-            // ค้นหาจุดมาร์กสี่เหลี่ยมสีดำทั้ง 4 มุม (Find Contours / Dark Blob Centroid in 4 Corner ROIs)
+            // ค้นหาจุดมาร์กสี่เหลี่ยมสีดำทึบทั้ง 4 มุม ที่ต้องมี "ขอบกระดาษสีขาวล้อมรอบ" (White Paper Surround Isolation)
+            // เพื่อป้องกันไม่ให้ไปจับโดนปุ่มคีย์บอร์ดสีดำ สายไฟ หรือเงาด้านนอกกระดาษ
             const rois = [
-                { name: 'TL', x0: Math.floor(w * 0.04), y0: Math.floor(h * 0.04), x1: Math.floor(w * 0.25), y1: Math.floor(h * 0.22) },
-                { name: 'TR', x0: Math.floor(w * 0.75), y0: Math.floor(h * 0.04), x1: Math.floor(w * 0.96), y1: Math.floor(h * 0.22) },
-                { name: 'BL', x0: Math.floor(w * 0.04), y0: Math.floor(h * 0.78), x1: Math.floor(w * 0.25), y1: Math.floor(h * 0.96) },
-                { name: 'BR', x0: Math.floor(w * 0.75), y0: Math.floor(h * 0.78), x1: Math.floor(w * 0.96), y1: Math.floor(h * 0.96) }
+                { name: 'TL', x0: Math.floor(w * 0.05), y0: Math.floor(h * 0.04), x1: Math.floor(w * 0.25), y1: Math.floor(h * 0.20), defX: Math.floor(w * 0.11), defY: Math.floor(h * 0.09) },
+                { name: 'TR', x0: Math.floor(w * 0.75), y0: Math.floor(h * 0.04), x1: Math.floor(w * 0.95), y1: Math.floor(h * 0.20), defX: Math.floor(w * 0.89), defY: Math.floor(h * 0.09) },
+                { name: 'BL', x0: Math.floor(w * 0.05), y0: Math.floor(h * 0.80), x1: Math.floor(w * 0.25), y1: Math.floor(h * 0.96), defX: Math.floor(w * 0.11), defY: Math.floor(h * 0.91) },
+                { name: 'BR', x0: Math.floor(w * 0.75), y0: Math.floor(h * 0.80), x1: Math.floor(w * 0.95), y1: Math.floor(h * 0.96), defX: Math.floor(w * 0.89), defY: Math.floor(h * 0.91) }
             ];
 
             return rois.map(r => {
                 const rw = Math.max(1, r.x1 - r.x0);
                 const rh = Math.max(1, r.y1 - r.y0);
-                let darkPixels = 0;
-                let sumX = 0;
-                let sumY = 0;
+                let bestScore = -1;
+                let bestCx = r.defX;
+                let bestCy = r.defY;
+                let locked = false;
+
                 try {
                     const imgData = ctx.getImageData(r.x0, r.y0, rw, rh).data;
-                    for (let py = 0; py < rh; py += 2) {
-                        for (let px = 0; px < rw; px += 2) {
-                            const idx = (py * rw + px) * 4;
-                            const lum = (imgData[idx] * 0.299) + (imgData[idx + 1] * 0.587) + (imgData[idx + 2] * 0.114);
-                            if (lum < 95) {
-                                darkPixels++;
-                                sumX += (r.x0 + px);
-                                sumY += (r.y0 + py);
+                    const getLum = (x, y) => {
+                        const cx = Math.min(rw - 1, Math.max(0, x));
+                        const cy = Math.min(rh - 1, Math.max(0, y));
+                        const idx = (cy * rw + cx) * 4;
+                        return (imgData[idx] * 0.299) + (imgData[idx + 1] * 0.587) + (imgData[idx + 2] * 0.114);
+                    };
+
+                    // ขนาดจุดมาร์กมาตรฐานเทียบสัดส่วนภาพ
+                    const boxSize = Math.max(10, Math.round(w * 0.032));
+                    const half = Math.floor(boxSize / 2);
+                    const ringOffset = Math.max(4, Math.round(boxSize * 0.45));
+
+                    for (let py = half + ringOffset; py < rh - half - ringOffset; py += 2) {
+                        for (let px = half + ringOffset; px < rw - half - ringOffset; px += 2) {
+                            // 1. วัดความมืดด้านในสี่เหลี่ยมจุดมาร์ก (Inner Black Square)
+                            let innerLumSum = 0;
+                            let innerCount = 0;
+                            for (let dy = -half; dy <= half; dy += 2) {
+                                for (let dx = -half; dx <= half; dx += 2) {
+                                    innerLumSum += getLum(px + dx, py + dy);
+                                    innerCount++;
+                                }
+                            }
+                            const innerAvg = innerLumSum / Math.max(1, innerCount);
+
+                            // 2. วัดความสว่างของพื้นกระดาษสีขาวรอบจุดมาร์ก 8 ทิศทาง (Outer White Paper Ring)
+                            const ringPoints = [
+                                [-half - ringOffset, 0], [half + ringOffset, 0],
+                                [0, -half - ringOffset], [0, half + ringOffset],
+                                [-half - ringOffset, -half - ringOffset], [half + ringOffset, -half - ringOffset],
+                                [-half - ringOffset, half + ringOffset], [half + ringOffset, half + ringOffset]
+                            ];
+                            let outerLumSum = 0;
+                            let brightPaperSides = 0;
+                            ringPoints.forEach(([ox, oy]) => {
+                                const rl = getLum(px + ox, py + oy);
+                                outerLumSum += rl;
+                                if (rl > innerAvg + 35) brightPaperSides++;
+                            });
+                            const outerAvg = outerLumSum / ringPoints.length;
+                            const contrast = outerAvg - innerAvg;
+
+                            // ต้องมีความตัดกันระหว่างจุดดำกับกระดาษขาวรอบๆ อย่างชัดเจน (อย่างน้อย 6 ด้านเป็นสีขาวของกระดาษ)
+                            if (innerAvg < 125 && contrast > 48 && brightPaperSides >= 6) {
+                                // ถ่วงน้ำหนักให้เลือกจุดที่ใกล้เคียงพิกัดมุมมาตรฐานและมีความคมชัดสูงสุด
+                                const distPenalty = Math.hypot((r.x0 + px) - r.defX, (r.y0 + py) - r.defY) * 0.25;
+                                const score = contrast * (brightPaperSides / 8) - distPenalty;
+                                if (score > bestScore) {
+                                    bestScore = score;
+                                    bestCx = r.x0 + px;
+                                    bestCy = r.y0 + py;
+                                    locked = true;
+                                }
                             }
                         }
                     }
                 } catch (e) {}
-                const totalSampled = (rw / 2) * (rh / 2);
-                const darkRatio = darkPixels / Math.max(1, totalSampled);
-                const locked = darkRatio >= 0.03 && darkRatio <= 0.65;
+
                 return {
                     name: r.name,
                     locked,
-                    cx: darkPixels > 0 ? Math.round(sumX / darkPixels) : Math.round((r.x0 + r.x1) / 2),
-                    cy: darkPixels > 0 ? Math.round(sumY / darkPixels) : Math.round((r.y0 + r.y1) / 2)
+                    cx: bestCx,
+                    cy: bestCy
                 };
             });
+        }
+
+        // ค้นหาจุดมาร์กคั่นกลางด้านซ้ายและขวา (Mid-Left & Mid-Right Timing Marks) เพื่อแก้การโค้งงอของกระดาษแนวดิ่ง
+        function detectMidSheetTimingMarkers(ctx, corners, w, h) {
+            const leftExpected = mapNormalizedUVToSheetXY(corners, 0.0, 0.48);
+            const rightExpected = mapNormalizedUVToSheetXY(corners, 1.0, 0.48);
+
+            const refineMarker = (expPt) => {
+                const searchR = Math.round(w * 0.045);
+                let bestX = expPt.x, bestY = expPt.y, minLum = 255;
+                try {
+                    const x0 = Math.max(0, expPt.x - searchR);
+                    const y0 = Math.max(0, expPt.y - searchR);
+                    const sw = Math.min(w - x0, searchR * 2);
+                    const sh = Math.min(h - y0, searchR * 2);
+                    const data = ctx.getImageData(x0, y0, sw, sh).data;
+                    for (let py = 3; py < sh - 3; py += 2) {
+                        for (let px = 3; px < sw - 3; px += 2) {
+                            const idx = (py * sw + px) * 4;
+                            const lum = (data[idx] * 0.299) + (data[idx + 1] * 0.587) + (data[idx + 2] * 0.114);
+                            if (lum < minLum && lum < 110) {
+                                minLum = lum;
+                                bestX = x0 + px;
+                                bestY = y0 + py;
+                            }
+                        }
+                    }
+                } catch (e) {}
+                return { cx: bestX, cy: bestY, found: minLum < 110 };
+            };
+
+            return {
+                midLeft: refineMarker(leftExpected),
+                midRight: refineMarker(rightExpected)
+            };
+        }
+
+        // ฟังก์ชันคำนวณพิกัด Bilinear Interpolation จากจุดมาร์กทั้ง 4 มุม (u, v อยู่ในช่วง 0.0 - 1.0 ของกรอบจุดมาร์ก)
+        function mapNormalizedUVToSheetXY(corners, u, v) {
+            const tl = corners[0];
+            const tr = corners[1];
+            const bl = corners[2];
+            const br = corners[3];
+            const topX = tl.cx + (tr.cx - tl.cx) * u;
+            const topY = tl.cy + (tr.cy - tl.cy) * u;
+            const botX = bl.cx + (br.cx - bl.cx) * u;
+            const botY = bl.cy + (br.cy - bl.cy) * u;
+            return {
+                x: Math.round(topX + (botX - topX) * v),
+                y: Math.round(topY + (botY - topY) * v)
+            };
         }
 
         function captureLiveFrameAndGrade() {
@@ -2058,18 +2296,25 @@
             canvas.height = 800;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+            // เก็บภาพต้นฉบับที่เพิ่งถ่ายไว้สำหรับวาดจุดสีเขียวโปร่งทับ
+            lastCapturedSheetImageCanvas = document.createElement('canvas');
+            lastCapturedSheetImageCanvas.width = canvas.width;
+            lastCapturedSheetImageCanvas.height = canvas.height;
+            lastCapturedSheetImageCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
             stopLiveScannerCamera();
 
             const corners = detectFourFiducialCorners(ctx, canvas.width, canvas.height);
+            lastDetectedSheetCorners = corners;
             drawDetectedContourPolygon(ctx, corners);
-            analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, corners);
+            analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, corners, false);
 
             const lockedCount = corners.filter(c => c.locked).length;
             const conf = (96.5 + lockedCount * 0.8).toFixed(1);
             document.getElementById('scan-confidence-badge').textContent = `จับพิกัด 4 มุมสำเร็จ (${conf}%)`;
-            document.getElementById('scanner-status-text').textContent = 'ล็อกมุมกระดาษทั้ง 4 ด้านและอ่านค่าคำตอบเรียบร้อย';
+            document.getElementById('scanner-status-text').textContent = 'แสดงจุดสีเขียวโปร่งบนตำแหน่งที่นักเรียนตอบถูกเรียบร้อย';
             renderScannerDetectedAnswers();
-            showToast('ถ่ายสแกนและตรวจจับมุมทั้ง 4 ด้านเรียบร้อย! ตรวจสอบคำตอบแล้วกดบันทึกได้เลย', 'success');
+            showToast('สแกนและแสดงจุดสีเขียวโปร่งบนตำแหน่งที่ตอบถูกเรียบร้อย!', 'success');
         }
 
         function drawDetectedContourPolygon(ctx, corners) {
@@ -2085,12 +2330,21 @@
             ctx.closePath();
             ctx.stroke();
 
+            // วาดกรอบสี่เหลี่ยมสีเขียวบนจุดมาร์กทั้ง 4 มุม
             corners.forEach(c => {
-                ctx.fillStyle = '#10b981';
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.35)';
                 ctx.fillRect(c.cx - 12, c.cy - 12, 24, 24);
-                ctx.strokeStyle = '#ffffff';
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 2.5;
+                ctx.strokeRect(c.cx - 13, c.cy - 13, 26, 26);
+            });
+
+            // วาดจุดมาร์กกลางกระดาษซ้าย-ขวา (Mid-Sheet Timing Marks)
+            const midMarks = detectMidSheetTimingMarkers(ctx, corners, ctx.canvas.width, ctx.canvas.height);
+            [midMarks.midLeft, midMarks.midRight].forEach(m => {
+                ctx.strokeStyle = m.found ? '#10b981' : '#38bdf8';
                 ctx.lineWidth = 2;
-                ctx.strokeRect(c.cx - 14, c.cy - 14, 28, 28);
+                ctx.strokeRect(m.cx - 9, m.cy - 9, 18, 18);
             });
             ctx.restore();
         }
@@ -2109,15 +2363,21 @@
                     canvas.height = 800;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
+                    lastCapturedSheetImageCanvas = document.createElement('canvas');
+                    lastCapturedSheetImageCanvas.width = canvas.width;
+                    lastCapturedSheetImageCanvas.height = canvas.height;
+                    lastCapturedSheetImageCanvas.getContext('2d').drawImage(canvas, 0, 0);
+
                     const corners = detectFourFiducialCorners(ctx, canvas.width, canvas.height);
+                    lastDetectedSheetCorners = corners;
                     drawDetectedContourPolygon(ctx, corners);
-                    analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, corners);
+                    analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, corners, false);
 
                     const conf = (98.5 + Math.random() * 1.2).toFixed(1);
                     document.getElementById('scan-confidence-badge').textContent = `อ่านภาพสำเร็จ (${conf}%)`;
-                    document.getElementById('scanner-status-text').textContent = 'ค้นหามุมทั้ง 4 ด้าน (Find Contours) สำเร็จ';
+                    document.getElementById('scanner-status-text').textContent = 'แสดงจุดสีเขียวโปร่งบนตำแหน่งที่นักเรียนตอบถูกเรียบร้อย';
                     renderScannerDetectedAnswers();
-                    showToast('อ่านกระดาษคำตอบและจับมุม 4 ด้านเรียบร้อย! ตรวจสอบคำตอบด้านขวาแล้วกดบันทึกได้เลย', 'success');
+                    showToast('อ่านกระดาษคำตอบและแสดงจุดสีเขียวโปร่งบนข้อที่ตอบถูกเรียบร้อย!', 'success');
                 };
                 img.src = e.target.result;
             };
@@ -2125,74 +2385,164 @@
             event.target.value = '';
         }
 
-        function analyzeUploadedPaperPixels(ctx, width, height, corners) {
+        function sampleBubbleDarknessContrast(imgCtx, bx, by, radius = 6) {
+            // เปรียบเทียบความเข้มภายในวงกลมกับพื้นกระดาษรอบข้าง (Local Contrast Ratio) เพื่อไม่ให้อ่านค่าช่องว่างที่ไม่ได้ฝนผิดพลาด
+            try {
+                const size = radius * 4;
+                const x0 = Math.max(0, Math.round(bx - radius * 2));
+                const y0 = Math.max(0, Math.round(by - radius * 2));
+                const data = imgCtx.getImageData(x0, y0, size, size).data;
+
+                let innerSum = 0, innerCnt = 0;
+                let outerSum = 0, outerCnt = 0;
+
+                for (let py = 0; py < size; py++) {
+                    for (let px = 0; px < size; px++) {
+                        const dx = px - radius * 2;
+                        const dy = py - radius * 2;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        const idx = (py * size + px) * 4;
+                        const lum = (data[idx] * 0.299) + (data[idx + 1] * 0.587) + (data[idx + 2] * 0.114);
+
+                        if (dist <= radius * 0.85) {
+                            innerSum += lum;
+                            innerCnt++;
+                        } else if (dist >= radius * 1.35 && dist <= radius * 1.95) {
+                            outerSum += lum;
+                            outerCnt++;
+                        }
+                    }
+                }
+                const innerAvg = innerCnt > 0 ? innerSum / innerCnt : 220;
+                const outerAvg = outerCnt > 0 ? outerSum / outerCnt : 220;
+                // คืนค่าความต่างความมืด (ยิ่งมากแปลว่าวงกลมนั้นถูกระบายด้วยดินสอ 2B จริง)
+                return Math.max(0, outerAvg - innerAvg);
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        function analyzeUploadedPaperPixels(ctx, width, height, corners, preserveManualAnswers = false) {
             const sub = appState.currentSubject;
             const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
             const formCode = document.getElementById('scan-form-code')?.value || '100';
             const key = getActiveSubjectKey(sub, formCode);
-            const detected = {};
+            const detected = preserveManualAnswers ? JSON.parse(JSON.stringify(appState.currentScanDraft.answers || {})) : {};
 
-            // คำนวณขอบเขตกระดาษจากจุดมาร์กทั้ง 4 มุม (Bounding Box Normalization)
-            const tl = corners && corners[0] ? corners[0] : { cx: 60, cy: 60 };
-            const tr = corners && corners[1] ? corners[1] : { cx: width - 60, cy: 60 };
-            const bl = corners && corners[2] ? corners[2] : { cx: 60, cy: height - 60 };
+            // ใช้ภาพต้นฉบับที่ยังไม่ถูกวาดเส้นทับในการอ่านค่าพิกเซล
+            const sourceCtx = lastCapturedSheetImageCanvas
+                ? lastCapturedSheetImageCanvas.getContext('2d', { willReadFrequently: true })
+                : ctx;
 
-            const sheetLeft = Math.min(tl.cx, bl.cx);
-            const sheetTop = Math.min(tl.cy, tr.cy);
-            const sheetWidth = Math.max(320, tr.cx - sheetLeft);
-            const sheetHeight = Math.max(450, bl.cy - sheetTop);
+            const safeCorners = (corners && corners.length === 4) ? corners : [
+                { cx: 65, cy: 65 },
+                { cx: width - 65, cy: 65 },
+                { cx: 65, cy: height - 65 },
+                { cx: width - 65, cy: height - 65 }
+            ];
 
             const cols = sub === '63' ? 4 : 3;
             const rowsPerCol = Math.ceil(spec.part1.count / cols);
-            const colWidth = Math.floor((sheetWidth - 40) / cols);
-            const startX = sheetLeft + 24;
-            const startY = sheetTop + Math.floor(sheetHeight * 0.34);
-            const rowStepY = Math.floor((sheetHeight * 0.48) / Math.max(1, rowsPerCol));
+
+            // สัดส่วนพิกัด (u, v) ของตารางข้อสอบตอนที่ 1 ภายในกรอบจุดมาร์ก 4 มุมของกระดาษคำตอบ A4
+            const gridTopV = 0.375;
+            const gridBottomV = sub === '65' ? 0.635 : (sub === '61' ? 0.655 : 0.785);
+            const rowStepV = rowsPerCol > 1 ? (gridBottomV - gridTopV) / (rowsPerCol - 1) : 0;
 
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
                 const colIdx = Math.floor((q - 1) / rowsPerCol);
                 const rowIdx = (q - 1) % rowsPerCol;
-                const x = startX + colIdx * colWidth;
-                const y = Math.min(height - 25, startY + rowIdx * rowStepY);
 
-                let darkestChoice = Number(key[q]) || 1;
-                let minBrightness = 255;
+                // คำนวณสัดส่วนแนวนอน (u) ของแต่ละคอลัมน์และตัวเลือก 1-4
+                const colWidthU = 0.90 / cols;
+                const colStartU = 0.05 + colIdx * colWidthU;
+                const v = gridTopV + rowIdx * rowStepV;
+
+                let bubbleCoords = {};
+                let bestChoice = 0; // 0 = ไม่ได้ฝน
+                let maxContrastDrop = 0;
 
                 for (let c = 1; c <= 4; c++) {
-                    const bx = Math.min(width - 15, x + 22 + (c - 1) * 22);
-                    const by = y;
-                    try {
-                        const imgData = ctx.getImageData(bx - 5, by - 5, 10, 10).data;
-                        let sum = 0;
-                        for (let i = 0; i < imgData.length; i += 4) {
-                            sum += (imgData[i] + imgData[i + 1] + imgData[i + 2]) / 3;
+                    const bubbleU = colStartU + colWidthU * (0.42 + (c - 1) * 0.16);
+                    const pt = mapNormalizedUVToSheetXY(safeCorners, bubbleU, v);
+                    bubbleCoords[c] = pt;
+
+                    if (!preserveManualAnswers) {
+                        const contrastDrop = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, 6);
+                        if (contrastDrop > maxContrastDrop) {
+                            maxContrastDrop = contrastDrop;
+                            bestChoice = c;
                         }
-                        const avgBrightness = sum / (imgData.length / 4);
-                        if (avgBrightness < minBrightness) {
-                            minBrightness = avgBrightness;
-                            darkestChoice = c;
-                        }
-                    } catch (err) {}
+                    }
                 }
-                detected[q] = darkestChoice;
+
+                // ต้องมีความเข้มต่างจากพื้นกระดาษอย่างน้อย 18 ระดับ จึงจะถือว่ามีการฝนดินสอ 2B (ป้องกันอ่านช่องว่างเป็นคำตอบ)
+                if (!preserveManualAnswers) {
+                    detected[q] = maxContrastDrop >= 18 ? bestChoice : 0;
+                }
+
+                const stuChoice = Number(detected[q] || 0);
+                const correctChoice = Number(key[q]);
+
+                // วาดจุดสีเขียวโปร่ง (Translucent Green Dot) บนตำแหน่งที่นักเรียนตอบถูก และจุดสีแดงโปร่งเมื่อตอบผิด
+                for (let c = 1; c <= 4; c++) {
+                    const pt = bubbleCoords[c];
+                    if (!pt) continue;
+
+                    if (stuChoice === c && stuChoice === correctChoice) {
+                        // นักเรียนตอบถูก -> วาดจุดสีเขียวโปร่งแสงทับตำแหน่งวงกลม
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, 10, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(16, 185, 129, 0.50)';
+                        ctx.fill();
+                        ctx.lineWidth = 2.5;
+                        ctx.strokeStyle = '#059669';
+                        ctx.stroke();
+                        ctx.restore();
+                    } else if (stuChoice === c && stuChoice !== correctChoice) {
+                        // นักเรียนตอบผิด -> วาดจุดสีแดงโปร่งแสงทับตำแหน่งที่ฝนผิด
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, 10, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+                        ctx.fill();
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.stroke();
+                        ctx.restore();
+                    } else if (c === correctChoice && stuChoice !== correctChoice) {
+                        // แสดงวงกลมเส้นประสีเหลือง/เขียวอ่อนบอกตำแหน่งเฉลยของข้อที่ตอบผิดหรือไม่ได้ฝน
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.setLineDash([3, 2]);
+                        ctx.arc(pt.x, pt.y, 9, 0, Math.PI * 2);
+                        ctx.lineWidth = 2;
+                        ctx.strokeStyle = '#f59e0b';
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
             }
 
-            if (sub === '65') {
-                ['19', '20'].forEach(qNo => {
-                    detected[qNo] = {
-                        '1': Number(key[qNo]?.['1']) || 1,
-                        '2': Number(key[qNo]?.['2']) || 2,
-                        '3': Number(key[qNo]?.['3']) || 1
-                    };
-                });
-            } else if (sub === '64') {
-                ['12', '13', '14', '15'].forEach(qNo => {
-                    detected[qNo] = String(key[qNo] || '000').padStart(3, '0');
-                });
-            } else if (sub === '61') {
-                detected['21.1'] = Number(key['21.1']) || 1;
-                detected['21.2'] = Number(key['21.2']) || 1;
-                detected['22'] = Number(getItemMeta('61', '22').points) || 20;
+            if (!preserveManualAnswers) {
+                if (sub === '65') {
+                    ['19', '20'].forEach(qNo => {
+                        detected[qNo] = {
+                            '1': Number(key[qNo]?.['1']) || 1,
+                            '2': Number(key[qNo]?.['2']) || 2,
+                            '3': Number(key[qNo]?.['3']) || 1
+                        };
+                    });
+                } else if (sub === '64') {
+                    ['12', '13', '14', '15'].forEach(qNo => {
+                        detected[qNo] = String(key[qNo] || '000').padStart(3, '0');
+                    });
+                } else if (sub === '61') {
+                    detected['21.1'] = Number(key['21.1']) || 1;
+                    detected['21.2'] = Number(key['21.2']) || 1;
+                    detected['22'] = Number(getItemMeta('61', '22').points) || 20;
+                }
             }
 
             appState.currentScanDraft.answers = detected;
@@ -2217,13 +2567,26 @@
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(px, py, pw, ph);
 
-            // 4 Black Fiducial Corner Markers
+            // 4 Black Fiducial Corner Markers + 2 Mid-Sheet Timing Markers + Bottom-Right Orientation Barcode
             const mSize = 24;
             ctx.fillStyle = '#000000';
             ctx.fillRect(px + 16, py + 16, mSize, mSize);
             ctx.fillRect(px + pw - 16 - mSize, py + 16, mSize, mSize);
             ctx.fillRect(px + 16, py + ph - 16 - mSize, mSize, mSize);
             ctx.fillRect(px + pw - 16 - mSize, py + ph - 16 - mSize, mSize, mSize);
+
+            // Mid-Left & Mid-Right Timing Markers (เหมือนตัวอย่างกระดาษคำตอบมาตรฐาน)
+            ctx.fillRect(px + 16, py + Math.floor(ph * 0.48), 16, 16);
+            ctx.fillRect(px + pw - 32, py + Math.floor(ph * 0.48), 16, 16);
+
+            // Bottom-Right Orientation Stepped Barcode
+            const bxBar = px + pw - 34;
+            const byBar = py + ph - 115;
+            ctx.fillRect(bxBar, byBar, 18, 8);
+            ctx.fillRect(bxBar, byBar + 11, 10, 8);
+            ctx.fillRect(bxBar + 8, byBar + 22, 10, 8);
+            ctx.fillRect(bxBar, byBar + 33, 10, 8);
+            ctx.fillRect(bxBar + 8, byBar + 44, 10, 8);
 
             ctx.fillStyle = '#0f172a';
             ctx.font = 'bold 14px Prompt, Sarabun, sans-serif';
@@ -2245,11 +2608,25 @@
             const startX = px + 32;
             const startY = py + 100;
 
+            // วาดจุดมาร์กสีดำประจำหัวและท้ายแต่ละคอลัมน์ (Column Alignment Markers)
+            for (let cIdx = 0; cIdx < cols; cIdx++) {
+                const cxCol = startX + cIdx * colWidth;
+                ctx.fillStyle = '#000000';
+                ctx.fillRect(cxCol, startY - 22, 10, 10);
+                ctx.fillRect(cxCol, startY + rowsPerCol * 34 - 12, 10, 10);
+            }
+
             for (let q = 1; q <= spec.part1.count; q++) {
                 const colIdx = Math.floor((q - 1) / rowsPerCol);
                 const rowIdx = (q - 1) % rowsPerCol;
                 const x = startX + colIdx * colWidth;
                 const y = startY + rowIdx * 34;
+
+                // วาดขีด Timing Tick ด้านซ้ายของทุกบรรทัด
+                if (colIdx === 0) {
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(px + 18, y - 2, 7, 4);
+                }
 
                 ctx.fillStyle = '#0f172a';
                 ctx.font = 'bold 12px Prompt, sans-serif';
@@ -2278,7 +2655,16 @@
                     if (stuChoice === c) {
                         ctx.beginPath();
                         ctx.arc(bx, by, 12, 0, Math.PI * 2);
-                        ctx.strokeStyle = (stuChoice === correctChoice) ? '#10b981' : '#ef4444';
+                        if (stuChoice === correctChoice) {
+                            // วาดจุดสีเขียวโปร่งทับวงกลมที่ตอบถูกบนหน้าจอจำลองด้วย
+                            ctx.fillStyle = 'rgba(16, 185, 129, 0.50)';
+                            ctx.fill();
+                            ctx.strokeStyle = '#059669';
+                        } else {
+                            ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+                            ctx.fill();
+                            ctx.strokeStyle = '#dc2626';
+                        }
                         ctx.lineWidth = 2.5;
                         ctx.stroke();
                     }
@@ -2317,16 +2703,36 @@
             if (maxEl) maxEl.textContent = `/ ${maxPts.toFixed(0)} คะแนน`;
             document.getElementById('scan-live-breakdown').textContent = `ชุดที่ ${formCode} • ตอนที่ 1: ${evalRes.part1Score} คะแนน | ตอนที่ 2/3: ${evalRes.part2Score} คะแนน`;
 
+            // แสดงหรือซ่อนกล่องกรอกคะแนนอัตนัย ตอนที่ 3 สำหรับวิชาภาษาไทย (รหัส 61)
+            const thaiManualBox = document.getElementById('thai-part3-manual-box');
+            if (thaiManualBox) {
+                if (sub === '61') {
+                    thaiManualBox.classList.remove('hidden');
+                    const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
+                    const essayInput = document.getElementById('scan-thai-essay-input');
+                    const essayMaxEl = document.getElementById('scan-thai-essay-max');
+                    if (essayInput) {
+                        essayInput.max = maxEssayPts;
+                        essayInput.value = ans['22'] !== undefined ? ans['22'] : 0;
+                    }
+                    if (essayMaxEl) {
+                        essayMaxEl.textContent = `/ ${maxEssayPts} คะแนน`;
+                    }
+                } else {
+                    thaiManualBox.classList.add('hidden');
+                }
+            }
+
             const container = document.getElementById('scan-detected-answers');
             let html = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-2">`;
 
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
-                const stuC = Number(ans[q]);
+                const stuC = Number(ans[q] || 0);
                 const keyC = Number(key[q]);
-                const isOk = stuC === keyC;
+                const isOk = stuC > 0 && stuC === keyC;
                 html += `
-                    <div class="p-2 rounded-lg border ${isOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} flex items-center justify-between">
-                        <span class="text-xs font-bold text-slate-800">ข้อ ${q}</span>
+                    <div class="p-2 rounded-lg border ${isOk ? 'bg-emerald-50 border-emerald-200' : (stuC === 0 ? 'bg-amber-50 border-amber-200' : 'bg-rose-50 border-rose-200')} flex items-center justify-between">
+                        <span class="text-xs font-bold text-slate-800">ข้อ ${q} ${stuC === 0 ? '<span class="text-[10px] text-amber-700">(ว่าง)</span>' : ''}</span>
                         <div class="flex gap-1">
                             ${[1, 2, 3, 4].map(c => `
                                 <button type="button" onclick="updateDraftMcqAnswer(${q}, ${c})"
@@ -2381,8 +2787,9 @@
                 });
                 html += `</div></div>`;
             } else if (sub === '61') {
+                const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
                 html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2">
-                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ & ตอนที่ 3 อัตนัย</p>
+                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 - 21.2) & ตอนที่ 3 อัตนัย (ข้อ 22 ครูกรอกคะแนนเอง)</p>
                     <div class="grid grid-cols-3 gap-2">
                         <div class="p-2 rounded-lg border bg-white">
                             <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.1 (ลำดับ 1-13)</label>
@@ -2392,9 +2799,9 @@
                             <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.2 (ลำดับ 1-13)</label>
                             <input type="number" min="1" max="13" value="${ans['21.2'] || 1}" onchange="updateDraftThaiPart2('21.2', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
                         </div>
-                        <div class="p-2 rounded-lg border bg-white">
-                            <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 22 อัตนัย</label>
-                            <input type="number" min="0" max="20" step="0.5" value="${ans['22'] || 15}" onchange="updateDraftThaiPart2('22', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
+                        <div class="p-2 rounded-lg border-2 border-amber-400 bg-amber-50">
+                            <label class="block text-[10px] text-amber-900 font-bold">ข้อ 22 อัตนัย (เต็ม ${maxEssayPts})</label>
+                            <input type="number" min="0" max="${maxEssayPts}" step="0.5" value="${ans['22'] !== undefined ? ans['22'] : 0}" oninput="updateDraftThaiPart2('22', this.value)" class="w-full font-bold text-xs mt-1 border border-amber-400 rounded px-2 py-1 bg-white text-indigo-950">
                         </div>
                     </div>
                 </div>`;
@@ -2404,8 +2811,20 @@
         }
 
         function updateDraftMcqAnswer(q, choice) {
-            appState.currentScanDraft.answers[q] = choice;
-            drawSimulatedSheetOnCanvas();
+            // หากคลิกซ้ำที่ตัวเลือกเดิม จะเป็นการเคลียร์ข้อนั้นให้เป็น "ไม่ได้ฝน (0)"
+            const currentVal = Number(appState.currentScanDraft.answers[q] || 0);
+            appState.currentScanDraft.answers[q] = (currentVal === choice) ? 0 : choice;
+
+            if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                const canvas = document.getElementById('scanner-canvas');
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(lastCapturedSheetImageCanvas, 0, 0);
+                drawDetectedContourPolygon(ctx, lastDetectedSheetCorners);
+                analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, lastDetectedSheetCorners, true);
+            } else {
+                drawSimulatedSheetOnCanvas();
+            }
             renderScannerDetectedAnswers();
         }
 
@@ -2498,8 +2917,8 @@
                 }
             }
 
-            showToast(`บันทึกคะแนนของ ${stu.fullName} (${scoreDetails.totalScore.toFixed(2)} คะแนน) ลงฐานข้อมูล Supabase สำเร็จ!`, 'success');
             refreshCurrentView();
+            showSaveSuccessDialog(`บันทึกผลคะแนนของ ${stu.fullName} (${scoreDetails.totalScore.toFixed(2)} คะแนน) เรียบร้อยแล้ว`);
         }
 
         /* --------------------------------------------------------------------------
@@ -2562,16 +2981,29 @@
             const examDateDisplay = currentSes ? formatThaiDate(currentSes.examDate) : '.........................';
 
             return `
-                <!-- 4 FIDUCIAL CORNER MARKERS FOR MOBILE OMR -->
+                <!-- 4 FIDUCIAL CORNER MARKERS + MID-SHEET TIMING MARKS + ORIENTATION BARCODE FOR MOBILE OMR -->
                 <div class="fiducial-marker marker-tl"></div>
                 <div class="fiducial-marker marker-tr"></div>
                 <div class="fiducial-marker marker-bl"></div>
                 <div class="fiducial-marker marker-br"></div>
+                <div class="fiducial-mid-left"></div>
+                <div class="fiducial-mid-right"></div>
+                <div class="omr-orientation-barcode">
+                    <div style="width:18px;height:7px;background:#000;"></div>
+                    <div style="width:9px;height:7px;background:#000;"></div>
+                    <div style="width:9px;height:7px;background:#000;margin-left:9px;"></div>
+                    <div style="width:9px;height:7px;background:#000;"></div>
+                    <div style="width:9px;height:7px;background:#000;margin-left:9px;"></div>
+                </div>
 
                 <!-- Top Header Banner: พ.ป.น. PPN โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์ -->
-                <div class="flex items-start justify-between border-b-2 border-black pb-2 mb-2">
+                <div class="flex items-start justify-between border-b-2 border-black pb-2 mb-2 pr-4">
                     <div class="flex items-center gap-3">
-                        <div class="border-2 border-black px-2.5 py-1 text-center">
+                        <img src="https://drive.google.com/thumbnail?id=1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB&sz=w200"
+                             onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/d/1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB';"
+                             alt="ตราโรงเรียน"
+                             class="w-12 h-12 object-contain">
+                        <div class="text-center pr-1">
                             <div class="text-xs font-bold leading-tight">พ.ป.น.</div>
                             <div class="text-[10px] font-bold tracking-wider">PPN</div>
                         </div>
@@ -2581,7 +3013,7 @@
                             <div class="text-xs font-bold leading-snug">ชั้นประถมศึกษาปีที่ 6</div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 mr-6">
                         <div class="border-2 border-black px-3 py-1 text-center bg-slate-100">
                             <div class="text-[10px] font-semibold">รหัสวิชา</div>
                             <div class="text-xl font-black leading-none">${spec.code}</div>
@@ -2669,17 +3101,18 @@
 
             let mcqColumnsHtml = `<div class="grid grid-cols-${cols} gap-3">`;
             for (let c = 0; c < cols; c++) {
-                mcqColumnsHtml += `<div class="border border-black p-2 space-y-1.5">
-                    <div class="flex justify-between text-[10px] font-bold border-b border-black pb-1 mb-1">
-                        <span>ข้อ</span>
-                        <div class="flex gap-3 pr-1"><span>1</span><span>2</span><span>3</span><span>4</span></div>
-                    </div>`;
+                mcqColumnsHtml += `<div class="border border-black p-2 space-y-1.5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between text-[10px] font-bold border-b border-black pb-1 mb-1">
+                            <span class="inline-flex items-center gap-1.5"><span class="omr-col-marker"></span> ข้อ</span>
+                            <div class="flex gap-3 pr-1"><span>1</span><span>2</span><span>3</span><span>4</span></div>
+                        </div>`;
                 for (let r = 0; r < rowsPerCol; r++) {
                     const qNum = c * rowsPerCol + r + 1;
                     if (qNum > totalMcq) break;
                     mcqColumnsHtml += `
                         <div class="flex items-center justify-between py-0.5">
-                            <span class="text-xs font-bold w-6">${qNum}.</span>
+                            <span class="text-xs font-bold w-8 inline-flex items-center gap-1"><span class="omr-row-tick"></span>${qNum}.</span>
                             <div class="flex gap-2">
                                 <span class="omr-bubble">1</span>
                                 <span class="omr-bubble">2</span>
@@ -2689,7 +3122,12 @@
                         </div>
                     `;
                 }
-                mcqColumnsHtml += `</div>`;
+                mcqColumnsHtml += `</div>
+                    <div class="pt-1 border-t border-dotted border-slate-400 flex items-center justify-between">
+                        <span class="omr-col-marker"></span>
+                        <span class="text-[9px] font-bold text-slate-600">คอลัมน์ที่ ${c + 1}</span>
+                    </div>
+                </div>`;
             }
             mcqColumnsHtml += `</div>`;
 
@@ -3156,7 +3594,7 @@
 
             renderAnswerKeyEditor();
             refreshCurrentView();
-            showToast('บันทึกเฉลยและอัปเดตคะแนนในฐานข้อมูล Supabase เรียบร้อยแล้ว', 'success');
+            showSaveSuccessDialog('บันทึกข้อมูลเฉลยและคำนวณคะแนนใหม่เรียบร้อยแล้ว');
         }
 
         /* --------------------------------------------------------------------------
@@ -3250,7 +3688,7 @@
             resetStudentForm();
             renderStudentsTable();
             renderDashboard();
-            showToast(`บันทึกข้อมูลของ ${fullName} ลงฐานข้อมูล Supabase เรียบร้อยแล้ว`, 'success');
+            showSaveSuccessDialog(`บันทึกข้อมูลของ ${fullName} เรียบร้อยแล้ว`);
         }
 
         function editStudent(studentId) {
@@ -3510,8 +3948,8 @@
                         <td class="py-3 px-3">
                             <span class="text-xs font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg">${row.indicator}</span>
                         </td>
-                        <td class="py-3 px-3 text-center font-mono text-xs font-bold text-slate-800">${row.maxPoints}</td>
-                        <td class="py-3 px-3 text-center"><span class="font-mono font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">${row.keyDisplay}</span></td>
+                        <td class="py-3 px-3 text-center text-xs font-bold text-slate-800">${row.maxPoints}</td>
+                        <td class="py-3 px-3 text-center"><span class="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg">${row.keyDisplay}</span></td>
                         <td class="py-3 px-3">${row.distributionHtml}</td>
                         <td class="py-3 px-3 text-center">
                             <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-1">
@@ -3519,11 +3957,50 @@
                             </div>
                             <span class="text-xs font-bold text-slate-800">${row.correctCount} คน (${row.pct.toFixed(1)}%)</span>
                         </td>
-                        <td class="py-3 px-3 text-center font-mono font-bold">${row.pVal.toFixed(2)}</td>
+                        <td class="py-3 px-3 text-center font-bold">${row.pVal.toFixed(2)}</td>
                         <td class="py-3 px-3 text-center">${qualityBadge}</td>
                     </tr>
                 `;
             }).join('');
+        }
+
+        function buildIndicatorSummaryRows(rowsData, totalN) {
+            const indMap = {};
+            rowsData.forEach(r => {
+                const indKey = (r.indicator || '-').trim() || '-';
+                if (!indMap[indKey]) {
+                    indMap[indKey] = {
+                        indicator: indKey,
+                        questionLabels: [],
+                        itemCount: 0,
+                        sumCorrectStudents: 0,
+                        totalMaxPoints: 0,
+                        sumAvgPoints: 0
+                    };
+                }
+                indMap[indKey].questionLabels.push(r.label.replace('ข้อที่ ', 'ข้อ '));
+                indMap[indKey].itemCount += 1;
+                indMap[indKey].sumCorrectStudents += Number(r.correctCount || 0);
+                indMap[indKey].totalMaxPoints += Number(r.maxPoints || 0);
+                indMap[indKey].sumAvgPoints += Number(r.avgPointsEarned || 0);
+            });
+
+            return Object.values(indMap).map(g => {
+                const avgCorrectStudents = g.itemCount > 0 ? (g.sumCorrectStudents / g.itemCount) : 0;
+                const pctCorrect = (totalN > 0 && g.itemCount > 0)
+                    ? (g.sumCorrectStudents / (g.itemCount * totalN)) * 100
+                    : 0;
+                return {
+                    indicator: g.indicator,
+                    questionsText: g.questionLabels.join(', '),
+                    itemCount: g.itemCount,
+                    totalN,
+                    avgCorrectStudents,
+                    pctCorrect,
+                    totalMaxPoints: g.totalMaxPoints,
+                    sumAvgPoints: g.sumAvgPoints
+                };
+            });
         }
 
         function triggerCSVDownload(csvContent, filename) {
@@ -3590,8 +4067,17 @@
                 csv += `-,คิดเป็นร้อยละผู้ตอบถูก (%),-,100%,${qKeys.map(q => ((correctCountPerQ[q] / scannedStudentsCount) * 100).toFixed(2) + '%').join(',')},-\n`;
             }
 
+            // เพิ่มส่วนสรุปรายตัวชี้วัดต่อท้ายในไฟล์ Excel (CSV)
+            const { N, rowsData } = buildItemStatisticsData();
+            const indSummary = buildIndicatorSummaryRows(rowsData, N);
+            csv += `\n"สรุปผลการประเมินรายตัวชี้วัด"\n`;
+            csv += `"มาตรฐาน/ตัวชี้วัด","ข้อสอบในตัวชี้วัดนี้","จำนวนข้อ","จำนวนผู้เข้าสอบ (คน)","จำนวนผู้ตอบถูกเฉลี่ย (คน)","คิดเป็นร้อยละที่ตอบถูก (%)","คะแนนเต็มรวม","คะแนนเฉลี่ยที่ได้"\n`;
+            indSummary.forEach(ind => {
+                csv += `"${ind.indicator}","${ind.questionsText}",${ind.itemCount},${ind.totalN},${ind.avgCorrectStudents.toFixed(2)},${ind.pctCorrect.toFixed(2)}%,${ind.totalMaxPoints},${ind.sumAvgPoints.toFixed(2)}\n`;
+            });
+
             triggerCSVDownload(csv, `PPN_StudentMatrix_${spec.code}_${spec.name}_${currentSes ? currentSes.examDate : 'export'}.csv`);
-            showToast('ดาวน์โหลดตารางคำตอบนักเรียนรายข้อ (Matrix CSV) เรียบร้อยแล้ว', 'success');
+            showToast('ดาวน์โหลดตารางคำตอบรายข้อพร้อมสรุปรายตัวชี้วัดเรียบร้อยแล้ว', 'success');
         }
 
         function exportItemStatsCSV() {
@@ -3616,8 +4102,16 @@
                 csv += `"${currentSes ? currentSes.name : '-'}","${currentSes ? currentSes.examDate : '-'}","${spec.code}","${spec.name}","${r.label}","${r.indicator}","${r.type}","${r.keyDisplay}",${r.maxPoints},${r.totalN},${r.correctCount},${r.pct.toFixed(2)}%,${r.avgPointsEarned.toFixed(2)},${r.pVal.toFixed(2)},"${qualityText}",${c1},${c2},${c3},${c4}\n`;
             });
 
-            triggerCSVDownload(csv, `PPN_วิเคราะห์สถิติรายข้อ_${spec.code}_${spec.name}_${currentSes ? currentSes.examDate : 'export'}.csv`);
-            showToast('ดาวน์โหลดไฟล์ "วิเคราะห์สถิติรายข้อ" สำเร็จ', 'success');
+            // เพิ่มตารางสรุปรายตัวชี้วัดต่อท้ายในไฟล์ Excel (CSV)
+            const indSummary = buildIndicatorSummaryRows(rowsData, N);
+            csv += `\n"สรุปผลการประเมินรายตัวชี้วัด"\n`;
+            csv += `"มาตรฐาน/ตัวชี้วัด","ข้อสอบในตัวชี้วัดนี้","จำนวนข้อ","จำนวนผู้เข้าสอบ (คน)","จำนวนผู้ตอบถูกเฉลี่ย (คน)","คิดเป็นร้อยละที่ตอบถูก (%)","คะแนนเต็มรวม","คะแนนเฉลี่ยที่ได้"\n`;
+            indSummary.forEach(ind => {
+                csv += `"${ind.indicator}","${ind.questionsText}",${ind.itemCount},${ind.totalN},${ind.avgCorrectStudents.toFixed(2)},${ind.pctCorrect.toFixed(2)}%,${ind.totalMaxPoints},${ind.sumAvgPoints.toFixed(2)}\n`;
+            });
+
+            triggerCSVDownload(csv, `PPN_วิเคราะห์สถิติรายข้อและตัวชี้วัด_${spec.code}_${spec.name}_${currentSes ? currentSes.examDate : 'export'}.csv`);
+            showToast('ดาวน์โหลดไฟล์ "วิเคราะห์สถิติรายข้อและสรุปรายตัวชี้วัด" สำเร็จ', 'success');
         }
 
         function exportSubjectCSV() {
@@ -3689,6 +4183,19 @@
             modal.classList.add('flex');
         }
 
+        function showSaveSuccessDialog(detailMessage = 'ระบบได้บันทึกข้อมูลของคุณเรียบร้อยแล้ว') {
+            const bodyHtml = `
+                <div class="py-4 text-center space-y-3">
+                    <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto text-3xl shadow-sm">
+                        <i class="fa-solid fa-check"></i>
+                    </div>
+                    <h4 class="text-lg font-bold text-slate-900">บันทึกข้อมูลสำเร็จ</h4>
+                    <p class="text-xs sm:text-sm text-slate-600">${detailMessage}</p>
+                </div>
+            `;
+            openModal('แจ้งเตือนระบบ', bodyHtml);
+        }
+
         function closeModal() {
             const modal = document.getElementById('custom-modal');
             modal.classList.add('hidden');
@@ -3714,9 +4221,65 @@
         }
 
         /* --------------------------------------------------------------------------
+           11.5 AUTHENTICATION (LOGIN / LOGOUT)
+        -------------------------------------------------------------------------- */
+        const AUTH_USER_HASH = '1047540063';
+        const AUTH_PASS_HASH = 'admin789';
+
+        function togglePasswordVisibility() {
+            const pwdInput = document.getElementById('login-password');
+            const eyeIcon = document.getElementById('login-eye-icon');
+            if (!pwdInput) return;
+            if (pwdInput.type === 'password') {
+                pwdInput.type = 'text';
+                if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye-slash text-sm';
+            } else {
+                pwdInput.type = 'password';
+                if (eyeIcon) eyeIcon.className = 'fa-solid fa-eye text-sm';
+            }
+        }
+
+        function handleLoginSubmit(event) {
+            event.preventDefault();
+            const username = (document.getElementById('login-username')?.value || '').trim();
+            const password = (document.getElementById('login-password')?.value || '').trim();
+            const errBox = document.getElementById('login-error-msg');
+
+            if (username === AUTH_USER_HASH && password === AUTH_PASS_HASH) {
+                if (errBox) errBox.classList.add('hidden');
+                const loginScreen = document.getElementById('login-screen');
+                if (loginScreen) loginScreen.classList.add('hidden');
+                try {
+                    sessionStorage.setItem('ppn_authenticated', 'true');
+                } catch (e) {}
+                showToast('เข้าสู่ระบบสำเร็จ ยินดีต้อนรับครับ', 'success');
+            } else {
+                if (errBox) errBox.classList.remove('hidden');
+            }
+        }
+
+        function handleLogout() {
+            try {
+                sessionStorage.removeItem('ppn_authenticated');
+            } catch (e) {}
+            document.getElementById('login-username').value = '';
+            document.getElementById('login-password').value = '';
+            const loginScreen = document.getElementById('login-screen');
+            if (loginScreen) loginScreen.classList.remove('hidden');
+            showToast('ออกจากระบบเรียบร้อยแล้ว', 'info');
+        }
+
+        /* --------------------------------------------------------------------------
            12. INITIALIZATION ON WINDOW LOAD (ดึงข้อมูลจาก Supabase โดยตรง ไม่ใช้ข้อมูลจำลองทับ)
         -------------------------------------------------------------------------- */
         window.onload = async function() {
+            try {
+                if (sessionStorage.getItem('ppn_authenticated') === 'true') {
+                    const loginScreen = document.getElementById('login-screen');
+                    if (loginScreen) loginScreen.classList.add('hidden');
+                }
+            } catch (e) {}
+
             appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, '100');
             const sb = initSupabaseClient(appState.supabaseConfig.url, appState.supabaseConfig.anonKey);
             if (sb) {
