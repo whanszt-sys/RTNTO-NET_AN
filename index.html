@@ -708,9 +708,9 @@
                             <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                                 <div>
                                     <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
-                                        <i class="fa-solid fa-crop-simple text-emerald-600"></i> สแกนกระดาษคำตอบ (ตรวจจับมุมกระดาษจริงจากความละเอียดกล้องจริง)
+                                        <i class="fa-solid fa-crop-simple text-emerald-600"></i> สแกนกระดาษคำตอบ <span class="text-xs font-extrabold bg-indigo-600 text-white px-2 py-0.5 rounded-md">รุ่น v2.5 จับขอบกระดาษจริง</span>
                                     </h3>
-                                    <p class="text-xs text-slate-600">ประมวลผลจากขนาดภาพจริงของกล้อง ค้นหามุมกระดาษจริงอัตโนมัติ (หรือแตะลากหมุดปรับมุมได้)</p>
+                                    <p class="text-xs text-slate-600">ค้นหาแผ่นกระดาษสีขาวและจุดมาร์ก 4 มุมจริงอัตโนมัติ (หรือใช้นิ้วแตะลากหมุด TL, TR, BL, BR ทับมุมตารางคำตอบได้ทันที)</p>
                                 </div>
                                 <div class="flex items-center gap-1.5">
                                     <span id="camera-res-badge" class="text-[11px] font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
@@ -2223,8 +2223,8 @@
         }
 
         function detectFourFiducialCorners(ctx, w, h) {
-            // ระบบตรวจจับมุมกระดาษจริง (Actual Paper & Fiducial Corner Detection)
-            // แยกแยะจุดมาร์ก 4 มุมนอกสุดของกระดาษ A4 โดยไม่สับสนกับจุดมาร์กย่อยด้านใน
+            // ระบบตรวจจับมุมกระดาษจริง v2.5 (Actual Paper Sheet & Fiducial Corner Detection)
+            // ตัดพื้นหลังสีส้ม/โต๊ะรอบนอกออกก่อน แล้วค้นหาจุดสี่เหลี่ยมดำ 4 มุมภายในแผ่นกระดาษสีขาวจริงเท่านั้น
             try {
                 const analysisW = 480;
                 const scale = w / analysisW;
@@ -2238,41 +2238,64 @@
 
                 const imgData = offCtx.getImageData(0, 0, analysisW, analysisH).data;
                 const lum = new Float32Array(analysisW * analysisH);
+                const isPaperPixel = new Uint8Array(analysisW * analysisH);
 
                 let sumLum = 0;
                 for (let i = 0, p = 0; i < imgData.length; i += 4, p++) {
-                    const l = (imgData[i] * 0.299) + (imgData[i + 1] * 0.587) + (imgData[i + 2] * 0.114);
+                    const r = imgData[i], g = imgData[i + 1], b = imgData[i + 2];
+                    const l = (r * 0.299) + (g * 0.587) + (b * 0.114);
                     lum[p] = l;
                     sumLum += l;
+
+                    // แยกแยะ "กระดาษสีขาว/เทาอ่อน" ออกจากพื้นหลังที่มีสี (เช่น ผ้าปูสีส้ม/ชมพู หรือโต๊ะไม้)
+                    const maxC = Math.max(r, g, b);
+                    const minC = Math.min(r, g, b);
+                    const saturation = maxC - minC;
+                    if (l >= 135 && saturation <= 48) {
+                        isPaperPixel[p] = 1;
+                    }
                 }
                 const meanLum = sumLum / (analysisW * analysisH);
 
-                // ขั้นตอนที่ 1: ค้นหาขอบเขตแผ่นกระดาษสีขาวจริงในภาพ (Paper Contour Extremes)
-                const paperBrightThresh = Math.max(130, Math.min(205, meanLum + 16));
+                // ขั้นตอนที่ 1: หาขอบเขตแผ่นกระดาษสีขาวจริง (White Paper Bounding Contour)
                 let paperPoints = [];
-                const marginX = Math.floor(analysisW * 0.02);
-                const marginY = Math.floor(analysisH * 0.02);
+                const marginX = Math.floor(analysisW * 0.03);
+                const marginY = Math.floor(analysisH * 0.03);
 
                 for (let y = marginY; y < analysisH - marginY; y += 2) {
                     for (let x = marginX; x < analysisW - marginX; x += 2) {
-                        if (lum[y * analysisW + x] >= paperBrightThresh) {
-                            if (lum[y * analysisW + Math.min(analysisW - 1, x + 3)] >= paperBrightThresh * 0.9 &&
-                                lum[Math.min(analysisH - 1, y + 3) * analysisW + x] >= paperBrightThresh * 0.9) {
-                                paperPoints.push({ x, y });
-                            }
+                        const idx = y * analysisW + x;
+                        if (!isPaperPixel[idx]) continue;
+                        // ต้องมีพิกเซลกระดาษสีขาวอยู่รอบ ๆ ต่อเนื่องกัน เพื่อตัดจุดสะท้อนแสงเล็ก ๆ ออก
+                        if (isPaperPixel[y * analysisW + Math.min(analysisW - 1, x + 4)] &&
+                            isPaperPixel[y * analysisW + Math.max(0, x - 4)] &&
+                            isPaperPixel[Math.min(analysisH - 1, y + 4) * analysisW + x] &&
+                            isPaperPixel[Math.max(0, y - 4) * analysisW + x]) {
+                            paperPoints.push({ x, y });
                         }
                     }
                 }
 
-                let pTL = { x: analysisW * 0.08, y: analysisH * 0.06 };
-                let pTR = { x: analysisW * 0.92, y: analysisH * 0.06 };
-                let pBL = { x: analysisW * 0.08, y: analysisH * 0.94 };
-                let pBR = { x: analysisW * 0.92, y: analysisH * 0.94 };
+                let pTL = { x: analysisW * 0.18, y: analysisH * 0.08 };
+                let pTR = { x: analysisW * 0.82, y: analysisH * 0.08 };
+                let pBL = { x: analysisW * 0.16, y: analysisH * 0.90 };
+                let pBR = { x: analysisW * 0.84, y: analysisH * 0.90 };
 
-                if (paperPoints.length > 200) {
+                let paperMinX = analysisW * 0.15, paperMaxX = analysisW * 0.85;
+                let paperMinY = analysisH * 0.06, paperMaxY = analysisH * 0.92;
+
+                if (paperPoints.length > 120) {
                     let minSum = Infinity, maxSum = -Infinity;
                     let minDiff = Infinity, maxDiff = -Infinity;
+                    paperMinX = Infinity; paperMaxX = -Infinity;
+                    paperMinY = Infinity; paperMaxY = -Infinity;
+
                     paperPoints.forEach(pt => {
+                        if (pt.x < paperMinX) paperMinX = pt.x;
+                        if (pt.x > paperMaxX) paperMaxX = pt.x;
+                        if (pt.y < paperMinY) paperMinY = pt.y;
+                        if (pt.y > paperMaxY) paperMaxY = pt.y;
+
                         const s = pt.x + pt.y;
                         const d = pt.x - pt.y;
                         if (s < minSum) { minSum = s; pTL = pt; }
@@ -2282,13 +2305,18 @@
                     });
                 }
 
-                // ขั้นตอนที่ 2: ค้นหากลุ่มก้อนสีดำทึบ (Fiducial Black Squares) ทั้งหมดที่อยู่บนพื้นกระดาษสีขาว
+                // ขั้นตอนที่ 2: ค้นหากลุ่มก้อนสี่เหลี่ยมสีดำทึบ (Fiducial Markers) เฉพาะภายในเขตแผ่นกระดาษสีขาวเท่านั้น
                 const darkThresh = Math.min(115, meanLum * 0.72);
                 const visited = new Uint8Array(analysisW * analysisH);
                 const candidateSquares = [];
 
-                for (let y = marginY; y < analysisH - marginY; y++) {
-                    for (let x = marginX; x < analysisW - marginX; x++) {
+                const searchLeft = Math.max(marginX, Math.floor(paperMinX - 8));
+                const searchRight = Math.min(analysisW - marginX, Math.ceil(paperMaxX + 8));
+                const searchTop = Math.max(marginY, Math.floor(paperMinY - 8));
+                const searchBottom = Math.min(analysisH - marginY, Math.ceil(paperMaxY + 8));
+
+                for (let y = searchTop; y < searchBottom; y++) {
+                    for (let x = searchLeft; x < searchRight; x++) {
                         const idx = y * analysisW + x;
                         if (visited[idx] || lum[idx] > darkThresh) continue;
 
@@ -2309,7 +2337,7 @@
                             if (cy < minY) minY = cy;
                             if (cy > maxY) maxY = cy;
 
-                            if (head > 1800) break;
+                            if (head > 1600) break;
 
                             const neighbors = [
                                 [cx + 1, cy], [cx - 1, cy],
@@ -2318,7 +2346,7 @@
                             for (let n = 0; n < 4; n++) {
                                 const nx = neighbors[n][0];
                                 const ny = neighbors[n][1];
-                                if (nx >= marginX && nx < analysisW - marginX && ny >= marginY && ny < analysisH - marginY) {
+                                if (nx >= searchLeft && nx < searchRight && ny >= searchTop && ny < searchBottom) {
                                     const nIdx = ny * analysisW + nx;
                                     if (!visited[nIdx] && lum[nIdx] <= darkThresh) {
                                         visited[nIdx] = 1;
@@ -2335,7 +2363,7 @@
                         const aspect = bw / Math.max(1, bh);
                         const fillRatio = area / Math.max(1, bw * bh);
 
-                        if (area >= 12 && area <= 1400 && bw >= 4 && bw <= 48 && bh >= 4 && bh <= 48 && aspect >= 0.55 && aspect <= 1.80 && fillRatio >= 0.42) {
+                        if (area >= 10 && area <= 1200 && bw >= 4 && bw <= 42 && bh >= 4 && bh <= 42 && aspect >= 0.55 && aspect <= 1.80 && fillRatio >= 0.42) {
                             const centerX = sumX / area;
                             const centerY = sumY / area;
                             const pad = Math.max(3, Math.round(Math.max(bw, bh) * 0.55));
@@ -2343,23 +2371,26 @@
                                 [minX - pad, centerY], [maxX + pad, centerY],
                                 [centerX, minY - pad], [centerX, maxY + pad]
                             ];
-                            let whiteSides = 0;
+                            let whitePaperSides = 0;
                             checkPts.forEach(([sx, sy]) => {
                                 const cx = Math.min(analysisW - 1, Math.max(0, Math.round(sx)));
                                 const cy = Math.min(analysisH - 1, Math.max(0, Math.round(sy)));
-                                if (lum[cy * analysisW + cx] >= paperBrightThresh * 0.85) whiteSides++;
+                                if (isPaperPixel[cy * analysisW + cx] || lum[cy * analysisW + cx] >= 150) {
+                                    whitePaperSides++;
+                                }
                             });
 
-                            if (whiteSides >= 3) {
+                            if (whitePaperSides >= 3) {
                                 candidateSquares.push({ cx: centerX, cy: centerY, area });
                             }
                         }
                     }
                 }
 
-                // ขั้นตอนที่ 3: เลือกจุดมาร์กที่อยู่มุมนอกสุดของแต่ละควอดรันต์ (ป้องกันไม่ให้ไปจับจุดมาร์กด้านในตารางสลับกับมุมกระดาษ)
+                // ขั้นตอนที่ 3: จับคู่จุดมาร์กที่อยู่ใกล้กับมุมทั้ง 4 ของแผ่นกระดาษสีขาวจริงมากที่สุด
                 const midX = (pTL.x + pTR.x + pBL.x + pBR.x) / 4;
                 const midY = (pTL.y + pTR.y + pBL.y + pBR.y) / 4;
+                const sheetDiag = Math.hypot(paperMaxX - paperMinX, paperMaxY - paperMinY);
 
                 const pickQuadrantOuterMarker = (targetPt, name, isLeft, isTop) => {
                     const inQuad = candidateSquares.filter(c =>
@@ -2367,7 +2398,7 @@
                         (isTop ? c.cy < midY : c.cy >= midY)
                     );
                     let bestCand = null;
-                    let minDist = Math.hypot(analysisW, analysisH) * 0.28;
+                    let minDist = Math.max(40, sheetDiag * 0.26);
                     inQuad.forEach(cand => {
                         const d = Math.hypot(cand.cx - targetPt.x, cand.cy - targetPt.y);
                         if (d < minDist) {
@@ -2383,11 +2414,14 @@
                             cy: Math.round(bestCand.cy * scale)
                         };
                     }
+                    // หากไม่พบจุดดำมุมนั้น ให้วางหมุดลงบนมุมของแผ่นกระดาษสีขาวจริงที่ตรวจพบ (หดเข้ามา 4% เพื่อตรงกับระยะขอบมาร์ก)
+                    const insetX = targetPt.x + (midX - targetPt.x) * 0.06;
+                    const insetY = targetPt.y + (midY - targetPt.y) * 0.04;
                     return {
                         name,
-                        locked: paperPoints.length > 200,
-                        cx: Math.round(targetPt.x * scale),
-                        cy: Math.round(targetPt.y * scale)
+                        locked: paperPoints.length > 120,
+                        cx: Math.round(insetX * scale),
+                        cy: Math.round(insetY * scale)
                     };
                 };
 
@@ -2400,10 +2434,10 @@
             } catch (e) {
                 console.warn('Corner detection fallback:', e);
                 return [
-                    { name: 'TL', locked: false, cx: Math.round(w * 0.08), cy: Math.round(h * 0.06) },
-                    { name: 'TR', locked: false, cx: Math.round(w * 0.92), cy: Math.round(h * 0.06) },
-                    { name: 'BL', locked: false, cx: Math.round(w * 0.08), cy: Math.round(h * 0.94) },
-                    { name: 'BR', locked: false, cx: Math.round(w * 0.92), cy: Math.round(h * 0.94) }
+                    { name: 'TL', locked: false, cx: Math.round(w * 0.18), cy: Math.round(h * 0.08) },
+                    { name: 'TR', locked: false, cx: Math.round(w * 0.82), cy: Math.round(h * 0.08) },
+                    { name: 'BL', locked: false, cx: Math.round(w * 0.18), cy: Math.round(h * 0.90) },
+                    { name: 'BR', locked: false, cx: Math.round(w * 0.82), cy: Math.round(h * 0.90) }
                 ];
             }
         }
