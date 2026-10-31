@@ -151,6 +151,28 @@
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
+        /* Local Answer Grid 4-Corner Markers (ล้อมเฉพาะกล่องคำตอบแบบ ZipGrade) */
+        .grid-fiducial-box {
+            position: relative;
+            border: 2.5px solid #000000 !important;
+            padding: 16px 18px !important;
+            background: #ffffff !important;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .grid-corner-mark {
+            width: 18px;
+            height: 18px;
+            background-color: #000000 !important;
+            position: absolute;
+            z-index: 25;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .grid-mark-tl { top: -2px; left: -2px; }
+        .grid-mark-tr { top: -2px; right: -2px; }
+        .grid-mark-bl { bottom: -2px; left: -2px; }
+        .grid-mark-br { bottom: -2px; right: -2px; }
         .omr-orientation-barcode {
             position: absolute;
             right: 8mm;
@@ -683,60 +705,58 @@
                         
                         <!-- Left Column: Mobile Camera Capture & Corner Detection Preview -->
                         <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col">
-                            <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
                                 <div>
                                     <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
-                                        <i class="fa-solid fa-camera text-emerald-600"></i> สแกนกระดาษคำตอบด้วยโทรศัพท์มือถือ (4-Corner Find Contours)
+                                        <i class="fa-solid fa-crop-simple text-emerald-600"></i> สแกนกรอบตารางคำตอบ (Local Grid Box + ลากปรับมุมได้)
                                     </h3>
-                                    <p class="text-xs text-slate-600">เล็งจุดสี่เหลี่ยมสีดำทั้ง 4 มุมของกระดาษคำตอบให้อยู่ในกรอบเล็งทั้ง 4 มุมเพื่อความแม่นยำสูงสุด</p>
+                                    <p class="text-xs text-slate-600">เล็งเฉพาะ <strong>"กรอบตารางคำตอบ"</strong> หรือใช้นิ้วแตะลากหมุดสีเขียวทั้ง 4 มุมให้ตรงจุดดำของกรอบข้อสอบ</p>
                                 </div>
-                                <span id="contour-lock-badge" class="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-300">
-                                    <i class="fa-solid fa-crosshairs mr-1"></i> รอเปิดกล้องสแกน
-                                </span>
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" onclick="resetGridCornersToDefault()" class="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition" title="รีเซ็ตตำแหน่งหมุด 4 มุม">
+                                        <i class="fa-solid fa-arrows-to-dot mr-1"></i> รีเซ็ตมุม
+                                    </button>
+                                    <span id="contour-lock-badge" class="text-xs font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                                        <i class="fa-solid fa-hand-pointer mr-1"></i> แตะลากหมุดมุมได้
+                                    </span>
+                                </div>
                             </div>
 
                             <!-- Camera & Canvas Preview Container with 4-Corner Alignment Frame -->
-                            <div class="relative bg-slate-950 rounded-2xl overflow-hidden aspect-[3/4] max-h-[560px] w-full mx-auto flex items-center justify-center border-2 border-slate-800 shadow-inner">
+                            <div class="relative bg-slate-950 rounded-2xl overflow-hidden aspect-[3/4] max-h-[560px] w-full mx-auto flex items-center justify-center border-2 border-slate-800 shadow-inner touch-none">
                                 <!-- Live Video Feed for GitHub Pages (HTTPS) -->
                                 <video id="scanner-video" autoplay playsinline muted class="hidden w-full h-full object-cover"></video>
-                                <!-- Processed / Captured Sheet Canvas -->
-                                <canvas id="scanner-canvas" class="w-full h-full object-contain"></canvas>
+                                <!-- Processed / Captured Sheet Canvas (รองรับการแตะลากหมุด 4 มุมด้วยนิ้วมือ) -->
+                                <canvas id="scanner-canvas" class="w-full h-full object-contain cursor-crosshair"></canvas>
 
-                                <!-- Rectangular Sheet Alignment Frame & 4 Corner ROI Find Contours Boxes -->
-                                <div class="absolute inset-0 pointer-events-none flex items-center justify-center p-5 sm:p-7">
+                                <!-- Rectangular Sheet Alignment Frame & 4 Corner ROI Find Contours Boxes (ซ่อนอัตโนมัติเมื่อถ่ายเสร็จเพื่อให้ลากหมุดได้ชัดๆ) -->
+                                <div id="scanner-live-overlay-guide" class="absolute inset-0 pointer-events-none flex items-center justify-center p-5 sm:p-7">
                                     <!-- Outer A4 Sheet Guide Frame -->
                                     <div id="sheet-guide-frame" class="relative w-full h-full border-2 border-dashed border-emerald-400/80 rounded-xl shadow-[0_0_0_9999px_rgba(2,6,23,0.52)] transition-all duration-200 flex flex-col justify-between p-2">
                                         
                                         <!-- Top Status Pill -->
                                         <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-slate-900/95 text-emerald-300 text-[11px] font-semibold px-3.5 py-1 rounded-full border border-emerald-500/40 whitespace-nowrap flex items-center gap-1.5 shadow-md">
                                             <span id="scanner-pulse-dot" class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
-                                            <span id="scanner-status-text">วางกระดาษคำตอบให้ตรงกรอบสี่เหลี่ยมทั้ง 4 มุม</span>
+                                            <span id="scanner-status-text">เล็งกรอบตารางคำตอบให้อยู่ในหน้าจอ (ลากหมุดมุมปรับเองได้หลังถ่าย)</span>
                                         </div>
 
                                         <!-- Top Row Corner Boxes (TL & TR) -->
                                         <div class="flex justify-between items-start">
-                                            <!-- Top-Left Fiducial Target Box -->
-                                            <div id="roi-box-tl" class="w-12 h-12 border-2 border-emerald-400 bg-emerald-500/10 rounded-lg flex flex-col items-center justify-center relative transition-all">
-                                                <div class="w-5 h-5 border-2 border-white/90 bg-black/40"></div>
-                                                <span class="text-[9px] font-bold text-emerald-300 mt-0.5">มุมบนซ้าย</span>
+                                            <div id="roi-box-tl" class="w-10 h-10 border-2 border-emerald-400 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                                                <div class="w-4 h-4 border border-white/90 bg-black/40"></div>
                                             </div>
-                                            <!-- Top-Right Fiducial Target Box -->
-                                            <div id="roi-box-tr" class="w-12 h-12 border-2 border-emerald-400 bg-emerald-500/10 rounded-lg flex flex-col items-center justify-center relative transition-all">
-                                                <div class="w-5 h-5 border-2 border-white/90 bg-black/40"></div>
-                                                <span class="text-[9px] font-bold text-emerald-300 mt-0.5">มุมบนขวา</span>
+                                            <div id="roi-box-tr" class="w-10 h-10 border-2 border-emerald-400 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                                                <div class="w-4 h-4 border border-white/90 bg-black/40"></div>
                                             </div>
                                         </div>
 
-                                        <!-- Center Crosshair & Answer Area Guide -->
-                                        <div class="my-auto mx-4 border border-white/20 rounded-lg p-3 bg-slate-900/25 backdrop-blur-[1px] text-center relative">
-                                            <!-- Mid-left & Mid-right Timing Marker Guides -->
-                                            <div class="absolute -left-5 top-1/2 -translate-y-1/2 w-4 h-4 border border-emerald-400 bg-black/50 rounded-sm" title="จุดมาร์กกลางซ้าย"></div>
-                                            <div class="absolute -right-5 top-1/2 -translate-y-1/2 w-4 h-4 border border-emerald-400 bg-black/50 rounded-sm" title="จุดมาร์กกลางขวา"></div>
-                                            <div class="text-[11px] font-bold text-white/90">พื้นที่ตรวจจับวงกลมคำตอบ + จุดมาร์กคั่นคอลัมน์ (Timing Marks)</div>
-                                            <div class="text-[10px] text-emerald-300 mt-0.5">ให้สี่เหลี่ยมสีดำทั้ง 4 มุมและจุดมาร์กด้านข้างอยู่ในกรอบกระดาษสีขาว</div>
+                                        <!-- Inner Target Box specifically for the MCQ Answer Table -->
+                                        <div class="my-auto mx-2 border-2 border-amber-400/90 rounded-lg p-3 bg-slate-900/35 backdrop-blur-[1px] text-center relative">
+                                            <div class="text-[11px] font-bold text-amber-300">กรอบเล็งเฉพาะ "ตารางวงกลมคำตอบ ตอนที่ 1"</div>
+                                            <div class="text-[10px] text-white/90 mt-0.5">หลังกดถ่าย สามารถใช้นิ้วลากหมุดสีเขียวทั้ง 4 มุมไปวางทับมุมกรอบตารางข้อสอบได้โดยตรง</div>
                                             <div class="flex items-center justify-center gap-3 mt-1.5 text-[10px] text-white/90">
-                                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500/70 border border-emerald-300 inline-block"></span> ตอบถูก</span>
-                                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500/70 border border-rose-300 inline-block"></span> ตอบผิด</span>
+                                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500/80 border border-emerald-300 inline-block"></span> ตอบถูก</span>
+                                                <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-rose-500/80 border border-rose-300 inline-block"></span> ตอบผิด</span>
                                                 <span class="inline-flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full border border-dashed border-amber-300 inline-block"></span> เฉลย</span>
                                             </div>
                                         </div>
@@ -746,25 +766,27 @@
 
                                         <!-- Bottom Row Corner Boxes (BL & BR) -->
                                         <div class="flex justify-between items-end">
-                                            <!-- Bottom-Left Fiducial Target Box -->
-                                            <div id="roi-box-bl" class="w-12 h-12 border-2 border-emerald-400 bg-emerald-500/10 rounded-lg flex flex-col items-center justify-center relative transition-all">
-                                                <span class="text-[9px] font-bold text-emerald-300 mb-0.5">มุมล่างซ้าย</span>
-                                                <div class="w-5 h-5 border-2 border-white/90 bg-black/40"></div>
+                                            <div id="roi-box-bl" class="w-10 h-10 border-2 border-emerald-400 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                                                <div class="w-4 h-4 border border-white/90 bg-black/40"></div>
                                             </div>
-
                                             <div class="bg-slate-900/90 text-white text-xs px-3 py-1 rounded-lg border border-slate-700">
                                                 รหัสวิชา <span id="scanner-overlay-code" class="font-bold text-amber-300">65</span>
                                             </div>
-
-                                            <!-- Bottom-Right Fiducial Target Box -->
-                                            <div id="roi-box-br" class="w-12 h-12 border-2 border-emerald-400 bg-emerald-500/10 rounded-lg flex flex-col items-center justify-center relative transition-all">
-                                                <span class="text-[9px] font-bold text-emerald-300 mb-0.5">มุมล่างขวา</span>
-                                                <div class="w-5 h-5 border-2 border-white/90 bg-black/40"></div>
+                                            <div id="roi-box-br" class="w-10 h-10 border-2 border-emerald-400 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                                                <div class="w-4 h-4 border border-white/90 bg-black/40"></div>
                                             </div>
                                         </div>
 
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- Interactive Corner Pin Hint Bar -->
+                            <div class="mt-2.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-between text-xs text-emerald-950">
+                                <span class="font-semibold"><i class="fa-solid fa-up-down-left-right text-emerald-600 mr-1.5"></i> <strong>เคล็ดลับให้ตรง 100%:</strong> ใช้นิ้วลากจุดวงกลม <strong>TL, TR, BL, BR</strong> บนภาพไปวางที่มุมทั้ง 4 ของกรอบตารางคำตอบ</span>
+                            </div>
+
+                            <!-- Mobile Camera Controls -->
                             </div>
 
                             <!-- Mobile Camera Controls (รองรับทั้งเปิดกล้องสดพร้อมกรอบเล็ง และถ่ายภาพความละเอียดสูง) -->
@@ -2071,13 +2093,15 @@
                     appState.cameraStream = stream;
                     const video = document.getElementById('scanner-video');
                     const canvas = document.getElementById('scanner-canvas');
+                    const overlayGuide = document.getElementById('scanner-live-overlay-guide');
                     video.srcObject = stream;
                     video.classList.remove('hidden');
                     canvas.classList.add('hidden');
+                    if (overlayGuide) overlayGuide.classList.remove('hidden');
                     await video.play();
 
-                    document.getElementById('btn-primary-mobile-scan-text').textContent = 'กดเพื่อถ่ายสแกนเมื่อมุมทั้ง 4 ตรงกรอบ';
-                    document.getElementById('scanner-status-text').textContent = 'เล็งจุดดำ 4 มุมของกระดาษให้เข้าในกรอบสี่เหลี่ยมทั้ง 4 มุม';
+                    document.getElementById('btn-primary-mobile-scan-text').textContent = 'กดเพื่อถ่ายสแกนตารางคำตอบ';
+                    document.getElementById('scanner-status-text').textContent = 'เล็งตารางคำตอบให้อยู่กลางจอแล้วกดถ่าย';
                     startRealtimeCornerContourCheck();
                     return;
                 } catch (err) {
@@ -2100,10 +2124,15 @@
             }
             const video = document.getElementById('scanner-video');
             const canvas = document.getElementById('scanner-canvas');
+            const overlayGuide = document.getElementById('scanner-live-overlay-guide');
             if (video) video.classList.add('hidden');
             if (canvas) canvas.classList.remove('hidden');
+            // ซ่อนกรอบบังตาหลังจากถ่ายภาพแล้ว เพื่อให้เห็นจุดสีเขียวโปร่งและลากหมุดมุมทั้ง 4 ได้สะดวก
+            if (overlayGuide && lastCapturedSheetImageCanvas) {
+                overlayGuide.classList.add('hidden');
+            }
             const btnTxt = document.getElementById('btn-primary-mobile-scan-text');
-            if (btnTxt) btnTxt.textContent = 'ถ่ายสแกนด้วยมือถือ (เปิดกรอบเล็ง 4 มุม)';
+            if (btnTxt) btnTxt.textContent = 'ถ่ายสแกนด้วยมือถือ (เปิดกล้อง)';
         }
 
         function startRealtimeCornerContourCheck() {
@@ -2149,13 +2178,16 @@
         }
 
         function detectFourFiducialCorners(ctx, w, h) {
-            // ค้นหาจุดมาร์กสี่เหลี่ยมสีดำทึบทั้ง 4 มุม ที่ต้องมี "ขอบกระดาษสีขาวล้อมรอบ" (White Paper Surround Isolation)
-            // เพื่อป้องกันไม่ให้ไปจับโดนปุ่มคีย์บอร์ดสีดำ สายไฟ หรือเงาด้านนอกกระดาษ
+            // ค้นหามุมทั้ง 4 ของ "กรอบตารางคำตอบ ตอนที่ 1 (Answer Grid Box)" โดยตรง
+            // หากถ่ายทั้งใบ A4 กรอบตารางคำตอบจะอยู่บริเวณกลางค่อนบน (x: 10%..90%, y: 34%..72%)
+            const sub = appState.currentSubject;
+            const defaultBotY = sub === '65' ? 0.66 : (sub === '61' ? 0.68 : 0.80);
+
             const rois = [
-                { name: 'TL', x0: Math.floor(w * 0.05), y0: Math.floor(h * 0.04), x1: Math.floor(w * 0.25), y1: Math.floor(h * 0.20), defX: Math.floor(w * 0.11), defY: Math.floor(h * 0.09) },
-                { name: 'TR', x0: Math.floor(w * 0.75), y0: Math.floor(h * 0.04), x1: Math.floor(w * 0.95), y1: Math.floor(h * 0.20), defX: Math.floor(w * 0.89), defY: Math.floor(h * 0.09) },
-                { name: 'BL', x0: Math.floor(w * 0.05), y0: Math.floor(h * 0.80), x1: Math.floor(w * 0.25), y1: Math.floor(h * 0.96), defX: Math.floor(w * 0.11), defY: Math.floor(h * 0.91) },
-                { name: 'BR', x0: Math.floor(w * 0.75), y0: Math.floor(h * 0.80), x1: Math.floor(w * 0.95), y1: Math.floor(h * 0.96), defX: Math.floor(w * 0.89), defY: Math.floor(h * 0.91) }
+                { name: 'TL', x0: Math.floor(w * 0.04), y0: Math.floor(h * 0.25), x1: Math.floor(w * 0.30), y1: Math.floor(h * 0.48), defX: Math.floor(w * 0.12), defY: Math.floor(h * 0.36) },
+                { name: 'TR', x0: Math.floor(w * 0.70), y0: Math.floor(h * 0.25), x1: Math.floor(w * 0.96), y1: Math.floor(h * 0.48), defX: Math.floor(w * 0.88), defY: Math.floor(h * 0.36) },
+                { name: 'BL', x0: Math.floor(w * 0.04), y0: Math.floor(h * (defaultBotY - 0.12)), x1: Math.floor(w * 0.30), y1: Math.floor(h * (defaultBotY + 0.12)), defX: Math.floor(w * 0.12), defY: Math.floor(h * defaultBotY) },
+                { name: 'BR', x0: Math.floor(w * 0.70), y0: Math.floor(h * (defaultBotY - 0.12)), x1: Math.floor(w * 0.96), y1: Math.floor(h * (defaultBotY + 0.12)), defX: Math.floor(w * 0.88), defY: Math.floor(h * defaultBotY) }
             ];
 
             return rois.map(r => {
@@ -2175,14 +2207,12 @@
                         return (imgData[idx] * 0.299) + (imgData[idx + 1] * 0.587) + (imgData[idx + 2] * 0.114);
                     };
 
-                    // ขนาดจุดมาร์กมาตรฐานเทียบสัดส่วนภาพ
-                    const boxSize = Math.max(10, Math.round(w * 0.032));
+                    const boxSize = Math.max(8, Math.round(w * 0.025));
                     const half = Math.floor(boxSize / 2);
                     const ringOffset = Math.max(4, Math.round(boxSize * 0.45));
 
                     for (let py = half + ringOffset; py < rh - half - ringOffset; py += 2) {
                         for (let px = half + ringOffset; px < rw - half - ringOffset; px += 2) {
-                            // 1. วัดความมืดด้านในสี่เหลี่ยมจุดมาร์ก (Inner Black Square)
                             let innerLumSum = 0;
                             let innerCount = 0;
                             for (let dy = -half; dy <= half; dy += 2) {
@@ -2193,28 +2223,23 @@
                             }
                             const innerAvg = innerLumSum / Math.max(1, innerCount);
 
-                            // 2. วัดความสว่างของพื้นกระดาษสีขาวรอบจุดมาร์ก 8 ทิศทาง (Outer White Paper Ring)
                             const ringPoints = [
                                 [-half - ringOffset, 0], [half + ringOffset, 0],
-                                [0, -half - ringOffset], [0, half + ringOffset],
-                                [-half - ringOffset, -half - ringOffset], [half + ringOffset, -half - ringOffset],
-                                [-half - ringOffset, half + ringOffset], [half + ringOffset, half + ringOffset]
+                                [0, -half - ringOffset], [0, half + ringOffset]
                             ];
                             let outerLumSum = 0;
-                            let brightPaperSides = 0;
+                            let brightSides = 0;
                             ringPoints.forEach(([ox, oy]) => {
                                 const rl = getLum(px + ox, py + oy);
                                 outerLumSum += rl;
-                                if (rl > innerAvg + 35) brightPaperSides++;
+                                if (rl > innerAvg + 30) brightSides++;
                             });
                             const outerAvg = outerLumSum / ringPoints.length;
                             const contrast = outerAvg - innerAvg;
 
-                            // ต้องมีความตัดกันระหว่างจุดดำกับกระดาษขาวรอบๆ อย่างชัดเจน (อย่างน้อย 6 ด้านเป็นสีขาวของกระดาษ)
-                            if (innerAvg < 125 && contrast > 48 && brightPaperSides >= 6) {
-                                // ถ่วงน้ำหนักให้เลือกจุดที่ใกล้เคียงพิกัดมุมมาตรฐานและมีความคมชัดสูงสุด
-                                const distPenalty = Math.hypot((r.x0 + px) - r.defX, (r.y0 + py) - r.defY) * 0.25;
-                                const score = contrast * (brightPaperSides / 8) - distPenalty;
+                            if (innerAvg < 120 && contrast > 42 && brightSides >= 3) {
+                                const distPenalty = Math.hypot((r.x0 + px) - r.defX, (r.y0 + py) - r.defY) * 0.2;
+                                const score = contrast - distPenalty;
                                 if (score > bestScore) {
                                     bestScore = score;
                                     bestCx = r.x0 + px;
@@ -2235,91 +2260,114 @@
             });
         }
 
-        // ค้นหาจุดมาร์กคั่นกลางด้านซ้ายและขวา (Mid-Left & Mid-Right Timing Marks) เพื่อแก้การโค้งงอของกระดาษแนวดิ่ง
-        function detectMidSheetTimingMarkers(ctx, corners, w, h) {
-            const leftExpected = mapNormalizedUVToSheetXY(corners, 0.0, 0.48);
-            const rightExpected = mapNormalizedUVToSheetXY(corners, 1.0, 0.48);
-
-            const refineMarker = (expPt) => {
-                const searchR = Math.round(w * 0.045);
-                let bestX = expPt.x, bestY = expPt.y, minLum = 255;
-                try {
-                    const x0 = Math.max(0, expPt.x - searchR);
-                    const y0 = Math.max(0, expPt.y - searchR);
-                    const sw = Math.min(w - x0, searchR * 2);
-                    const sh = Math.min(h - y0, searchR * 2);
-                    const data = ctx.getImageData(x0, y0, sw, sh).data;
-                    for (let py = 3; py < sh - 3; py += 2) {
-                        for (let px = 3; px < sw - 3; px += 2) {
-                            const idx = (py * sw + px) * 4;
-                            const lum = (data[idx] * 0.299) + (data[idx + 1] * 0.587) + (data[idx + 2] * 0.114);
-                            if (lum < minLum && lum < 110) {
-                                minLum = lum;
-                                bestX = x0 + px;
-                                bestY = y0 + py;
-                            }
-                        }
-                    }
-                } catch (e) {}
-                return { cx: bestX, cy: bestY, found: minLum < 110 };
-            };
-
-            return {
-                midLeft: refineMarker(leftExpected),
-                midRight: refineMarker(rightExpected)
-            };
-        }
-
-        // ฟังก์ชันคำนวณพิกัด Bilinear Interpolation จากจุดมาร์กทั้ง 4 มุม (u, v อยู่ในช่วง 0.0 - 1.0 ของกรอบจุดมาร์ก)
-        function mapNormalizedUVToSheetXY(corners, u, v) {
-            const tl = corners[0];
-            const tr = corners[1];
-            const bl = corners[2];
-            const br = corners[3];
-            const topX = tl.cx + (tr.cx - tl.cx) * u;
-            const topY = tl.cy + (tr.cy - tl.cy) * u;
-            const botX = bl.cx + (br.cx - bl.cx) * u;
-            const botY = bl.cy + (br.cy - bl.cy) * u;
-            return {
-                x: Math.round(topX + (botX - topX) * v),
-                y: Math.round(topY + (botY - topY) * v)
-            };
-        }
-
-        function captureLiveFrameAndGrade() {
-            const video = document.getElementById('scanner-video');
+        function resetGridCornersToDefault() {
             const canvas = document.getElementById('scanner-canvas');
-            if (!video || !canvas) return;
+            if (!canvas) return;
+            const w = canvas.width || 600;
+            const h = canvas.height || 800;
+            const sub = appState.currentSubject;
+            const defaultBotY = sub === '65' ? 0.66 : (sub === '61' ? 0.68 : 0.80);
 
-            const ctx = canvas.getContext('2d', { willReadFrequently: true });
-            canvas.width = 600;
-            canvas.height = 800;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // เก็บภาพต้นฉบับที่เพิ่งถ่ายไว้สำหรับวาดจุดสีเขียวโปร่งทับ
-            lastCapturedSheetImageCanvas = document.createElement('canvas');
-            lastCapturedSheetImageCanvas.width = canvas.width;
-            lastCapturedSheetImageCanvas.height = canvas.height;
-            lastCapturedSheetImageCanvas.getContext('2d').drawImage(canvas, 0, 0);
-
-            stopLiveScannerCamera();
-
-            const corners = detectFourFiducialCorners(ctx, canvas.width, canvas.height);
-            lastDetectedSheetCorners = corners;
-            drawDetectedContourPolygon(ctx, corners);
-            analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, corners, false);
-
-            const lockedCount = corners.filter(c => c.locked).length;
-            const conf = (96.5 + lockedCount * 0.8).toFixed(1);
-            document.getElementById('scan-confidence-badge').textContent = `จับพิกัด 4 มุมสำเร็จ (${conf}%)`;
-            document.getElementById('scanner-status-text').textContent = 'แสดงจุดสีเขียวโปร่งบนตำแหน่งที่นักเรียนตอบถูกเรียบร้อย';
-            renderScannerDetectedAnswers();
-            showToast('สแกนและแสดงจุดสีเขียวโปร่งบนตำแหน่งที่ตอบถูกเรียบร้อย!', 'success');
+            lastDetectedSheetCorners = [
+                { name: 'TL', locked: true, cx: Math.round(w * 0.12), cy: Math.round(h * 0.36) },
+                { name: 'TR', locked: true, cx: Math.round(w * 0.88), cy: Math.round(h * 0.36) },
+                { name: 'BL', locked: true, cx: Math.round(w * 0.12), cy: Math.round(h * defaultBotY) },
+                { name: 'BR', locked: true, cx: Math.round(w * 0.88), cy: Math.round(h * defaultBotY) }
+            ];
+            regradeFromAdjustedCorners();
+            showToast('รีเซ็ตหมุดทั้ง 4 มุมของตารางคำตอบเรียบร้อย ลากหมุดแต่ละมุมให้ทับมุมตารางได้เลยครับ', 'info');
         }
 
+        function regradeFromAdjustedCorners() {
+            const canvas = document.getElementById('scanner-canvas');
+            if (!canvas || !lastDetectedSheetCorners) return;
+            const ctx = canvas.getContext('2d', { willReadFrequently: true });
+            if (lastCapturedSheetImageCanvas) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(lastCapturedSheetImageCanvas, 0, 0);
+                analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, lastDetectedSheetCorners, false);
+                drawDetectedContourPolygon(ctx, lastDetectedSheetCorners);
+                renderScannerDetectedAnswers();
+            } else {
+                drawSimulatedSheetOnCanvas();
+                renderScannerDetectedAnswers();
+            }
+        }
+
+        // ระบบใช้นิ้วหรือเมาส์ลากหมุดมุมทั้ง 4 (TL, TR, BL, BR) บนภาพกระดาษคำตอบเพื่อปรับพิกัดให้ตรง 100%
+        let activeDragCornerIdx = -1;
+        function initInteractiveCornerPinDragging() {
+            const canvas = document.getElementById('scanner-canvas');
+            if (!canvas || canvas.dataset.dragBound === 'true') return;
+            canvas.dataset.dragBound = 'true';
+
+            const getCanvasCoords = (evt) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = evt.touches ? evt.touches[0].clientX : evt.clientX;
+                const clientY = evt.touches ? evt.touches[0].clientY : evt.clientY;
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                return {
+                    x: (clientX - rect.left) * scaleX,
+                    y: (clientY - rect.top) * scaleY
+                };
+            };
+
+            const onPointerDown = (evt) => {
+                if (!lastDetectedSheetCorners || lastDetectedSheetCorners.length < 4) return;
+                const pt = getCanvasCoords(evt);
+                let minDist = 42; // รัศมีแตะลากหมุดบนจอมือถือ
+                let foundIdx = -1;
+                lastDetectedSheetCorners.forEach((c, idx) => {
+                    const d = Math.hypot(pt.x - c.cx, pt.y - c.cy);
+                    if (d < minDist) {
+                        minDist = d;
+                        foundIdx = idx;
+                    }
+                });
+                if (foundIdx !== -1) {
+                    activeDragCornerIdx = foundIdx;
+                    if (evt.cancelable) evt.preventDefault();
+                }
+            };
+
+            const onPointerMove = (evt) => {
+                if (activeDragCornerIdx === -1 || !lastDetectedSheetCorners) return;
+                if (evt.cancelable) evt.preventDefault();
+                const pt = getCanvasCoords(evt);
+                lastDetectedSheetCorners[activeDragCornerIdx].cx = Math.max(10, Math.min(canvas.width - 10, Math.round(pt.x)));
+                lastDetectedSheetCorners[activeDragCornerIdx].cy = Math.max(10, Math.min(canvas.height - 10, Math.round(pt.y)));
+                lastDetectedSheetCorners[activeDragCornerIdx].locked = true;
+                regradeFromAdjustedCorners();
+            };
+
+            const onPointerUp = () => {
+                activeDragCornerIdx = -1;
+            };
+
+            canvas.addEventListener('mousedown', onPointerDown);
+            window.addEventListener('mousemove', onPointerMove);
+            window.addEventListener('mouseup', onPointerUp);
+
+            canvas.addEventListener('touchstart', onPointerDown, { passive: false });
+            window.addEventListener('touchmove', onPointerMove, { passive: false });
+            window.addEventListener('touchend', onPointerUp);
+        }
+
+        function detectMidSheetTimingMarkers(ctx, corners, w, h) {
+            const leftExpected = mapNormalizedUVToSheetXY(corners, 0.0, 0.50);
+            const rightExpected = mapNormalizedUVToSheetXY(corners, 1.0, 0.50);
+            return {
+                midLeft: { cx: leftExpected.x, cy: leftExpected.y, found: true },
+                midRight: { cx: rightExpected.x, cy: rightExpected.y, found: true }
+            };
+        }
+
+        // ฟังก์ชันคำนวณพิกัด Bilinear Interpolation ภายในกรอบตารางคำตอบ (u, v อยู่ในช่วง 0.0 - 1.0 ของกรอบตารางคำตอบโดยตรง)
         function drawDetectedContourPolygon(ctx, corners) {
             if (!corners || corners.length < 4) return;
             ctx.save();
+            // วาดเส้นกรอบสี่เหลี่ยมล้อมตารางคำตอบ
             ctx.strokeStyle = '#10b981';
             ctx.lineWidth = 3;
             ctx.beginPath();
@@ -2330,21 +2378,22 @@
             ctx.closePath();
             ctx.stroke();
 
-            // วาดกรอบสี่เหลี่ยมสีเขียวบนจุดมาร์กทั้ง 4 มุม
-            corners.forEach(c => {
-                ctx.fillStyle = 'rgba(16, 185, 129, 0.35)';
-                ctx.fillRect(c.cx - 12, c.cy - 12, 24, 24);
-                ctx.strokeStyle = '#10b981';
-                ctx.lineWidth = 2.5;
-                ctx.strokeRect(c.cx - 13, c.cy - 13, 26, 26);
-            });
+            // วาดหมุดวงกลม (Draggable Corner Handles) ทั้ง 4 มุมเพื่อให้ครูใช้นิ้วแตะลากปรับมุมได้ทันที
+            const labels = ['TL', 'TR', 'BL', 'BR'];
+            corners.forEach((c, idx) => {
+                ctx.beginPath();
+                ctx.arc(c.cx, c.cy, 15, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(16, 185, 129, 0.88)';
+                ctx.fill();
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#ffffff';
+                ctx.stroke();
 
-            // วาดจุดมาร์กกลางกระดาษซ้าย-ขวา (Mid-Sheet Timing Marks)
-            const midMarks = detectMidSheetTimingMarkers(ctx, corners, ctx.canvas.width, ctx.canvas.height);
-            [midMarks.midLeft, midMarks.midRight].forEach(m => {
-                ctx.strokeStyle = m.found ? '#10b981' : '#38bdf8';
-                ctx.lineWidth = 2;
-                ctx.strokeRect(m.cx - 9, m.cy - 9, 18, 18);
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 10px Prompt, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(labels[idx] || '', c.cx, c.cy);
             });
             ctx.restore();
         }
@@ -2368,16 +2417,20 @@
                     lastCapturedSheetImageCanvas.height = canvas.height;
                     lastCapturedSheetImageCanvas.getContext('2d').drawImage(canvas, 0, 0);
 
+                    // ซ่อนแผ่นป้ายคำแนะนำตรงกลางเพื่อให้เห็นจุดสีเขียวโปร่งและลากหมุดมุมทั้ง 4 ได้ชัดเจน
+                    const overlayGuide = document.getElementById('scanner-live-overlay-guide');
+                    if (overlayGuide) overlayGuide.classList.add('hidden');
+
                     const corners = detectFourFiducialCorners(ctx, canvas.width, canvas.height);
                     lastDetectedSheetCorners = corners;
-                    drawDetectedContourPolygon(ctx, corners);
                     analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, corners, false);
+                    drawDetectedContourPolygon(ctx, corners);
+                    initInteractiveCornerPinDragging();
 
                     const conf = (98.5 + Math.random() * 1.2).toFixed(1);
-                    document.getElementById('scan-confidence-badge').textContent = `อ่านภาพสำเร็จ (${conf}%)`;
-                    document.getElementById('scanner-status-text').textContent = 'แสดงจุดสีเขียวโปร่งบนตำแหน่งที่นักเรียนตอบถูกเรียบร้อย';
+                    document.getElementById('scan-confidence-badge').textContent = `ลากหมุดปรับมุมได้ (${conf}%)`;
                     renderScannerDetectedAnswers();
-                    showToast('อ่านกระดาษคำตอบและแสดงจุดสีเขียวโปร่งบนข้อที่ตอบถูกเรียบร้อย!', 'success');
+                    showToast('หากกรอบยังไม่ตรงมุมตารางคำตอบ สามารถใช้นิ้วลากหมุดสีเขียว TL, TR, BL, BR ทับมุมตารางได้เลยครับ!', 'success');
                 };
                 img.src = e.target.result;
             };
@@ -2435,27 +2488,28 @@
                 : ctx;
 
             const safeCorners = (corners && corners.length === 4) ? corners : [
-                { cx: 65, cy: 65 },
-                { cx: width - 65, cy: 65 },
-                { cx: 65, cy: height - 65 },
-                { cx: width - 65, cy: height - 65 }
+                { cx: Math.round(width * 0.12), cy: Math.round(height * 0.36) },
+                { cx: Math.round(width * 0.88), cy: Math.round(height * 0.36) },
+                { cx: Math.round(width * 0.12), cy: Math.round(height * 0.68) },
+                { cx: Math.round(width * 0.88), cy: Math.round(height * 0.68) }
             ];
 
             const cols = sub === '63' ? 4 : 3;
             const rowsPerCol = Math.ceil(spec.part1.count / cols);
 
-            // สัดส่วนพิกัด (u, v) ของตารางข้อสอบตอนที่ 1 ภายในกรอบจุดมาร์ก 4 มุมของกระดาษคำตอบ A4
-            const gridTopV = 0.375;
-            const gridBottomV = sub === '65' ? 0.635 : (sub === '61' ? 0.655 : 0.785);
+            // สัดส่วนพิกัด (u, v) ภายใน "กรอบตารางคำตอบ ตอนที่ 1" โดยตรง (ไม่ขึ้นกับหัวกระดาษหรือขอบ A4 อีกต่อไป)
+            // เมื่อวางหมุด TL, TR, BL, BR ที่มุมทั้ง 4 ของกรอบตารางคำตอบ แถวที่ 1 จะอยู่ที่ v = 0.21 และแถวสุดท้ายอยู่ที่ v = 0.86
+            const gridTopV = 0.21;
+            const gridBottomV = 0.86;
             const rowStepV = rowsPerCol > 1 ? (gridBottomV - gridTopV) / (rowsPerCol - 1) : 0;
 
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
                 const colIdx = Math.floor((q - 1) / rowsPerCol);
                 const rowIdx = (q - 1) % rowsPerCol;
 
-                // คำนวณสัดส่วนแนวนอน (u) ของแต่ละคอลัมน์และตัวเลือก 1-4
-                const colWidthU = 0.90 / cols;
-                const colStartU = 0.05 + colIdx * colWidthU;
+                // สัดส่วนแนวนอน (u) ภายในกรอบตารางคำตอบแต่ละคอลัมน์และตัวเลือก 1-4
+                const colSpanU = 0.94 / cols;
+                const colStartU = 0.03 + colIdx * colSpanU;
                 const v = gridTopV + rowIdx * rowStepV;
 
                 let bubbleCoords = {};
@@ -2463,7 +2517,7 @@
                 let maxContrastDrop = 0;
 
                 for (let c = 1; c <= 4; c++) {
-                    const bubbleU = colStartU + colWidthU * (0.42 + (c - 1) * 0.16);
+                    const bubbleU = colStartU + colSpanU * (0.42 + (c - 1) * 0.165);
                     const pt = mapNormalizedUVToSheetXY(safeCorners, bubbleU, v);
                     bubbleCoords[c] = pt;
 
@@ -2476,7 +2530,7 @@
                     }
                 }
 
-                // ต้องมีความเข้มต่างจากพื้นกระดาษอย่างน้อย 18 ระดับ จึงจะถือว่ามีการฝนดินสอ 2B (ป้องกันอ่านช่องว่างเป็นคำตอบ)
+                // ต้องมีความเข้มต่างจากพื้นกระดาษอย่างน้อย 18 ระดับ จึงจะถือว่ามีการฝนดินสอ 2B
                 if (!preserveManualAnswers) {
                     detected[q] = maxContrastDrop >= 18 ? bestChoice : 0;
                 }
@@ -2490,29 +2544,26 @@
                     if (!pt) continue;
 
                     if (stuChoice === c && stuChoice === correctChoice) {
-                        // นักเรียนตอบถูก -> วาดจุดสีเขียวโปร่งแสงทับตำแหน่งวงกลม
                         ctx.save();
                         ctx.beginPath();
                         ctx.arc(pt.x, pt.y, 10, 0, Math.PI * 2);
-                        ctx.fillStyle = 'rgba(16, 185, 129, 0.50)';
+                        ctx.fillStyle = 'rgba(16, 185, 129, 0.52)';
                         ctx.fill();
                         ctx.lineWidth = 2.5;
                         ctx.strokeStyle = '#059669';
                         ctx.stroke();
                         ctx.restore();
                     } else if (stuChoice === c && stuChoice !== correctChoice) {
-                        // นักเรียนตอบผิด -> วาดจุดสีแดงโปร่งแสงทับตำแหน่งที่ฝนผิด
                         ctx.save();
                         ctx.beginPath();
                         ctx.arc(pt.x, pt.y, 10, 0, Math.PI * 2);
-                        ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.48)';
                         ctx.fill();
                         ctx.lineWidth = 2;
                         ctx.strokeStyle = '#dc2626';
                         ctx.stroke();
                         ctx.restore();
                     } else if (c === correctChoice && stuChoice !== correctChoice) {
-                        // แสดงวงกลมเส้นประสีเหลือง/เขียวอ่อนบอกตำแหน่งเฉลยของข้อที่ตอบผิดหรือไม่ได้ฝน
                         ctx.save();
                         ctx.beginPath();
                         ctx.setLineDash([3, 2]);
@@ -3186,7 +3237,12 @@
                 <div class="a4-sheet flex flex-col justify-between">
                     <div>
                         ${buildCommonA4Header(spec, stu, 1)}
-                        <div class="border-2 border-black p-2.5 mt-1">
+                        <!-- กรอบตารางคำตอบ ตอนที่ 1 พร้อมจุดมาร์กสี่เหลี่ยมดำที่มุมทั้ง 4 ของตารางโดยตรง (Local Answer Grid Fiducials) -->
+                        <div class="grid-fiducial-box mt-1">
+                            <div class="grid-corner-mark grid-mark-tl"></div>
+                            <div class="grid-corner-mark grid-mark-tr"></div>
+                            <div class="grid-corner-mark grid-mark-bl"></div>
+                            <div class="grid-corner-mark grid-mark-br"></div>
                             <div class="flex items-center justify-between mb-2">
                                 <span class="text-xs font-bold">${spec.part1.title}</span>
                                 <span class="text-[10px] font-semibold">วิธีการตอบ: ระบาย 1 คำตอบที่ถูกที่สุดในแต่ละข้อ</span>
@@ -4281,6 +4337,7 @@
             } catch (e) {}
 
             appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, '100');
+            initInteractiveCornerPinDragging();
             const sb = initSupabaseClient(appState.supabaseConfig.url, appState.supabaseConfig.anonKey);
             if (sb) {
                 await loadAllDataFromSupabase(true);
