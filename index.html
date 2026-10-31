@@ -746,10 +746,47 @@
 
                             <!-- Interactive Corner Pin Hint Bar -->
                             <div class="mt-2.5 px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-wrap items-center justify-between gap-2 text-xs text-emerald-950">
-                                <span class="font-semibold"><i class="fa-solid fa-up-down-left-right text-emerald-600 mr-1.5"></i> <strong>เคล็ดลับความแม่นยำ 100%:</strong> สามารถแตะลากหมุด <strong>TL, TR, BL, BR</strong> ไปวางทับมุมทั้ง 4 ของกระดาษ หรือวางทับ <strong>มุมทั้ง 4 ของกรอบตารางคำตอบ ตอนที่ 1</strong> โดยตรงได้เลย</span>
+                                <span class="font-semibold"><i class="fa-solid fa-up-down-left-right text-emerald-600 mr-1.5"></i> <strong>เคล็ดลับความแม่นยำ 100%:</strong> สามารถแตะลากหมุด <strong>TL, TR, BL, BR</strong> ไปวางทับมุมสี่เหลี่ยมดำทั้ง 4 มุมของกระดาษ หรือใช้ปุ่มปรับจูนตารางด้านล่างแล้วบันทึกพิกัดลงฐานข้อมูล</span>
                                 <button type="button" onclick="snapCornersToInnerAnswerBox()" class="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] transition shrink-0">
                                     <i class="fa-solid fa-compress mr-1"></i> ล็อกเฉพาะกรอบตารางคำตอบ
                                 </button>
+                            </div>
+
+                            <!-- Fine-Tune OMR Grid Calibration & Save to Supabase Database -->
+                            <div class="mt-2.5 p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                                <div class="flex flex-wrap items-center justify-between gap-2">
+                                    <span class="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                                        <i class="fa-solid fa-sliders text-indigo-600"></i> ปรับจูนตำแหน่งวงกลมให้ตรงกระดาษ (บันทึกจำค่าไว้ในฐานข้อมูลได้)
+                                    </span>
+                                    <div class="flex items-center gap-1.5">
+                                        <button type="button" onclick="resetGridCalibrationOffset()" class="px-2 py-1 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold text-[11px] transition">
+                                            ค่าเริ่มต้น
+                                        </button>
+                                        <button type="button" onclick="saveGridCalibrationToSupabase()" class="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[11px] shadow-sm transition flex items-center gap-1">
+                                            <i class="fa-solid fa-cloud-arrow-up"></i> บันทึกพิกัดลงฐานข้อมูล
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                                    <button type="button" onclick="nudgeGridCalibration(0, -0.006, 0, 0)" class="py-1.5 px-2 rounded-lg bg-white hover:bg-indigo-50 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-arrow-up text-indigo-600"></i> เลื่อนขึ้น
+                                    </button>
+                                    <button type="button" onclick="nudgeGridCalibration(0, 0.006, 0, 0)" class="py-1.5 px-2 rounded-lg bg-white hover:bg-indigo-50 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-arrow-down text-indigo-600"></i> เลื่อนลง
+                                    </button>
+                                    <button type="button" onclick="nudgeGridCalibration(-0.006, 0, 0, 0)" class="py-1.5 px-2 rounded-lg bg-white hover:bg-indigo-50 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-arrow-left text-indigo-600"></i> เลื่อนซ้าย
+                                    </button>
+                                    <button type="button" onclick="nudgeGridCalibration(0.006, 0, 0, 0)" class="py-1.5 px-2 rounded-lg bg-white hover:bg-indigo-50 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-arrow-right text-indigo-600"></i> เลื่อนขวา
+                                    </button>
+                                    <button type="button" onclick="nudgeGridCalibration(0, 0, 0, -0.008)" class="py-1.5 px-2 rounded-lg bg-white hover:bg-amber-50 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-compress-arrows-alt text-amber-600"></i> บีบระยะแถว
+                                    </button>
+                                    <button type="button" onclick="nudgeGridCalibration(0, 0, 0, 0.008)" class="py-1.5 px-2 rounded-lg bg-white hover:bg-amber-50 border border-slate-300 text-slate-800 font-bold text-xs flex items-center justify-center gap-1">
+                                        <i class="fa-solid fa-expand-arrows-alt text-amber-600"></i> ขยายระยะแถว
+                                    </button>
+                                </div>
                             </div>
 
                             <!-- Mobile Camera & Image Upload Controls (แยกปุ่มถ่ายภาพและปุ่มอัปโหลดรูปภาพชัดเจน) -->
@@ -1173,6 +1210,12 @@
             examSessions: [],
             answerKeys: createMultiFormAnswerKeys(),
             itemMetadata: createDefaultItemMetadata(),
+            gridCalibration: {
+                '65': { offsetU: 0, offsetV: 0, scaleU: 0, scaleV: 0 },
+                '64': { offsetU: 0, offsetV: 0, scaleU: 0, scaleV: 0 },
+                '63': { offsetU: 0, offsetV: 0, scaleU: 0, scaleV: 0 },
+                '61': { offsetU: 0, offsetV: 0, scaleU: 0, scaleV: 0 }
+            },
             students: [],
             sessionExamResults: {},
             allRawResults: [],
@@ -1254,7 +1297,12 @@
                         const parsedKeys = safeParseJSON(row.answer_keys_json, null);
                         const parsedMeta = safeParseJSON(row.item_metadata_json, null);
                         if (parsedKeys) appState.answerKeys[sc] = parsedKeys;
-                        if (parsedMeta) appState.itemMetadata[sc] = parsedMeta;
+                        if (parsedMeta) {
+                            if (parsedMeta._gridCalibration) {
+                                appState.gridCalibration[sc] = parsedMeta._gridCalibration;
+                            }
+                            appState.itemMetadata[sc] = parsedMeta;
+                        }
                     });
                 }
 
@@ -2618,129 +2666,54 @@
                 y: Math.round(topY + (botY - topY) * v)
             };
         }
-
-        function drawDetectedContourPolygon(ctx, corners) {
-            if (!corners || corners.length < 4) return;
-            const scaleFactor = Math.max(1, (ctx.canvas?.width || 600) / 600);
-            ctx.save();
-            ctx.strokeStyle = '#10b981';
-            ctx.lineWidth = Math.round(3 * scaleFactor);
-            ctx.beginPath();
-            ctx.moveTo(corners[0].cx, corners[0].cy);
-            ctx.lineTo(corners[1].cx, corners[1].cy);
-            ctx.lineTo(corners[3].cx, corners[3].cy);
-            ctx.lineTo(corners[2].cx, corners[2].cy);
-            ctx.closePath();
-            ctx.stroke();
-
-            const labels = ['TL', 'TR', 'BL', 'BR'];
-            const pinRadius = Math.round(16 * scaleFactor);
-            corners.forEach((c, idx) => {
-                ctx.beginPath();
-                ctx.arc(c.cx, c.cy, pinRadius, 0, Math.PI * 2);
-                ctx.fillStyle = 'rgba(16, 185, 129, 0.90)';
-                ctx.fill();
-                ctx.lineWidth = Math.round(3 * scaleFactor);
-                ctx.strokeStyle = '#ffffff';
-                ctx.stroke();
-
-                ctx.fillStyle = '#ffffff';
-                ctx.font = `bold ${Math.round(10 * scaleFactor)}px Prompt, sans-serif`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(labels[idx] || '', c.cx, c.cy);
-            });
-            ctx.restore();
-        }
-
-        function handleImageUpload(event) {
-            const file = event.target?.files?.[0];
-            if (!file) return;
-            stopLiveScannerCamera();
-
-            const objectUrl = URL.createObjectURL(file);
-            const img = new Image();
-            img.onload = function() {
-                URL.revokeObjectURL(objectUrl);
-                const canvas = document.getElementById('scanner-canvas');
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-
-                // รักษาสัดส่วนภาพจริง 100% และจำกัดด้านยาวสุดไม่เกิน 1800px เพื่อไม่ให้หน่วยความจำ Canvas บนมือถือค้าง
-                const rawW = img.naturalWidth || img.width;
-                const rawH = img.naturalHeight || img.height;
-                const maxDim = 1800;
-                const scaleDown = Math.min(1, maxDim / Math.max(rawW, rawH));
-                const actualW = Math.max(1, Math.round(rawW * scaleDown));
-                const actualH = Math.max(1, Math.round(rawH * scaleDown));
-
-                canvas.width = actualW;
-                canvas.height = actualH;
-                ctx.drawImage(img, 0, 0, actualW, actualH);
-
-                const resBadge = document.getElementById('camera-res-badge');
-                if (resBadge) resBadge.textContent = `ภาพจริง: ${actualW}×${actualH} px`;
-
-                lastCapturedSheetImageCanvas = document.createElement('canvas');
-                lastCapturedSheetImageCanvas.width = actualW;
-                lastCapturedSheetImageCanvas.height = actualH;
-                lastCapturedSheetImageCanvas.getContext('2d').drawImage(canvas, 0, 0);
-
-                const overlayGuide = document.getElementById('scanner-live-overlay-guide');
-                if (overlayGuide) overlayGuide.classList.add('hidden');
-
-                const corners = detectFourFiducialCorners(ctx, actualW, actualH);
-                lastDetectedSheetCorners = corners;
-                analyzeUploadedPaperPixels(ctx, actualW, actualH, corners, false);
-                drawDetectedContourPolygon(ctx, corners);
-                initInteractiveCornerPinDragging();
-
-                const lockedCnt = corners.filter(c => c.locked).length;
-                document.getElementById('scan-confidence-badge').textContent = `จับมุมกระดาษจริง (${lockedCnt}/4 มุม)`;
-                renderScannerDetectedAnswers();
-                showToast(`อัปโหลดและสแกนภาพ (${actualW}×${actualH} px) สำเร็จ!`, 'success');
-            };
-            img.onerror = function() {
-                URL.revokeObjectURL(objectUrl);
-                showToast('ไม่สามารถอ่านไฟล์รูปภาพนี้ได้ กรุณาเลือกรูปภาพ JPG หรือ PNG', 'error');
-            };
-            img.src = objectUrl;
-            event.target.value = '';
-        }
-
-        function sampleBubbleDarknessContrast(imgCtx, bx, by, radius = 6) {
-            // คงฟังก์ชันและสูตรการคำนวณความเข้มของวงกลมตามเดิม
-            try {
-                const size = radius * 4;
-                const x0 = Math.max(0, Math.round(bx - radius * 2));
-                const y0 = Math.max(0, Math.round(by - radius * 2));
-                const data = imgCtx.getImageData(x0, y0, size, size).data;
-
-                let innerSum = 0, innerCnt = 0;
-                let outerSum = 0, outerCnt = 0;
-
-                for (let py = 0; py < size; py++) {
-                    for (let px = 0; px < size; px++) {
-                        const dx = px - radius * 2;
-                        const dy = py - radius * 2;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        const idx = (py * size + px) * 4;
-                        const lum = (data[idx] * 0.299) + (data[idx + 1] * 0.587) + (data[idx + 2] * 0.114);
-
-                        if (dist <= radius * 0.85) {
-                            innerSum += lum;
-                            innerCnt++;
-                        } else if (dist >= radius * 1.35 && dist <= radius * 1.95) {
-                            outerSum += lum;
-                            outerCnt++;
-                        }
-                    }
-                }
-                const innerAvg = innerCnt > 0 ? innerSum / innerCnt : 220;
-                const outerAvg = outerCnt > 0 ? outerSum / outerCnt : 220;
-                return Math.max(0, outerAvg - innerAvg);
-            } catch (e) {
-                return 0;
+        function getSubjectGridCalibration(subjectCode) {
+            if (!appState.gridCalibration[subjectCode]) {
+                appState.gridCalibration[subjectCode] = { offsetU: 0, offsetV: 0, scaleU: 0, scaleV: 0 };
             }
+            return appState.gridCalibration[subjectCode];
+        }
+
+        function nudgeGridCalibration(du, dv, dScaleU, dScaleV) {
+            const sub = appState.currentSubject;
+            const cal = getSubjectGridCalibration(sub);
+            cal.offsetU = Number((cal.offsetU + du).toFixed(4));
+            cal.offsetV = Number((cal.offsetV + dv).toFixed(4));
+            cal.scaleU = Number((cal.scaleU + dScaleU).toFixed(4));
+            cal.scaleV = Number((cal.scaleV + dScaleV).toFixed(4));
+            if (!appState.itemMetadata[sub]) appState.itemMetadata[sub] = {};
+            appState.itemMetadata[sub]._gridCalibration = cal;
+            regradeFromAdjustedCorners();
+        }
+
+        function resetGridCalibrationOffset() {
+            const sub = appState.currentSubject;
+            appState.gridCalibration[sub] = { offsetU: 0, offsetV: 0, scaleU: 0, scaleV: 0 };
+            if (appState.itemMetadata[sub]) {
+                appState.itemMetadata[sub]._gridCalibration = appState.gridCalibration[sub];
+            }
+            regradeFromAdjustedCorners();
+            showToast('รีเซ็ตตำแหน่งตารางวงกลมกลับเป็นค่ามาตรฐานแล้ว', 'info');
+        }
+
+        async function saveGridCalibrationToSupabase() {
+            const sub = appState.currentSubject;
+            const cal = getSubjectGridCalibration(sub);
+            if (!appState.itemMetadata[sub]) appState.itemMetadata[sub] = {};
+            appState.itemMetadata[sub]._gridCalibration = cal;
+
+            if (appState.supabaseClient) {
+                const { error } = await appState.supabaseClient.from('ppn_subject_configs').upsert([{
+                    subject_code: sub,
+                    answer_keys_json: appState.answerKeys[sub],
+                    item_metadata_json: appState.itemMetadata[sub],
+                    updated_at: new Date().toISOString()
+                }], { onConflict: 'subject_code' });
+                if (error) {
+                    showToast(`บันทึกพิกัดลงฐานข้อมูลไม่สำเร็จ: ${error.message}`, 'error');
+                    return;
+                }
+            }
+            showSaveSuccessDialog('บันทึกพิกัดตารางวงกลมและเฉลยลงในฐานข้อมูล Supabase เรียบร้อยแล้ว ระบบจะจำตำแหน่งนี้ไว้สำหรับการสแกนทุกครั้งต่อไป');
         }
 
         function analyzeUploadedPaperPixels(ctx, width, height, corners, preserveManualAnswers = false) {
@@ -2749,6 +2722,7 @@
             const formCode = document.getElementById('scan-form-code')?.value || '100';
             const key = getActiveSubjectKey(sub, formCode);
             const detected = preserveManualAnswers ? JSON.parse(JSON.stringify(appState.currentScanDraft.answers || {})) : {};
+            const cal = getSubjectGridCalibration(sub);
 
             const sourceCtx = lastCapturedSheetImageCanvas
                 ? lastCapturedSheetImageCanvas.getContext('2d', { willReadFrequently: true })
@@ -2770,22 +2744,37 @@
             const boxAspect = boxHeightPx / Math.max(1, boxWidthPx);
             const isFullSheetCorners = boxAspect > 0.98;
 
-            // พิกัดสัดส่วนที่วัดจากโครงสร้าง DOM จริงของกระดาษคำตอบที่พิมพ์ออกทาง A4 ของแต่ละวิชา
-            let gridTopV, gridBottomV, colAreaStartU, colAreaSpanU;
+            // พิกัดที่ปรับเทียบจากภาพถ่ายกระดาษจริงของคุณครู (image_b38cce.jpg) ให้ตรงกับแถวที่ 1 - 6 พอดี ไม่ล้นลงด้านล่าง
+            let gridTopV, gridBottomV, colFirstBubbleU, colStepU, choiceStepU;
             if (isFullSheetCorners) {
-                gridTopV = 0.305;
-                if (sub === '65') gridBottomV = 0.505;      // 6 แถว
-                else if (sub === '64') gridBottomV = 0.425; // 4 แถว
-                else if (sub === '61') gridBottomV = 0.542; // 7 แถว
-                else gridBottomV = 0.580;                   // 8 แถว (อังกฤษ)
-                colAreaStartU = 0.048;
-                colAreaSpanU = 0.904;
+                gridTopV = 0.273 + cal.offsetV;
+                if (sub === '65') gridBottomV = 0.453 + cal.offsetV + cal.scaleV;      // 6 แถว (ข้อ 1-6, 7-12, 13-18)
+                else if (sub === '64') gridBottomV = 0.381 + cal.offsetV + cal.scaleV; // 4 แถว
+                else if (sub === '61') gridBottomV = 0.489 + cal.offsetV + cal.scaleV; // 7 แถว
+                else gridBottomV = 0.525 + cal.offsetV + cal.scaleV;                   // 8 แถว (อังกฤษ)
+
+                if (cols === 3) {
+                    colFirstBubbleU = 0.148 + cal.offsetU;
+                    colStepU = 0.314 + (cal.scaleU * 0.5);
+                    choiceStepU = 0.046;
+                } else {
+                    colFirstBubbleU = 0.115 + cal.offsetU;
+                    colStepU = 0.236 + (cal.scaleU * 0.5);
+                    choiceStepU = 0.034;
+                }
             } else {
-                // กรณีล็อกเฉพาะกรอบตารางคำตอบ ตอนที่ 1 (แม่นยำสูงสุด)
-                gridTopV = 0.21;
-                gridBottomV = 0.84;
-                colAreaStartU = 0.032;
-                colAreaSpanU = 0.936;
+                // กรณีล็อกเฉพาะกรอบตารางคำตอบ ตอนที่ 1
+                gridTopV = 0.215 + cal.offsetV;
+                gridBottomV = 0.815 + cal.offsetV + cal.scaleV;
+                if (cols === 3) {
+                    colFirstBubbleU = 0.145 + cal.offsetU;
+                    colStepU = 0.322 + (cal.scaleU * 0.5);
+                    choiceStepU = 0.048;
+                } else {
+                    colFirstBubbleU = 0.112 + cal.offsetU;
+                    colStepU = 0.242 + (cal.scaleU * 0.5);
+                    choiceStepU = 0.035;
+                }
             }
 
             const rowStepV = rowsPerCol > 1 ? (gridBottomV - gridTopV) / (rowsPerCol - 1) : 0;
@@ -2795,9 +2784,6 @@
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
                 const colIdx = Math.floor((q - 1) / rowsPerCol);
                 const rowIdx = (q - 1) % rowsPerCol;
-
-                const colSpanU = colAreaSpanU / cols;
-                const colStartU = colAreaStartU + colIdx * colSpanU;
                 const v = gridTopV + rowIdx * rowStepV;
 
                 let bubbleCoords = {};
@@ -2805,8 +2791,8 @@
                 let maxContrastDrop = 0;
 
                 for (let c = 1; c <= 4; c++) {
-                    // ตำแหน่งวงกลม 1, 2, 3, 4 ภายในคอลัมน์ (justify-between: เลขข้ออยู่ซ้าย วงกลม 4 วงเรียงชิดขวา)
-                    const bubbleU = colStartU + colSpanU * (0.43 + (c - 1) * 0.155);
+                    // คำนวณตำแหน่งวงกลม 1, 2, 3, 4 ตามระยะจริงบนกระดาษคำตอบ
+                    const bubbleU = colFirstBubbleU + (colIdx * colStepU) + ((c - 1) * choiceStepU);
                     const basePt = mapNormalizedUVToSheetXY(safeCorners, bubbleU, v);
 
                     // ค้นหาจุดศูนย์กลางรอยฝนในรัศมีใกล้เคียง (Local Center Search) เพื่อชดเชยกรณีกระดาษโค้งเล็กน้อย
@@ -2894,7 +2880,69 @@
                 }
             }
 
-            if (!preserveManualAnswers) {
+            // อ่านค่าและวาดจุดตรวจสำหรับ ตอนที่ 2 ของวิชาวิทยาศาสตร์ (ข้อ 19.1-19.3 และ 20.1-20.3) เมื่อจับมุมกระดาษเต็มแผ่น
+            if (sub === '65' && isFullSheetCorners) {
+                const part2Cols = [
+                    { qNo: '19', uYes: 0.372 + cal.offsetU, uNo: 0.450 + cal.offsetU },
+                    { qNo: '20', uYes: 0.858 + cal.offsetU, uNo: 0.936 + cal.offsetU }
+                ];
+                const part2RowVs = [0.652 + cal.offsetV, 0.692 + cal.offsetV, 0.732 + cal.offsetV];
+
+                part2Cols.forEach(pCol => {
+                    if (!preserveManualAnswers || !detected[pCol.qNo]) {
+                        detected[pCol.qNo] = { '1': 1, '2': 2, '3': 1 };
+                    }
+                    ['1', '2', '3'].forEach((subIdx, rIdx) => {
+                        const v = part2RowVs[rIdx];
+                        const ptYes = mapNormalizedUVToSheetXY(safeCorners, pCol.uYes, v);
+                        const ptNo = mapNormalizedUVToSheetXY(safeCorners, pCol.uNo, v);
+
+                        if (!preserveManualAnswers) {
+                            const dropYes = sampleBubbleDarknessContrast(sourceCtx, ptYes.x, ptYes.y, adaptiveRadius);
+                            const dropNo = sampleBubbleDarknessContrast(sourceCtx, ptNo.x, ptNo.y, adaptiveRadius);
+                            if (dropYes >= 18 || dropNo >= 18) {
+                                detected[pCol.qNo][subIdx] = dropYes >= dropNo ? 1 : 2;
+                            } else {
+                                detected[pCol.qNo][subIdx] = Number(key[pCol.qNo]?.[subIdx]) || 1;
+                            }
+                        }
+
+                        const stuSubAns = Number(detected[pCol.qNo]?.[subIdx] || 1);
+                        const keySubAns = Number(key[pCol.qNo]?.[subIdx] || 1);
+                        [ { c: 1, pt: ptYes }, { c: 2, pt: ptNo } ].forEach(item => {
+                            if (stuSubAns === item.c && stuSubAns === keySubAns) {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(item.pt.x, item.pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
+                                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                                ctx.fill();
+                                ctx.lineWidth = Math.round(2 * dotScale);
+                                ctx.strokeStyle = '#059669';
+                                ctx.stroke();
+                                ctx.restore();
+                            } else if (stuSubAns === item.c && stuSubAns !== keySubAns) {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(item.pt.x, item.pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
+                                ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                                ctx.fill();
+                                ctx.lineWidth = Math.round(2 * dotScale);
+                                ctx.strokeStyle = '#dc2626';
+                                ctx.stroke();
+                                ctx.restore();
+                            } else {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(item.pt.x, item.pt.y, Math.round(4 * dotScale), 0, Math.PI * 2);
+                                ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                                ctx.lineWidth = 1;
+                                ctx.stroke();
+                                ctx.restore();
+                            }
+                        });
+                    });
+                });
+            } else if (!preserveManualAnswers) {
                 if (sub === '65') {
                     ['19', '20'].forEach(qNo => {
                         detected[qNo] = {
