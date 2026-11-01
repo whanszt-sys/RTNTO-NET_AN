@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Supabase JS Client SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- html2pdf Library สำหรับดาวน์โหลดกระดาษคำตอบเป็นไฟล์ PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 
     <!-- สคริปต์ล็อกอินฉุกเฉินส่วนหัว (ทำงานได้ทันทีแม้ไฟล์ส่วนล่างหรือ CDN โหลดช้า) -->
     <script>
@@ -816,6 +818,21 @@
                                 </div>
                             </div>
 
+                            <!-- แถบเลือกตอนที่ต้องการสแกน (แยกสแกน ตอนที่ 1 และ ตอนที่ 2) -->
+                            <div id="scanner-part-selector-bar" class="bg-slate-900 text-white px-3 py-2 flex items-center justify-between gap-2 border-b border-slate-800 z-30 shrink-0">
+                                <span id="scanner-active-part-badge" class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                                    <i class="fa-solid fa-layer-group"></i> กำลังสแกน: ตอนที่ 1
+                                </span>
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" id="btn-scan-mode-part1" onclick="switchScannerPartMode(1)" class="px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow-sm cursor-pointer">
+                                        สแกนตอนที่ 1
+                                    </button>
+                                    <button type="button" id="btn-scan-mode-part2" onclick="switchScannerPartMode(2)" class="px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-600 cursor-pointer">
+                                        สแกนตอนที่ 2
+                                    </button>
+                                </div>
+                            </div>
+
                             <!-- Camera & Canvas Preview Container (สัดส่วน A4 แนวตั้ง ระยะห่างกรอบบน-ล่างกว้างขึ้น) -->
                             <div id="scanner-viewport-box" class="relative bg-slate-950 overflow-hidden flex-1 min-h-[72vh] sm:min-h-[680px] w-full mx-auto flex items-center justify-center touch-none">
                                 <!-- Live Video Feed (เต็มพื้นที่หน้าจอสแกน) -->
@@ -824,6 +841,19 @@
                                 <canvas id="scanner-live-contour-canvas" class="hidden absolute inset-0 w-full h-full object-cover pointer-events-none"></canvas>
                                 <!-- Processed / Captured Sheet Canvas (แสดงภาพที่ค้างไว้หลังล็อกอัตโนมัติ) -->
                                 <canvas id="scanner-canvas" class="w-full h-full object-contain cursor-crosshair"></canvas>
+
+                                <!-- แบนเนอร์แจ้งเตือน "บันทึกคะแนนเรียบร้อย" โชว์หน้ากล้องทันทีเมื่อกดบันทึก -->
+                                <div id="camera-save-success-banner" class="hidden absolute top-16 inset-x-4 z-40 pointer-events-none flex justify-center">
+                                    <div class="bg-emerald-600/95 backdrop-blur-md text-white px-4 py-2.5 rounded-2xl shadow-2xl border-2 border-white/80 flex items-center gap-2.5 max-w-md w-full animate-bounce">
+                                        <div class="w-8 h-8 rounded-full bg-white text-emerald-700 flex items-center justify-center shrink-0 font-black text-base">
+                                            <i class="fa-solid fa-check"></i>
+                                        </div>
+                                        <div class="text-left">
+                                            <div class="text-xs sm:text-sm font-extrabold leading-tight">บันทึกคะแนนเรียบร้อยแล้ว!</div>
+                                            <div id="camera-save-success-detail" class="text-[11px] text-emerald-100 font-medium">พร้อมสแกนกระดาษคำตอบแผ่นต่อไปได้เลย</div>
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <!-- ส่วนแสดงชื่อวิชาด้านบน + กรอบสี่เหลี่ยมมุมมน 4 มุม (วางห่างบน-ล่างตามสัดส่วนกระดาษ A4) -->
                                 <div id="scanner-live-overlay-guide" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-5">
@@ -865,34 +895,47 @@
                                     </div>
                                 </div>
 
-                                <!-- แผงแสดงคะแนนค้างบนหน้าจออัตโนมัติเมื่อสแกนติด + เลือกนักเรียน + ปุ่มบันทึก & ปุ่มสแกนใหม่ -->
-                                <div id="auto-scan-result-overlay" class="hidden absolute inset-x-3 bottom-3 z-30 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border-2 border-emerald-400 shadow-2xl space-y-3">
+                                <!-- แผงแสดงคะแนนค้างบนหน้าจออัตโนมัติเมื่อสแกนติด (ปรับให้โปร่งแสงขึ้นเพื่อมองเห็นส่วนล่างของกระดาษคำตอบได้ชัดเจน) -->
+                                <div id="auto-scan-result-overlay" class="hidden absolute inset-x-3 bottom-2.5 z-30 bg-slate-900/55 backdrop-blur-[2px] text-white p-3 rounded-2xl border border-emerald-400/80 shadow-xl space-y-2">
                                     <div class="flex items-center justify-between gap-2">
                                         <div>
-                                            <span class="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2.5 py-0.5 rounded-full">
-                                                <i class="fa-solid fa-circle-check"></i> สแกนและตรวจคำตอบสำเร็จ
+                                            <span id="overlay-scanned-part-badge" class="inline-flex items-center gap-1 text-[10px] font-bold bg-emerald-500/30 text-emerald-200 border border-emerald-400/50 px-2 py-0.5 rounded-full">
+                                                <i class="fa-solid fa-circle-check"></i> สแกนตอนที่ 1 สำเร็จ
                                             </span>
-                                            <h4 id="overlay-result-subject" class="text-sm font-bold text-white mt-1">วิทยาศาสตร์ ป.6 (รหัส 65)</h4>
-                                            <p id="overlay-result-breakdown" class="text-xs text-slate-300">ตอนที่ 1: 0 คะแนน | ตอนที่ 2: 0 คะแนน</p>
+                                            <h4 id="overlay-result-subject" class="text-xs sm:text-sm font-bold text-white mt-0.5 drop-shadow">วิทยาศาสตร์ ป.6 (รหัส 65)</h4>
+                                            <p id="overlay-result-breakdown" class="text-[11px] text-emerald-100 font-semibold drop-shadow">ตอนที่ 1: 0 คะแนน | ตอนที่ 2: 0 คะแนน</p>
                                         </div>
-                                        <div class="text-right bg-emerald-500/20 border border-emerald-400/50 px-4 py-2 rounded-xl shrink-0">
-                                            <span class="text-[10px] text-emerald-200 block font-semibold">คะแนนที่ได้</span>
+                                        <div class="text-right bg-slate-950/55 border border-emerald-400/60 px-3 py-1.5 rounded-xl shrink-0">
+                                            <span class="text-[10px] text-emerald-200 block font-semibold">คะแนนรวม</span>
                                             <div class="flex items-baseline justify-end gap-1">
-                                                <span id="overlay-result-score" class="text-3xl font-black text-emerald-400">0.00</span>
-                                                <span id="overlay-result-max" class="text-xs text-emerald-100">/ 100</span>
+                                                <span id="overlay-result-score" class="text-2xl sm:text-3xl font-black text-emerald-400">0.00</span>
+                                                <span id="overlay-result-max" class="text-[11px] text-emerald-100">/ 100</span>
                                             </div>
                                         </div>
                                     </div>
 
+                                    <!-- ช่องกรอกคะแนนข้อเขียน ตอนที่ 3 (ข้อ 22) เฉพาะวิชาภาษาไทย รหัส 61 บนหน้าจอสแกนโดยตรง -->
+                                    <div id="overlay-thai-part3-box" class="hidden bg-amber-500/25 border border-amber-300/70 rounded-xl px-3 py-1.5 flex items-center justify-between gap-2">
+                                        <span class="text-[11px] font-bold text-amber-100">
+                                            <i class="fa-solid fa-pen-clip mr-1"></i> ตอนที่ 3 ข้อเขียน (ข้อ 22):
+                                        </span>
+                                        <div class="flex items-center gap-1.5">
+                                            <input type="number" id="overlay-thai-essay-input" min="0" max="20" step="0.5" value="0"
+                                                   oninput="updateDraftThaiPart2('22', this.value)"
+                                                   class="w-16 text-center font-extrabold text-xs py-1 px-1.5 rounded-lg bg-white text-slate-900 border border-amber-400 focus:outline-none">
+                                            <span class="text-[11px] font-bold text-amber-100">/ 20 คะแนน</span>
+                                        </div>
+                                    </div>
+
                                     <!-- ตัวเลือกนักเรียนและชุดข้อสอบด่วนบนหน้าจอเต็มจอ -->
-                                    <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-700/80">
+                                    <div class="grid grid-cols-3 gap-2 pt-1 border-t border-white/20">
                                         <div class="col-span-2">
-                                            <label class="block text-[10px] text-slate-300 font-semibold mb-0.5">นักเรียนเจ้าของกระดาษคำตอบ</label>
-                                            <select id="overlay-student-select" onchange="syncScannerStudentSelect(this.value)" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"></select>
+                                            <label class="block text-[10px] text-slate-100 font-semibold mb-0.5 drop-shadow">นักเรียนเจ้าของกระดาษคำตอบ</label>
+                                            <select id="overlay-student-select" onchange="syncScannerStudentSelect(this.value)" class="w-full bg-slate-900/80 border border-slate-400/60 text-white rounded-lg px-2 py-1 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"></select>
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-slate-300 font-semibold mb-0.5">ชุดข้อสอบ</label>
-                                            <select id="overlay-form-code" onchange="syncScannerFormCode(this.value)" class="w-full bg-slate-800 border border-slate-600 text-emerald-300 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none">
+                                            <label class="block text-[10px] text-slate-100 font-semibold mb-0.5 drop-shadow">ชุดข้อสอบ</label>
+                                            <select id="overlay-form-code" onchange="syncScannerFormCode(this.value)" class="w-full bg-slate-900/80 border border-slate-400/60 text-emerald-300 rounded-lg px-2 py-1 text-xs font-bold focus:outline-none">
                                                 <option value="100">ชุด 100</option>
                                                 <option value="200">ชุด 200</option>
                                                 <option value="300">ชุด 300</option>
@@ -903,34 +946,42 @@
                                         </div>
                                     </div>
 
-                                    <div class="grid grid-cols-2 gap-2.5 pt-1">
-                                        <button type="button" onclick="saveAndRescanNext()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm transition cursor-pointer">
+                                    <div class="flex flex-wrap items-center gap-2 pt-1">
+                                        <button type="button" onclick="saveAndRescanNext()" class="flex-1 bg-emerald-500/95 hover:bg-emerald-600 text-slate-950 font-extrabold py-2.5 px-3 rounded-xl shadow-lg flex items-center justify-center gap-1.5 text-xs sm:text-sm transition cursor-pointer">
                                             <i class="fa-solid fa-floppy-disk"></i> บันทึกคะแนน
                                         </button>
-                                        <button type="button" onclick="startNextAutoScan()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl border border-slate-500 flex items-center justify-center gap-2 text-sm transition cursor-pointer">
+                                        <button type="button" id="btn-overlay-scan-part2" onclick="startScanPart2Continuation()" class="hidden flex-1 bg-sky-500/95 hover:bg-sky-600 text-white font-extrabold py-2.5 px-3 rounded-xl shadow-lg items-center justify-center gap-1.5 text-xs sm:text-sm transition cursor-pointer">
+                                            <i class="fa-solid fa-forward-step"></i> สแกนตอนที่ 2 ต่อ
+                                        </button>
+                                        <button type="button" onclick="startNextAutoScan(1)" class="bg-slate-800/85 hover:bg-slate-700 text-white font-bold py-2.5 px-3 rounded-xl border border-white/30 flex items-center justify-center gap-1.5 text-xs sm:text-sm transition cursor-pointer">
                                             <i class="fa-solid fa-rotate-right"></i> สแกนใหม่
                                         </button>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Camera Control Footer (เอาปุ่มเลือกรูปจากมือถือและปุ่มกล้องระบบออก เหลือเฉพาะปุ่มสแกนเต็มจอ) -->
-                            <div id="scanner-bottom-bar" class="p-3.5 bg-slate-50 border-t border-slate-200 shrink-0">
-                                <button type="button" id="btn-primary-mobile-scan" onclick="openFullScreenScannerAndStart()" class="w-full bg-[#1b6b3a] hover:bg-emerald-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition text-sm cursor-pointer">
-                                    <i class="fa-solid fa-expand"></i> <span id="btn-primary-mobile-scan-text">เปิดกล้องสแกนเต็มหน้าจอ (Auto-Scan)</span>
+                            <!-- Camera Control Footer -->
+                            <div id="scanner-bottom-bar" class="p-4 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
+                                <button type="button" onclick="handleMobileScanButtonClick()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-sm flex items-center justify-center gap-2 text-xs sm:text-sm transition cursor-pointer">
+                                    <i class="fa-solid fa-camera"></i>
+                                    <span id="btn-primary-mobile-scan-text">เริ่มสแกนอัตโนมัติ</span>
+                                </button>
+                                <button type="button" onclick="openFullScreenScannerAndStart()" class="px-4 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition cursor-pointer">
+                                    <i class="fa-solid fa-expand"></i>
+                                    <span>ขยายเต็มจอมือถือ</span>
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Right Column: Grading Inspection & Student Assignment -->
+                        <!-- Right Column: Student Selection, Instant Score & Detected Answers Panel -->
                         <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
                             <div class="space-y-4">
-                                <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+                                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
                                     <div>
-                                        <h3 class="font-bold text-slate-900 text-base">ผลการอ่านกระดาษคำตอบ</h3>
-                                        <p class="text-xs text-slate-600">ตรวจสอบหรือคลิกแก้ไขข้อที่ต้องการก่อนกดบันทึก</p>
+                                        <h3 class="font-bold text-slate-900 text-base">ผลการตรวจกระดาษคำตอบ</h3>
+                                        <p class="text-xs text-slate-500">ตรวจสอบและแก้ไขคำตอบรายข้อได้ทันที</p>
                                     </div>
-                                    <span id="scan-confidence-badge" class="bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold px-2.5 py-1 rounded-full">
+                                    <span id="scan-confidence-badge" class="text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2.5 py-1 rounded-full">
                                         พร้อมสแกน
                                     </span>
                                 </div>
@@ -1018,7 +1069,7 @@
                             <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
                                 <i class="fa-solid fa-file-pdf text-indigo-600"></i> กระดาษคำตอบมาตรฐานพร้อมจุดมาร์ก 4 มุม (Corner Fiducial Markers)
                             </h3>
-                            <p class="text-xs text-slate-600">กระดาษคำตอบโรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์ (พ.ป.น. / PPN) พร้อมสี่เหลี่ยมสีดำทึบที่มุมทั้ง 4 ด้าน</p>
+                            <p class="text-xs text-slate-600">กระดาษคำตอบโรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์ พร้อมสี่เหลี่ยมสีดำทึบที่มุมทั้ง 4 ด้าน</p>
                         </div>
 
                         <div class="flex flex-wrap items-center gap-2.5">
@@ -1032,8 +1083,12 @@
                                 <option value="all">แสดงทุกหน้า</option>
                             </select>
 
-                            <button type="button" onclick="handlePrintAnswerSheet()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm flex items-center gap-2 transition">
-                                <i class="fa-solid fa-print"></i> พิมพ์ / บันทึกเป็น PDF
+                            <button type="button" onclick="handlePrintAnswerSheet()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm flex items-center gap-2 transition cursor-pointer">
+                                <i class="fa-solid fa-print"></i> พิมพ์กระดาษคำตอบ
+                            </button>
+
+                            <button type="button" id="btn-download-sheet-pdf" onclick="downloadAnswerSheetPDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm flex items-center gap-2 transition cursor-pointer">
+                                <i class="fa-solid fa-download"></i> ดาวน์โหลดกระดาษคำตอบ
                             </button>
                         </div>
                     </div>
@@ -1335,9 +1390,12 @@
             allRawResults: [],
             cameraStream: null,
             contourCheckInterval: null,
+            currentScanPart: 1,
             currentScanDraft: {
                 studentId: '',
                 formCode: '100',
+                part1Scanned: false,
+                part2Scanned: false,
                 answers: {}
             }
         };
@@ -1561,13 +1619,13 @@
                 answers[q] = 0;
             }
             if (subjectCode === '65') {
-                answers['19'] = { '1': 1, '2': 1, '3': 1 };
-                answers['20'] = { '1': 1, '2': 1, '3': 1 };
+                answers['19'] = { '1': 0, '2': 0, '3': 0 };
+                answers['20'] = { '1': 0, '2': 0, '3': 0 };
             } else if (subjectCode === '64') {
-                ['12', '13', '14', '15'].forEach(qNo => { answers[qNo] = '000'; });
+                ['12', '13', '14', '15'].forEach(qNo => { answers[qNo] = '---'; });
             } else if (subjectCode === '61') {
-                answers['21.1'] = 1;
-                answers['21.2'] = 1;
+                answers['21.1'] = 0;
+                answers['21.2'] = 0;
                 answers['22'] = 0;
             }
             return answers;
@@ -1625,10 +1683,12 @@
 
             if (subjectCode === '65') {
                 ['19', '20'].forEach(qNo => {
-                    const stuObj = normalizeAnswerLookup(ans, qNo) || { '1': 1, '2': 1, '3': 1 };
+                    const stuObj = normalizeAnswerLookup(ans, qNo) || { '1': 0, '2': 0, '3': 0 };
                     const keyObj = normalizeAnswerLookup(key, qNo) || { '1': 1, '2': 2, '3': 1 };
                     const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
-                    const allMatch = (Number(stuObj['1']) === Number(keyObj['1'])) &&
+                    const hasAnyAnswered = Number(stuObj['1']) > 0 || Number(stuObj['2']) > 0 || Number(stuObj['3']) > 0;
+                    const allMatch = hasAnyAnswered &&
+                                     (Number(stuObj['1']) === Number(keyObj['1'])) &&
                                      (Number(stuObj['2']) === Number(keyObj['2'])) &&
                                      (Number(stuObj['3']) === Number(keyObj['3']));
                     itemCorrectMap[qNo] = allMatch;
@@ -1639,17 +1699,18 @@
                 ['12', '13', '14', '15'].forEach(qNo => {
                     const rawStu = normalizeAnswerLookup(ans, qNo);
                     const rawKey = normalizeAnswerLookup(key, qNo);
-                    const stuVal = String(rawStu !== undefined ? rawStu : '000').padStart(3, '0');
+                    const stuStr = String(rawStu !== undefined ? rawStu : '---');
                     const keyVal = String(rawKey !== undefined ? rawKey : '000').padStart(3, '0');
                     const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
-                    const isCorrect = stuVal === keyVal;
+                    const isCorrect = !stuStr.includes('-') && stuStr.padStart(3, '0') === keyVal;
                     itemCorrectMap[qNo] = isCorrect;
                     itemPointsEarnedMap[qNo] = isCorrect ? itemPts : 0;
                     if (isCorrect) part2Score += itemPts;
                 });
             } else if (subjectCode === '61') {
                 ['21.1', '21.2'].forEach(qNo => {
-                    const isCorrect = Number(normalizeAnswerLookup(ans, qNo)) === Number(normalizeAnswerLookup(key, qNo));
+                    const stuVal = Number(normalizeAnswerLookup(ans, qNo) || 0);
+                    const isCorrect = stuVal > 0 && stuVal === Number(normalizeAnswerLookup(key, qNo));
                     const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
                     itemCorrectMap[qNo] = isCorrect;
                     itemPointsEarnedMap[qNo] = isCorrect ? itemPts : 0;
@@ -1739,13 +1800,7 @@
 
             refreshCurrentView();
 
-            // เมื่อเข้าหน้าสแกน ให้ขยายเต็มหน้าจอมือถือและเปิดกล้องสแกนอัตโนมัติทันทีเหมือนตัวอย่าง
-            if (tabId === 'scanner') {
-                enterFullScreenScannerMode();
-                if (!lastCapturedSheetImageCanvas && !appState.cameraStream) {
-                    startLiveAutoScanner();
-                }
-            } else {
+            if (tabId !== 'scanner') {
                 setScannerFullScreenState(false);
             }
         }
@@ -1813,6 +1868,7 @@
 
         function handleSubjectChange(subjectCode) {
             appState.currentSubject = String(subjectCode || '65');
+            appState.currentScanPart = 1;
             const gSub = document.getElementById('global-subject');
             if (gSub && gSub.value !== appState.currentSubject) gSub.value = appState.currentSubject;
             const kSub = document.getElementById('key-subject-select');
@@ -1821,18 +1877,98 @@
             const overlayCode = document.getElementById('scanner-overlay-code');
             if (overlayCode) overlayCode.textContent = appState.currentSubject;
 
-            updateScannerTopSubjectBanner();
+            appState.currentScanDraft.part1Scanned = false;
+            appState.currentScanDraft.part2Scanned = false;
             appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, appState.currentScanDraft.formCode || '100');
+            updateScannerPartSelectorUI();
+            updateScannerTopSubjectBanner();
             refreshCurrentView();
         }
 
+        function updateScannerPartSelectorUI() {
+            const sub = appState.currentSubject;
+            const badge = document.getElementById('scanner-active-part-badge');
+            const btn1 = document.getElementById('btn-scan-mode-part1');
+            const btn2 = document.getElementById('btn-scan-mode-part2');
+
+            // เฉพาะวิชาคณิตศาสตร์ (รหัส 64) เท่านั้นที่แยกสแกน 2 รอบ (หน้า 1 = ตอนที่ 1, หน้า 2 = ตอนที่ 2)
+            // ส่วนวิชาวิทย์ (65) และไทย (61) ตอนที่ 1 และ 2 อยู่หน้าเดียวกัน สแกนรอบเดียวตรวจครบทั้ง 2 ตอนทันที
+            const isTwoRoundMath = (sub === '64');
+
+            if (!isTwoRoundMath) {
+                appState.currentScanPart = 1;
+                if (btn1) btn1.classList.add('hidden');
+                if (btn2) btn2.classList.add('hidden');
+                if (badge) {
+                    if (sub === '65') {
+                        badge.innerHTML = `<i class="fa-solid fa-check-double"></i> สแกนรอบเดียว: ตรวจพร้อมกันทั้ง ตอนที่ 1 และ ตอนที่ 2`;
+                    } else if (sub === '61') {
+                        badge.innerHTML = `<i class="fa-solid fa-check-double"></i> สแกนรอบเดียว: ตรวจ ตอนที่ 1 + ตอนที่ 2 (ตอนที่ 3 กรอกคะแนนได้เลย)`;
+                    } else {
+                        badge.innerHTML = `<i class="fa-solid fa-layer-group"></i> สแกนรอบเดียว: ตรวจครบทุกข้อ (ข้อ 1 - 32)`;
+                    }
+                }
+                return;
+            }
+
+            if (btn1) btn1.classList.remove('hidden');
+            if (btn2) btn2.classList.remove('hidden');
+
+            const part = appState.currentScanPart || 1;
+            if (badge) {
+                badge.innerHTML = `<i class="fa-solid fa-layer-group"></i> คณิตศาสตร์ สแกนรอบที่ ${part}: ตอนที่ ${part} (หน้าที่ ${part})`;
+            }
+            if (btn1 && btn2) {
+                if (part === 1) {
+                    btn1.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-emerald-600 text-white shadow-sm cursor-pointer';
+                    btn2.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-600 cursor-pointer';
+                } else {
+                    btn1.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-slate-800 text-slate-300 hover:bg-slate-700 border border-slate-600 cursor-pointer';
+                    btn2.className = 'px-3 py-1 rounded-lg text-xs font-bold bg-sky-500 text-white shadow-sm cursor-pointer';
+                }
+            }
+        }
+
+        function switchScannerPartMode(partNum) {
+            if (appState.currentSubject !== '64') {
+                appState.currentScanPart = 1;
+            } else {
+                appState.currentScanPart = Number(partNum) || 1;
+            }
+            updateScannerPartSelectorUI();
+            updateScannerTopSubjectBanner();
+            if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                reprocessLastCapturedSheet(false);
+            }
+        }
+
+        function startScanPart2Continuation() {
+            if (appState.currentSubject !== '64') return;
+            appState.currentScanPart = 2;
+            updateScannerPartSelectorUI();
+            updateScannerTopSubjectBanner();
+            lastCapturedSheetImageCanvas = null;
+            lastDetectedSheetCorners = null;
+            const resultOverlay = document.getElementById('auto-scan-result-overlay');
+            if (resultOverlay) resultOverlay.classList.add('hidden');
+            startLiveAutoScanner();
+        }
+
         function updateScannerTopSubjectBanner() {
-            const spec = SUBJECT_SPECS[appState.currentSubject] || SUBJECT_SPECS['65'];
+            const sub = appState.currentSubject;
+            const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
             const formCode = document.getElementById('scan-form-code')?.value || '100';
+            const part = appState.currentScanPart || 1;
             const titleEl = document.getElementById('scanner-top-subject-title');
             const subEl = document.getElementById('scanner-top-form-subtitle');
             if (titleEl) {
-                titleEl.textContent = `${spec.name} ป.6`;
+                if (sub === '64') {
+                    titleEl.textContent = `${spec.name} ป.6 (รอบที่ ${part} : ตอนที่ ${part})`;
+                } else if (sub === '65' || sub === '61') {
+                    titleEl.textContent = `${spec.name} ป.6 (ตอนที่ 1 + ตอนที่ 2)`;
+                } else {
+                    titleEl.textContent = `${spec.name} ป.6`;
+                }
             }
             if (subEl) {
                 subEl.textContent = `${spec.totalItems} Question Form (ชุดที่ ${formCode})`;
@@ -2342,7 +2478,9 @@
             const w = ctx.canvas.width;
             const h = ctx.canvas.height;
             const r = Math.max(4, Math.round(radius));
-            const outerR = Math.round(r * 2.1);
+            // วัดเฉพาะแกนกลางวงกลม (0.75 * r) เพื่อหลีกเลี่ยงเส้นขอบวงกลมที่พิมพ์ไว้ และเทียบกับพื้นกระดาษสีขาวด้านนอก
+            const coreR = Math.max(3, Math.round(r * 0.78));
+            const outerR = Math.round(r * 2.25);
 
             const x0 = Math.max(0, Math.round(cx - outerR));
             const y0 = Math.max(0, Math.round(cy - outerR));
@@ -2353,10 +2491,10 @@
             if (bw <= 2 || bh <= 2) return 0;
 
             const imgData = ctx.getImageData(x0, y0, bw, bh).data;
-            let innerSum = 0, innerCnt = 0;
+            let innerSum = 0, innerCnt = 0, darkPixelCnt = 0;
             let outerSum = 0, outerCnt = 0;
-            const rSq = r * r;
-            const ringMinSq = (r * 1.35) * (r * 1.35);
+            const coreRSq = coreR * coreR;
+            const ringMinSq = (r * 1.42) * (r * 1.42);
             const ringMaxSq = outerR * outerR;
 
             for (let py = y0; py <= y1; py++) {
@@ -2367,9 +2505,10 @@
                     const idx = ((py - y0) * bw + (px - x0)) * 4;
                     const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
 
-                    if (distSq <= rSq) {
+                    if (distSq <= coreRSq) {
                         innerSum += lum;
                         innerCnt++;
+                        if (lum < 135) darkPixelCnt++;
                     } else if (distSq >= ringMinSq && distSq <= ringMaxSq) {
                         outerSum += lum;
                         outerCnt++;
@@ -2380,7 +2519,10 @@
             if (innerCnt === 0 || outerCnt === 0) return 0;
             const innerAvg = innerSum / innerCnt;
             const outerAvg = outerSum / outerCnt;
-            return Math.max(0, outerAvg - innerAvg);
+            const darkFillRatio = darkPixelCnt / innerCnt;
+            // หากสัดส่วนพิกเซลมืดภายในวงกลมน้อยกว่า 28% (เช่น มีแค่ตัวเลขพิมพ์บาง ๆ ไม่ได้ระบายดินสอ) ให้ลดค่าความเข้มลงเพื่อป้องกันการตรวจผิดในข้อว่าง
+            const rawContrast = Math.max(0, outerAvg - innerAvg);
+            return darkFillRatio < 0.28 ? rawContrast * 0.45 : rawContrast;
         }
 
         // 1. ตรวจจับจุดมุม 4 จุด (4 Corner Registration Marks) ภายในกรอบเล็งของหน้าจอโดยตรง + หาจุดศูนย์กลางมวลของสี่เหลี่ยมดำ
@@ -2643,9 +2785,9 @@
             }
             renderScannerDetectedAnswers();
         }
-
-        // ตัวแปรควบคุมการล็อกภาพอัตโนมัติเมื่อสี่เหลี่ยมทั้ง 4 มุมอยู่ในตำแหน่งที่เหมาะสม
+        // ตัวแปรควบคุมการล็อกภาพอัตโนมัติเมื่อสี่เหลี่ยมทั้ง 4 มุมอยู่ในตำแหน่งที่เหมาะสมและมือนิ่งสนิท
         let consecutiveAlignedFrames = 0;
+        let lastFrameCornersSnapshot = null;
         let autoAnalysisOffscreenCanvas = null;
 
         function evaluateFourCornersAlignmentQuality(ctx, width, height) {
@@ -2738,26 +2880,49 @@
                 const statusEl = document.getElementById('scanner-status-text');
 
                 if (check.isAligned) {
-                    consecutiveAlignedFrames++;
-                    const pct = Math.min(100, Math.round((consecutiveAlignedFrames / 3) * 100));
+                    // ตรวจสอบว่ากระดาษนิ่งสนิท (ไม่สั่นไหวเกิน 5 พิกเซลเทียบกับเฟรมก่อนหน้า) เพื่อไม่ให้รีบสแกนขณะกำลังขยับมือ
+                    let isSteady = true;
+                    if (lastFrameCornersSnapshot && check.corners) {
+                        for (let i = 0; i < 4; i++) {
+                            const dist = Math.hypot(
+                                check.corners[i].cx - lastFrameCornersSnapshot[i].cx,
+                                check.corners[i].cy - lastFrameCornersSnapshot[i].cy
+                            );
+                            if (dist > 5.0) {
+                                isSteady = false;
+                                break;
+                            }
+                        }
+                    }
+                    lastFrameCornersSnapshot = check.corners;
+
+                    if (isSteady) {
+                        consecutiveAlignedFrames++;
+                    } else {
+                        consecutiveAlignedFrames = Math.max(1, consecutiveAlignedFrames - 1);
+                    }
+
+                    const requiredFrames = 5;
+                    const pct = Math.min(100, Math.round((consecutiveAlignedFrames / requiredFrames) * 100));
                     updateViewfinderCornerBoxesUI([true, true, true, true], pct);
                     if (statusEl) {
-                        statusEl.innerHTML = `<span class="text-emerald-700 font-extrabold">ล็อกมุมกระดาษครบ 4 มุมแล้ว กำลังอ่านคะแนน... (${pct}%)</span>`;
+                        statusEl.innerHTML = `<span class="text-emerald-700 font-extrabold">ถือค้างไว้ให้นิ่ง กำลังยืนยันตำแหน่ง... (${pct}%)</span>`;
                     }
-                    // เมื่อกระดาษนิ่งในตำแหน่งที่เหมาะสมครบ 3 เฟรม (~0.45 วินาที) ให้ล็อกภาพและโชว์คะแนนทันทีโดยไม่ต้องกดถ่าย
-                    if (consecutiveAlignedFrames >= 3) {
+                    if (consecutiveAlignedFrames >= requiredFrames) {
                         consecutiveAlignedFrames = 0;
+                        lastFrameCornersSnapshot = null;
                         captureLiveFrameAndGrade();
                     }
                 } else {
                     consecutiveAlignedFrames = Math.max(0, consecutiveAlignedFrames - 1);
-                    const pct = Math.round((check.matchedCount / 4) * 60);
+                    lastFrameCornersSnapshot = null;
+                    const pct = Math.round((check.matchedCount / 4) * 50);
                     updateViewfinderCornerBoxesUI(check.flags || [false, false, false, false], pct);
                     if (statusEl) {
                         statusEl.innerHTML = `Align 4 corner squares with viewfinders<br><span class="text-[11px] font-bold text-emerald-800">(ตรวจพบมุมกระดาษ ${check.matchedCount}/4 มุม)</span>`;
                     }
                 }
-            }, 160);
+            }, 170);
         }
 
         async function startLiveAutoScanner() {
@@ -2823,22 +2988,49 @@
             if (btnText) btnText.textContent = 'เริ่มสแกนอัตโนมัติ';
         }
 
-        function startNextAutoScan() {
+        function startNextAutoScan(resetToPart = 1) {
             lastCapturedSheetImageCanvas = null;
             lastDetectedSheetCorners = null;
+            appState.currentScanPart = Number(resetToPart) || 1;
+            if (appState.currentScanPart === 1) {
+                appState.currentScanDraft.part1Scanned = false;
+                appState.currentScanDraft.part2Scanned = false;
+                appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, appState.currentScanDraft.formCode || '100');
+            }
+            updateScannerPartSelectorUI();
+            updateScannerTopSubjectBanner();
             const resultOverlay = document.getElementById('auto-scan-result-overlay');
             if (resultOverlay) resultOverlay.classList.add('hidden');
             startLiveAutoScanner();
         }
 
+        let cameraBannerTimeout = null;
+        function showCameraInScreenSaveBanner(detailText) {
+            const banner = document.getElementById('camera-save-success-banner');
+            const detailEl = document.getElementById('camera-save-success-detail');
+            if (!banner) return;
+            if (detailEl && detailText) {
+                detailEl.textContent = detailText;
+            }
+            banner.classList.remove('hidden');
+            if (cameraBannerTimeout) clearTimeout(cameraBannerTimeout);
+            cameraBannerTimeout = setTimeout(() => {
+                banner.classList.add('hidden');
+            }, 4000);
+        }
+
         async function saveAndRescanNext() {
-            await saveScannedResult();
-            // เลื่อนลำดับนักเรียนใน Dropdown ไปคนถัดไปให้อัตโนมัติเพื่อความรวดเร็วในการสแกนต่อเนื่อง
+            const savedInfo = await saveScannedResult(true);
+            // เลื่อนลำดับนักเรียนใน Dropdown ไปคนถัดไปให้อัตโนมัติ และเปิดกล้องสแกนใบใหม่พร้อมขึ้นข้อความว่าบันทึกคะแนนเรียบร้อยบนหน้ากล้องเลย
             const sel = document.getElementById('scan-student-select');
             const ovSel = document.getElementById('overlay-student-select');
             if (sel && sel.options.length > 1 && sel.selectedIndex < sel.options.length - 1) {
                 sel.selectedIndex = sel.selectedIndex + 1;
                 if (ovSel) ovSel.selectedIndex = sel.selectedIndex;
+            }
+            await startNextAutoScan(1);
+            if (savedInfo) {
+                showCameraInScreenSaveBanner(`${savedInfo.studentName} ได้ ${savedInfo.totalScore.toFixed(2)} คะแนน • พร้อมสแกนคนถัดไป`);
             }
         }
 
@@ -3006,7 +3198,8 @@
         function getCanonicalSubjectBubbleUVMap(subjectCode) {
             const sub = String(subjectCode || '65');
             const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
-            const cols = sub === '63' ? 4 : 3;
+            // วิชาภาษาไทย (61) ตอนที่ 1 มี 20 ข้อ จัดเรียง 5 คอลัมน์ × 4 แถว เหมือนกระดาษคำตอบ สทศ. ในตัวอย่าง
+            const cols = sub === '61' ? 5 : (sub === '63' ? 4 : 3);
             const rowsPerCol = Math.ceil(spec.part1.count / cols);
 
             // 1. จุดมุม 4 จุดหลักของกระดาษ (Corner Marks)
@@ -3017,40 +3210,51 @@
                 { id: 'BR', u: 1.000, v: 1.000 }
             ];
 
-            const gridBoxTopV = 0.285;
-            const gridBoxBottomV = sub === '65' ? 0.545 : (sub === '64' ? 0.455 : (sub === '61' ? 0.555 : 0.640));
-            const firstRowV = gridBoxTopV + 0.052;
-            const lastRowV = gridBoxBottomV - 0.032;
+            // เว้นระยะห่างด้านบน (gridBoxTopV = 0.305) เพื่อแยกส่วนกรอกข้อมูลนักเรียนและส่วนฝนข้อสอบไม่ให้ซ้อนทับกันเด็ดขาด
+            const gridBoxTopV = sub === '61' ? 0.300 : 0.308;
+            const gridBoxBottomV = sub === '65' ? 0.562 : (sub === '64' ? 0.485 : (sub === '61' ? 0.465 : 0.665));
+            const firstRowV = gridBoxTopV + (sub === '61' ? 0.044 : 0.052);
+            const lastRowV = gridBoxBottomV - (sub === '61' ? 0.024 : 0.030);
             const rowStepV = rowsPerCol > 1 ? (lastRowV - firstRowV) / (rowsPerCol - 1) : 0;
 
-            let colStartU, colWidthU, firstBubbleOffsetU, choiceStepU;
+            let colStartU, colWidthU, colGapU, firstBubbleOffsetU, choiceStepU;
             if (cols === 3) {
                 colStartU = 0.035;
                 colWidthU = 0.302;
+                colGapU = 0.012;
                 firstBubbleOffsetU = 0.112;
                 choiceStepU = 0.048;
-            } else {
+            } else if (cols === 4) {
                 colStartU = 0.025;
                 colWidthU = 0.232;
+                colGapU = 0.012;
                 firstBubbleOffsetU = 0.082;
                 choiceStepU = 0.036;
+            } else {
+                // 5 คอลัมน์สำหรับวิชาภาษาไทย (ข้อ 1-20 แบ่งเป็น 1-4, 5-8, 9-12, 13-16, 17-20)
+                colStartU = 0.025;
+                colWidthU = 0.184;
+                colGapU = 0.0075;
+                firstBubbleOffsetU = 0.058;
+                choiceStepU = 0.031;
             }
 
             // 2. จุดอ้างอิงด้านข้าง (Side Timing Marks) กำกับทุกแถวของ ตอนที่ 1 และ ตอนที่ 2 (วางชิดขอบนอกซ้าย-ขวา ไม่ทับตาราง)
             const sideMarks = [];
             for (let r = 0; r < rowsPerCol; r++) {
                 const vRow = Number((firstRowV + r * rowStepV).toFixed(4));
-                sideMarks.push({ id: `P1_R${r + 1}_L`, section: 'part1', rowIdx: r, side: 'L', u: -0.008, v: vRow });
-                sideMarks.push({ id: `P1_R${r + 1}_R`, section: 'part1', rowIdx: r, side: 'R', u: 1.008, v: vRow });
+                sideMarks.push({ id: `P1_R${r + 1}_L`, page: 1, section: 'part1', rowIdx: r, side: 'L', u: -0.008, v: vRow });
+                sideMarks.push({ id: `P1_R${r + 1}_R`, page: 1, section: 'part1', rowIdx: r, side: 'R', u: 1.008, v: vRow });
             }
 
-            // 3. จุดอ้างอิงภายใน (Internal Reference Marks) กำกับแต่ละคอลัมน์ใน ตอนที่ 1 (วางในพื้นที่ว่างเหนือและใต้กรอบตาราง ไม่ทับเส้นหรือตัวหนังสือ)
+            // 3. จุดอ้างอิงภายใน (Internal Reference Marks) กำกับแต่ละคอลัมน์ใน ตอนที่ 1
             const internalMarks = [];
             for (let c = 0; c < cols; c++) {
-                const colLeftU = Number((colStartU + c * (colWidthU + 0.012)).toFixed(4));
+                const colLeftU = Number((colStartU + c * (colWidthU + colGapU)).toFixed(4));
                 const colRightU = Number((colLeftU + colWidthU).toFixed(4));
                 internalMarks.push({
                     id: `P1_C${c + 1}_TL`,
+                    page: 1,
                     section: 'part1',
                     colIdx: c,
                     pos: 'top',
@@ -3059,6 +3263,7 @@
                 });
                 internalMarks.push({
                     id: `P1_C${c + 1}_BR`,
+                    page: 1,
                     section: 'part1',
                     colIdx: c,
                     pos: 'bottom',
@@ -3073,8 +3278,8 @@
                 const colIdx = Math.floor((q - 1) / rowsPerCol);
                 const rowIdx = (q - 1) % rowsPerCol;
                 const v = Number((firstRowV + rowIdx * rowStepV).toFixed(4));
-                const colLeftU = colStartU + colIdx * (colWidthU + 0.012);
-                const labelU = Number((colLeftU + 0.018).toFixed(4));
+                const colLeftU = colStartU + colIdx * (colWidthU + colGapU);
+                const labelU = Number((colLeftU + (cols === 5 ? 0.010 : 0.018)).toFixed(4));
 
                 const choices = {};
                 for (let c = 1; c <= 4; c++) {
@@ -3091,33 +3296,35 @@
             if (sub === '65') {
                 // วิทยาศาสตร์ (รหัส 65): ตอนที่ 2 ข้อ 19.1-19.3 และ 20.1-20.3
                 ['1', '2', '3'].forEach((subIdx, rIdx) => {
-                    const rowV = Number((0.680 + rIdx * 0.044).toFixed(4));
-                    sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_L`, section: 'part2', rowIdx: rIdx, side: 'L', u: -0.008, v: rowV });
-                    sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_R`, section: 'part2', rowIdx: rIdx, side: 'R', u: 1.008, v: rowV });
+                    const rowV = Number((0.695 + rIdx * 0.044).toFixed(4));
+                    sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_L`, page: 1, section: 'part2', rowIdx: rIdx, side: 'L', u: -0.008, v: rowV });
+                    sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_R`, page: 1, section: 'part2', rowIdx: rIdx, side: 'R', u: 1.008, v: rowV });
                 });
 
                 ['19', '20'].forEach((qNo, boxIdx) => {
                     const baseU = boxIdx === 0 ? 0.045 : 0.525;
                     internalMarks.push({
                         id: `P2_SCI_${qNo}_TL`,
+                        page: 1,
                         section: 'part2',
                         boxKey: qNo,
                         pos: 'top',
                         u: Number((baseU + 0.008).toFixed(4)),
-                        v: 0.607
+                        v: 0.622
                     });
                     internalMarks.push({
                         id: `P2_SCI_${qNo}_BR`,
+                        page: 1,
                         section: 'part2',
                         boxKey: qNo,
                         pos: 'bottom',
                         u: Number((baseU + 0.422).toFixed(4)),
-                        v: 0.798
+                        v: 0.812
                     });
 
                     part2SciBubbles[qNo] = {};
                     ['1', '2', '3'].forEach((subIdx, rIdx) => {
-                        const rowV = Number((0.680 + rIdx * 0.044).toFixed(4));
+                        const rowV = Number((0.695 + rIdx * 0.044).toFixed(4));
                         part2SciBubbles[qNo][subIdx] = {
                             rowIdx: rIdx,
                             labelU: Number((baseU + 0.030).toFixed(4)),
@@ -3131,13 +3338,13 @@
                 });
             }
 
-            // คณิตศาสตร์ (รหัส 64): ตอนที่ 2 ระบายตัวเลข 3 หลัก (ข้อ 12 - 15) วางในครึ่งล่างของแผ่นที่ 1 พร้อมจุดอ้างอิงด้านข้างและภายใน
+            // คณิตศาสตร์ (รหัส 64): ตอนที่ 2 ระบายตัวเลข 3 หลัก (ข้อ 12 - 15) แยกไปอยู่หน้าที่ 2
             const part2MathBubbles = {};
             if (sub === '64') {
                 for (let digit = 0; digit <= 9; digit++) {
-                    const vDigit = Number((0.605 + digit * 0.032).toFixed(4));
-                    sideMarks.push({ id: `P2_MATH_D${digit}_L`, section: 'part2', rowIdx: digit, side: 'L', u: -0.008, v: vDigit });
-                    sideMarks.push({ id: `P2_MATH_D${digit}_R`, section: 'part2', rowIdx: digit, side: 'R', u: 1.008, v: vDigit });
+                    const vDigit = Number((0.435 + digit * 0.042).toFixed(4));
+                    sideMarks.push({ id: `P2_MATH_D${digit}_L`, page: 2, section: 'part2', rowIdx: digit, side: 'L', u: -0.008, v: vDigit });
+                    sideMarks.push({ id: `P2_MATH_D${digit}_R`, page: 2, section: 'part2', rowIdx: digit, side: 'R', u: 1.008, v: vDigit });
                 }
 
                 ['12', '13', '14', '15'].forEach((qNo, boxIdx) => {
@@ -3145,19 +3352,21 @@
                     const boxWidthU = 0.222;
                     internalMarks.push({
                         id: `P2_MATH_${qNo}_TL`,
+                        page: 2,
                         section: 'part2',
                         boxKey: qNo,
                         pos: 'top',
                         u: Number((boxLeftU + 0.008).toFixed(4)),
-                        v: 0.517
+                        v: 0.320
                     });
                     internalMarks.push({
                         id: `P2_MATH_${qNo}_BR`,
+                        page: 2,
                         section: 'part2',
                         boxKey: qNo,
                         pos: 'bottom',
                         u: Number((boxLeftU + boxWidthU - 0.008).toFixed(4)),
-                        v: 0.928
+                        v: 0.865
                     });
 
                     part2MathBubbles[qNo] = {
@@ -3166,7 +3375,7 @@
                         digits: {}
                     };
                     for (let digit = 0; digit <= 9; digit++) {
-                        const vDigit = Number((0.605 + digit * 0.032).toFixed(4));
+                        const vDigit = Number((0.435 + digit * 0.042).toFixed(4));
                         part2MathBubbles[qNo].digits[digit] = {
                             rowIdx: digit,
                             v: vDigit,
@@ -3180,45 +3389,78 @@
                 });
             }
 
-            // ภาษาไทย (รหัส 61): ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 และ 21.2 ลำดับที่ 1 - 13)
+            // ภาษาไทย (รหัส 61): ตอนที่ 2 แบบเรียงลำดับ
+            // ข้อ 21.1 มี คำลำดับที่ 1 - 10 และวงกลม 1 - 10 ในแต่ละแถว
+            // ข้อ 21.2 มี คำลำดับที่ 1 - 13 และวงกลม 1 - 13 ในแต่ละแถว
             const part2ThaiBubbles = {};
             if (sub === '61') {
-                for (let rIdx = 0; rIdx < 7; rIdx++) {
-                    const vRow = Number((0.665 + rIdx * 0.033).toFixed(4));
-                    sideMarks.push({ id: `P2_THAI_R${rIdx + 1}_L`, section: 'part2', rowIdx: rIdx, side: 'L', u: -0.008, v: vRow });
-                    sideMarks.push({ id: `P2_THAI_R${rIdx + 1}_R`, section: 'part2', rowIdx: rIdx, side: 'R', u: 1.008, v: vRow });
+                const firstOrderRowV = 0.556;
+                const orderRowStepV = 0.0295;
+
+                for (let rIdx = 0; rIdx < 13; rIdx++) {
+                    const vRow = Number((firstOrderRowV + rIdx * orderRowStepV).toFixed(4));
+                    if (rIdx < 10) {
+                        sideMarks.push({ id: `P2_THAI_R${rIdx + 1}_L`, page: 1, section: 'part2', rowIdx: rIdx, side: 'L', u: -0.008, v: vRow });
+                    }
+                    sideMarks.push({ id: `P2_THAI_R${rIdx + 1}_R`, page: 1, section: 'part2', rowIdx: rIdx, side: 'R', u: 1.008, v: vRow });
                 }
 
                 ['21.1', '21.2'].forEach((subQ, boxIdx) => {
-                    const boxBaseU = boxIdx === 0 ? 0.045 : 0.525;
+                    const maxOrder = subQ === '21.1' ? 10 : 13;
+                    const boxBaseU = boxIdx === 0 ? 0.025 : 0.510;
+                    const boxWidthU = 0.465;
                     internalMarks.push({
                         id: `P2_THAI_${subQ}_TL`,
+                        page: 1,
                         section: 'part2',
                         boxKey: subQ,
                         pos: 'top',
                         u: Number((boxBaseU + 0.008).toFixed(4)),
-                        v: 0.607
+                        v: 0.506
                     });
                     internalMarks.push({
                         id: `P2_THAI_${subQ}_BR`,
+                        page: 1,
                         section: 'part2',
                         boxKey: subQ,
                         pos: 'bottom',
-                        u: Number((boxBaseU + 0.422).toFixed(4)),
-                        v: 0.908
+                        u: Number((boxBaseU + boxWidthU - 0.008).toFixed(4)),
+                        v: 0.935
                     });
 
-                    part2ThaiBubbles[subQ] = {};
-                    for (let ord = 1; ord <= 13; ord++) {
-                        const subCol = ord <= 7 ? 0 : 1;
-                        const subRow = ord <= 7 ? (ord - 1) : (ord - 8);
-                        const uBubble = Number((boxBaseU + (subCol === 0 ? 0.175 : 0.385)).toFixed(4));
-                        const uLabel = Number((boxBaseU + (subCol === 0 ? 0.022 : 0.232)).toFixed(4));
-                        const vRow = Number((0.665 + subRow * 0.033).toFixed(4));
-                        part2ThaiBubbles[subQ][ord] = {
-                            rowIdx: subRow,
-                            labelU: uLabel,
-                            u: uBubble,
+                    part2ThaiBubbles[subQ] = {
+                        boxBaseU,
+                        boxWidthU,
+                        maxOrder,
+                        rows: {}
+                    };
+
+                    const firstCircleU = boxBaseU + 0.122;
+                    const circleStepU = subQ === '21.1' ? 0.0320 : 0.0268;
+
+                    for (let rowOrder = 1; rowOrder <= maxOrder; rowOrder++) {
+                        const rIdx = rowOrder - 1;
+                        const vRow = Number((firstOrderRowV + rIdx * orderRowStepV).toFixed(4));
+                        const labelU = Number((boxBaseU + 0.010).toFixed(4));
+                        const choices = {};
+                        for (let c = 1; c <= maxOrder; c++) {
+                            choices[c] = {
+                                u: Number((firstCircleU + (c - 1) * circleStepU).toFixed(4)),
+                                v: vRow
+                            };
+                        }
+                        part2ThaiBubbles[subQ].rows[rowOrder] = {
+                            rowIdx: rIdx,
+                            rowOrder,
+                            maxOrder,
+                            labelU,
+                            v: vRow,
+                            choices
+                        };
+                        part2ThaiBubbles[subQ][rowOrder] = {
+                            rowIdx: rIdx,
+                            labelU,
+                            u: choices[rowOrder].u,
                             v: vRow
                         };
                     }
@@ -3377,7 +3619,8 @@
             const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
             const formCode = document.getElementById('scan-form-code')?.value || '100';
             const key = getActiveSubjectKey(sub, formCode);
-            const detected = preserveManualAnswers ? JSON.parse(JSON.stringify(appState.currentScanDraft.answers || {})) : {};
+            const scanPart = Number(appState.currentScanPart) || 1;
+            const detected = JSON.parse(JSON.stringify(appState.currentScanDraft.answers || createInitialBlankOrKeyAnswers(sub, formCode)));
 
             const sourceCtx = customSourceCanvas
                 ? customSourceCanvas.getContext('2d', { willReadFrequently: true })
@@ -3400,316 +3643,356 @@
             const canonicalMap = getCanonicalSubjectBubbleUVMap(sub);
             const calib = calibrateWithSideAndInternalMarks(sourceCtx, ctx, safeCorners, canonicalMap, dotScale);
 
+            // กำหนดว่าจะตรวจตอนไหนในการสแกนครั้งนี้:
+            // - วิทย์ (65) และ ไทย (61): ตอนที่ 1 และ 2 อยู่หน้าเดียวกัน ให้สแกนรอบเดียวตรวจทั้ง ตอนที่ 1 และ ตอนที่ 2 ทันที
+            // - อังกฤษ (63): มี 1 ตอน สแกนรอบเดียวตรวจ ตอนที่ 1
+            // - คณิต (64): มี 2 หน้า แยกสแกน 2 รอบ (scanPart === 1 ตรวจตอนที่ 1, scanPart === 2 ตรวจตอนที่ 2)
+            const shouldGradePart1 = (sub !== '64') || (scanPart === 1);
+            const shouldGradePart2 = (sub === '65' || sub === '61') || (sub === '64' && scanPart === 2);
+
             const confBadge = document.getElementById('scan-confidence-badge');
             if (confBadge) {
-                confBadge.textContent = `4 มุม + ข้าง ${calib.sideFoundCount} + ภายใน ${calib.internalFoundCount}`;
+                const modeLabel = (sub === '65' || sub === '61')
+                    ? 'สแกนครบ ตอนที่ 1 + 2'
+                    : (sub === '64' ? `สแกนรอบที่ ${scanPart} (ตอนที่ ${scanPart})` : 'สแกนครบทุกข้อ');
+                confBadge.textContent = `${modeLabel} | 4 มุม + ข้าง ${calib.sideFoundCount} + ภายใน ${calib.internalFoundCount}`;
             }
 
-            for (let q = spec.part1.start; q <= spec.part1.end; q++) {
-                const qMeta = canonicalMap.part1Bubbles[q];
-                if (!qMeta) continue;
+            // ตรวจ ตอนที่ 1
+            if (shouldGradePart1) {
+                appState.currentScanDraft.part1Scanned = true;
+                for (let q = spec.part1.start; q <= spec.part1.end; q++) {
+                    const qMeta = canonicalMap.part1Bubbles[q];
+                    if (!qMeta) continue;
 
-                let bubbleCoords = {};
-                let choiceDrops = {};
-                let bestChoice = 0;
-                let maxContrastDrop = 0;
+                    let bubbleCoords = {};
+                    let choiceDrops = {};
+                    let bestChoice = 0;
+                    let maxContrastDrop = 0;
 
-                for (let c = 1; c <= 4; c++) {
-                    const uv = qMeta.choices[c];
-                    const basePt = calib.getPart1CalibratedXY(qMeta.colIdx, qMeta.rowIdx, uv.u, uv.v);
+                    for (let c = 1; c <= 4; c++) {
+                        const uv = qMeta.choices[c];
+                        const basePt = calib.getPart1CalibratedXY(qMeta.colIdx, qMeta.rowIdx, uv.u, uv.v);
 
-                    let bestPt = basePt;
-                    let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
-                    if (!preserveManualAnswers) {
-                        const stepShift = Math.max(2, Math.round(2.5 * dotScale));
-                        const offsets = [
-                            [-stepShift, 0], [stepShift, 0],
-                            [0, -stepShift], [0, stepShift]
-                        ];
-                        for (let k = 0; k < offsets.length; k++) {
-                            const sx = basePt.x + offsets[k][0];
-                            const sy = basePt.y + offsets[k][1];
-                            const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
-                            if (dVal > localBestDrop) {
-                                localBestDrop = dVal;
-                                bestPt = { x: sx, y: sy };
-                            }
-                        }
-                    }
-
-                    bubbleCoords[c] = bestPt;
-                    choiceDrops[c] = localBestDrop;
-
-                    if (!preserveManualAnswers) {
-                        if (localBestDrop > maxContrastDrop) {
-                            maxContrastDrop = localBestDrop;
-                            bestChoice = c;
-                        }
-                    }
-                }
-
-                // คงค่าเกณฑ์ความเข้ม 18 ตามเดิม พร้อมตรวจสอบความโดดเด่นเหนือตัวเลือกอื่นในข้อเดียวกัน
-                if (!preserveManualAnswers) {
-                    const sortedDrops = Object.values(choiceDrops).sort((a, b) => b - a);
-                    const secondBest = sortedDrops[1] || 0;
-                    detected[q] = (maxContrastDrop >= 18 && (maxContrastDrop - secondBest >= 4)) ? bestChoice : 0;
-                }
-
-                const stuChoice = Number(detected[q] || 0);
-                const correctChoice = Number(key[q]);
-
-                // วาดจุดสีเขียวโปร่งเมื่อตอบถูก และจุดสีแดงโปร่งเมื่อตอบผิด
-                for (let c = 1; c <= 4; c++) {
-                    const pt = bubbleCoords[c];
-                    if (!pt) continue;
-
-                    if (stuChoice === c && stuChoice === correctChoice) {
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
-                        ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
-                        ctx.fill();
-                        ctx.lineWidth = Math.round(2.5 * dotScale);
-                        ctx.strokeStyle = '#059669';
-                        ctx.stroke();
-                        ctx.restore();
-                    } else if (stuChoice === c && stuChoice !== correctChoice) {
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
-                        ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
-                        ctx.fill();
-                        ctx.lineWidth = Math.round(2 * dotScale);
-                        ctx.strokeStyle = '#dc2626';
-                        ctx.stroke();
-                        ctx.restore();
-                    } else if (c === correctChoice && stuChoice !== correctChoice) {
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
-                        ctx.arc(pt.x, pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
-                        ctx.lineWidth = Math.round(2 * dotScale);
-                        ctx.strokeStyle = '#f59e0b';
-                        ctx.stroke();
-                        ctx.restore();
-                    } else {
-                        ctx.save();
-                        ctx.beginPath();
-                        ctx.arc(pt.x, pt.y, Math.round(4 * dotScale), 0, Math.PI * 2);
-                        ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
-                        ctx.lineWidth = Math.max(1, Math.round(1.2 * dotScale));
-                        ctx.stroke();
-                        ctx.restore();
-                    }
-                }
-            }
-
-            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาวิทยาศาสตร์ (ข้อ 19.1-19.3 และ 20.1-20.3) โดยใช้พิกัดที่ปรับเทียบกับจุดอ้างอิงด้านข้างและภายในแล้ว
-            if (sub === '65') {
-                ['19', '20'].forEach(qNo => {
-                    if (!detected[qNo] || typeof detected[qNo] !== 'object') {
-                        detected[qNo] = { '1': 0, '2': 0, '3': 0 };
-                    }
-                    const keyObj = key[qNo] || { '1': 1, '2': 2, '3': 1 };
-                    ['1', '2', '3'].forEach(subIdx => {
-                        const subMeta = canonicalMap.part2SciBubbles?.[qNo]?.[subIdx];
-                        if (!subMeta) return;
-                        let bestSubChoice = Number(detected[qNo][subIdx] || 0);
-                        let maxSubDrop = 0;
-                        const subPts = {};
-                        [1, 2].forEach(c => {
-                            const uv = subMeta.choices[c];
-                            const basePt = calib.getPart2CalibratedXY(qNo, subMeta.rowIdx, uv.u, uv.v);
-                            let bestPt = basePt;
-                            let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
-                            if (!preserveManualAnswers) {
-                                const stepShift = Math.max(2, Math.round(2.5 * dotScale));
-                                const offsets = [[-stepShift, 0], [stepShift, 0], [0, -stepShift], [0, stepShift]];
-                                for (let k = 0; k < offsets.length; k++) {
-                                    const sx = basePt.x + offsets[k][0];
-                                    const sy = basePt.y + offsets[k][1];
-                                    const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
-                                    if (dVal > localBestDrop) {
-                                        localBestDrop = dVal;
-                                        bestPt = { x: sx, y: sy };
-                                    }
-                                }
-                                if (localBestDrop > maxSubDrop) {
-                                    maxSubDrop = localBestDrop;
-                                    bestSubChoice = c;
-                                }
-                            }
-                            subPts[c] = bestPt;
-                        });
+                        let bestPt = basePt;
+                        let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
                         if (!preserveManualAnswers) {
-                            detected[qNo][subIdx] = maxSubDrop >= 16 ? bestSubChoice : 0;
-                        }
-                        const chosenC = Number(detected[qNo][subIdx] || 0);
-                        const rightC = Number(keyObj[subIdx]);
-                        [1, 2].forEach(c => {
-                            const pt = subPts[c];
-                            if (!pt) return;
-                            if (c === chosenC && chosenC === rightC) {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
-                                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
-                                ctx.fill();
-                                ctx.lineWidth = Math.round(2.5 * dotScale);
-                                ctx.strokeStyle = '#059669';
-                                ctx.stroke();
-                                ctx.restore();
-                            } else if (c === chosenC && chosenC !== rightC) {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
-                                ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
-                                ctx.fill();
-                                ctx.lineWidth = Math.round(2 * dotScale);
-                                ctx.strokeStyle = '#dc2626';
-                                ctx.stroke();
-                                ctx.restore();
-                            } else if (c === rightC && chosenC !== rightC) {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
-                                ctx.arc(pt.x, pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
-                                ctx.lineWidth = Math.round(2 * dotScale);
-                                ctx.strokeStyle = '#f59e0b';
-                                ctx.stroke();
-                                ctx.restore();
-                            } else {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(4 * dotScale), 0, Math.PI * 2);
-                                ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
-                                ctx.lineWidth = Math.max(1, Math.round(1.2 * dotScale));
-                                ctx.stroke();
-                                ctx.restore();
-                            }
-                        });
-                    });
-                });
-            }
-
-            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาคณิตศาสตร์ (รหัส 64: ข้อ 12 - 15 ระบายตัวเลข 3 หลัก 000 - 999)
-            if (sub === '64' && canonicalMap.part2MathBubbles) {
-                ['12', '13', '14', '15'].forEach(qNo => {
-                    const boxMeta = canonicalMap.part2MathBubbles[qNo];
-                    if (!boxMeta) return;
-                    const keyStr = String(key[qNo] || '000').padStart(3, '0');
-                    let detectedDigits = String(detected[qNo] || '000').padStart(3, '0').split('');
-
-                    for (let placeIdx = 0; placeIdx < 3; placeIdx++) {
-                        let bestDigit = Number(detectedDigits[placeIdx] || 0);
-                        let maxDigitDrop = 0;
-                        const placePts = {};
-
-                        for (let d = 0; d <= 9; d++) {
-                            const uv = boxMeta.digits[d].places[placeIdx];
-                            const pt = calib.getPart2CalibratedXY(qNo, d, uv.u, uv.v);
-                            placePts[d] = pt;
-                            if (!preserveManualAnswers) {
-                                const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(5.8 * dotScale)));
-                                if (dVal > maxDigitDrop) {
-                                    maxDigitDrop = dVal;
-                                    bestDigit = d;
+                            const stepShift = Math.max(2, Math.round(2.5 * dotScale));
+                            const offsets = [
+                                [-stepShift, 0], [stepShift, 0],
+                                [0, -stepShift], [0, stepShift]
+                            ];
+                            for (let k = 0; k < offsets.length; k++) {
+                                const sx = basePt.x + offsets[k][0];
+                                const sy = basePt.y + offsets[k][1];
+                                const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
+                                if (dVal > localBestDrop) {
+                                    localBestDrop = dVal;
+                                    bestPt = { x: sx, y: sy };
                                 }
                             }
                         }
 
-                        if (!preserveManualAnswers && maxDigitDrop >= 16) {
-                            detectedDigits[placeIdx] = String(bestDigit);
-                        }
+                        bubbleCoords[c] = bestPt;
+                        choiceDrops[c] = localBestDrop;
 
-                        const chosenD = Number(detectedDigits[placeIdx]);
-                        const rightD = Number(keyStr[placeIdx]);
-                        for (let d = 0; d <= 9; d++) {
-                            const pt = placePts[d];
-                            if (!pt) continue;
-                            if (d === chosenD && chosenD === rightD) {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
-                                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
-                                ctx.fill();
-                                ctx.lineWidth = Math.round(2 * dotScale);
-                                ctx.strokeStyle = '#059669';
-                                ctx.stroke();
-                                ctx.restore();
-                            } else if (d === chosenD && chosenD !== rightD) {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
-                                ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
-                                ctx.fill();
-                                ctx.restore();
-                            } else {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(3.5 * dotScale), 0, Math.PI * 2);
-                                ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
-                                ctx.stroke();
-                                ctx.restore();
-                            }
-                        }
-                    }
-
-                    if (!preserveManualAnswers) {
-                        detected[qNo] = detectedDigits.join('');
-                    }
-                });
-            }
-
-            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาภาษาไทย (ข้อ 21.1 และ 21.2 เรียงลำดับ 1-13)
-            if (sub === '61' && canonicalMap.part2ThaiBubbles) {
-                ['21.1', '21.2'].forEach(subQ => {
-                    const qMap = canonicalMap.part2ThaiBubbles[subQ];
-                    if (!qMap) return;
-                    let bestOrd = Number(detected[subQ] || 1);
-                    let maxOrdDrop = 0;
-                    const ordPts = {};
-
-                    for (let ord = 1; ord <= 13; ord++) {
-                        const uv = qMap[ord];
-                        const pt = calib.getPart2CalibratedXY(subQ, uv.rowIdx, uv.u, uv.v);
-                        ordPts[ord] = pt;
                         if (!preserveManualAnswers) {
-                            const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(6 * dotScale)));
-                            if (dVal > maxOrdDrop) {
-                                maxOrdDrop = dVal;
-                                bestOrd = ord;
+                            if (localBestDrop > maxContrastDrop) {
+                                maxContrastDrop = localBestDrop;
+                                bestChoice = c;
                             }
                         }
                     }
-                    if (!preserveManualAnswers && maxOrdDrop >= 15) {
-                        detected[subQ] = bestOrd;
+
+                    // เพิ่มความเข้มในการตรวจจับ (Threshold >= 30 และต้องเข้มกว่าตัวเลือกอันดับสอง >= 10) เพื่อไม่ให้ข้อที่ไม่ได้ฝนถูกตรวจว่าผิด
+                    if (!preserveManualAnswers) {
+                        const sortedDrops = Object.values(choiceDrops).sort((a, b) => b - a);
+                        const secondBest = sortedDrops[1] || 0;
+                        detected[q] = (maxContrastDrop >= 30 && (maxContrastDrop - secondBest >= 10)) ? bestChoice : 0;
                     }
-                    const chosenOrd = Number(detected[subQ] || 0);
-                    const rightOrd = Number(key[subQ]);
-                    for (let ord = 1; ord <= 13; ord++) {
-                        const pt = ordPts[ord];
+
+                    const stuChoice = Number(detected[q] || 0);
+                    const correctChoice = Number(key[q]);
+
+                    // วาดจุดสีเขียวโปร่งเมื่อตอบถูก และจุดสีแดงโปร่งเมื่อตอบผิด (ถ้าไม่ได้ฝน stuChoice === 0 จะไม่ขึ้นจุดสีแดง)
+                    for (let c = 1; c <= 4; c++) {
+                        const pt = bubbleCoords[c];
                         if (!pt) continue;
-                        if (ord === chosenOrd && chosenOrd === rightOrd) {
+
+                        if (stuChoice === c && stuChoice === correctChoice) {
                             ctx.save();
                             ctx.beginPath();
-                            ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
+                            ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
                             ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
                             ctx.fill();
-                            ctx.lineWidth = Math.round(2 * dotScale);
+                            ctx.lineWidth = Math.round(2.5 * dotScale);
                             ctx.strokeStyle = '#059669';
                             ctx.stroke();
                             ctx.restore();
-                        } else if (ord === chosenOrd && chosenOrd !== rightOrd) {
+                        } else if (stuChoice === c && stuChoice !== correctChoice) {
                             ctx.save();
                             ctx.beginPath();
-                            ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
+                            ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
                             ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
                             ctx.fill();
+                            ctx.lineWidth = Math.round(2 * dotScale);
+                            ctx.strokeStyle = '#dc2626';
+                            ctx.stroke();
+                            ctx.restore();
+                        } else if (c === correctChoice && stuChoice !== correctChoice) {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
+                            ctx.arc(pt.x, pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
+                            ctx.lineWidth = Math.round(2 * dotScale);
+                            ctx.strokeStyle = '#f59e0b';
+                            ctx.stroke();
+                            ctx.restore();
+                        } else {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(pt.x, pt.y, Math.round(4 * dotScale), 0, Math.PI * 2);
+                            ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                            ctx.lineWidth = Math.max(1, Math.round(1.2 * dotScale));
+                            ctx.stroke();
                             ctx.restore();
                         }
                     }
-                });
+                }
+            }
+
+            // ตรวจให้คะแนน ตอนที่ 2 (สำหรับวิทย์ 65 และไทย 61 ตรวจไปพร้อมกับตอนที่ 1 ในรอบเดียวเลย ส่วนคณิต 64 ตรวจในรอบที่ 2)
+            if (shouldGradePart2) {
+                appState.currentScanDraft.part2Scanned = true;
+
+                // วิทยาศาสตร์ (รหัส 65): ตอนที่ 2 (ข้อ 19.1-19.3 และ 20.1-20.3)
+                if (sub === '65') {
+                    ['19', '20'].forEach(qNo => {
+                        if (!detected[qNo] || typeof detected[qNo] !== 'object') {
+                            detected[qNo] = { '1': 0, '2': 0, '3': 0 };
+                        }
+                        const keyObj = key[qNo] || { '1': 1, '2': 2, '3': 1 };
+                        ['1', '2', '3'].forEach(subIdx => {
+                            const subMeta = canonicalMap.part2SciBubbles?.[qNo]?.[subIdx];
+                            if (!subMeta) return;
+                            let bestSubChoice = Number(detected[qNo][subIdx] || 0);
+                            let maxSubDrop = 0;
+                            let subDrops = {};
+                            const subPts = {};
+                            [1, 2].forEach(c => {
+                                const uv = subMeta.choices[c];
+                                const basePt = calib.getPart2CalibratedXY(qNo, subMeta.rowIdx, uv.u, uv.v);
+                                let bestPt = basePt;
+                                let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
+                                if (!preserveManualAnswers) {
+                                    const stepShift = Math.max(2, Math.round(2.5 * dotScale));
+                                    const offsets = [[-stepShift, 0], [stepShift, 0], [0, -stepShift], [0, stepShift]];
+                                    for (let k = 0; k < offsets.length; k++) {
+                                        const sx = basePt.x + offsets[k][0];
+                                        const sy = basePt.y + offsets[k][1];
+                                        const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
+                                        if (dVal > localBestDrop) {
+                                            localBestDrop = dVal;
+                                            bestPt = { x: sx, y: sy };
+                                        }
+                                    }
+                                    if (localBestDrop > maxSubDrop) {
+                                        maxSubDrop = localBestDrop;
+                                        bestSubChoice = c;
+                                    }
+                                }
+                                subDrops[c] = localBestDrop;
+                                subPts[c] = bestPt;
+                            });
+                            if (!preserveManualAnswers) {
+                                const otherDrop = bestSubChoice === 1 ? (subDrops[2] || 0) : (subDrops[1] || 0);
+                                detected[qNo][subIdx] = (maxSubDrop >= 28 && (maxSubDrop - otherDrop >= 9)) ? bestSubChoice : 0;
+                            }
+                            const chosenC = Number(detected[qNo][subIdx] || 0);
+                            const rightC = Number(keyObj[subIdx]);
+                            [1, 2].forEach(c => {
+                                const pt = subPts[c];
+                                if (!pt) return;
+                                if (c === chosenC && chosenC === rightC) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
+                                    ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                                    ctx.fill();
+                                    ctx.lineWidth = Math.round(2.5 * dotScale);
+                                    ctx.strokeStyle = '#059669';
+                                    ctx.stroke();
+                                    ctx.restore();
+                                } else if (c === chosenC && chosenC !== rightC) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
+                                    ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                                    ctx.fill();
+                                    ctx.lineWidth = Math.round(2 * dotScale);
+                                    ctx.strokeStyle = '#dc2626';
+                                    ctx.stroke();
+                                    ctx.restore();
+                                } else if (c === rightC && chosenC !== rightC) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
+                                    ctx.arc(pt.x, pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
+                                    ctx.lineWidth = Math.round(2 * dotScale);
+                                    ctx.strokeStyle = '#f59e0b';
+                                    ctx.stroke();
+                                    ctx.restore();
+                                } else {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, Math.round(4 * dotScale), 0, Math.PI * 2);
+                                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                                    ctx.lineWidth = Math.max(1, Math.round(1.2 * dotScale));
+                                    ctx.stroke();
+                                    ctx.restore();
+                                }
+                            });
+                        });
+                    });
+                }
+
+                // คณิตศาสตร์ (รหัส 64): ตอนที่ 2 (ข้อ 12 - 15 ระบายตัวเลข 3 หลัก บนหน้าที่ 2)
+                if (sub === '64' && canonicalMap.part2MathBubbles) {
+                    ['12', '13', '14', '15'].forEach(qNo => {
+                        const boxMeta = canonicalMap.part2MathBubbles[qNo];
+                        if (!boxMeta) return;
+                        const keyStr = String(key[qNo] || '000').padStart(3, '0');
+                        let detectedDigits = String(detected[qNo] || '---').padStart(3, '-').split('');
+
+                        for (let placeIdx = 0; placeIdx < 3; placeIdx++) {
+                            let bestDigit = -1;
+                            let maxDigitDrop = 0;
+                            let secondDigitDrop = 0;
+                            const placePts = {};
+
+                            for (let d = 0; d <= 9; d++) {
+                                const uv = boxMeta.digits[d].places[placeIdx];
+                                const pt = calib.getPart2CalibratedXY(qNo, d, uv.u, uv.v);
+                                placePts[d] = pt;
+                                if (!preserveManualAnswers) {
+                                    const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(5.8 * dotScale)));
+                                    if (dVal > maxDigitDrop) {
+                                        secondDigitDrop = maxDigitDrop;
+                                        maxDigitDrop = dVal;
+                                        bestDigit = d;
+                                    } else if (dVal > secondDigitDrop) {
+                                        secondDigitDrop = dVal;
+                                    }
+                                }
+                            }
+
+                            if (!preserveManualAnswers) {
+                                detectedDigits[placeIdx] = (maxDigitDrop >= 28 && (maxDigitDrop - secondDigitDrop >= 8) && bestDigit >= 0) ? String(bestDigit) : '-';
+                            }
+
+                            const chosenD = detectedDigits[placeIdx] === '-' ? -1 : Number(detectedDigits[placeIdx]);
+                            const rightD = Number(keyStr[placeIdx]);
+                            for (let d = 0; d <= 9; d++) {
+                                const pt = placePts[d];
+                                if (!pt) continue;
+                                if (d === chosenD && chosenD === rightD) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                    ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                                    ctx.fill();
+                                    ctx.lineWidth = Math.round(2 * dotScale);
+                                    ctx.strokeStyle = '#059669';
+                                    ctx.stroke();
+                                    ctx.restore();
+                                } else if (d === chosenD && chosenD !== rightD) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                    ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                                    ctx.fill();
+                                    ctx.restore();
+                                } else {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, Math.round(3.5 * dotScale), 0, Math.PI * 2);
+                                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                                    ctx.stroke();
+                                    ctx.restore();
+                                }
+                            }
+                        }
+                        if (!preserveManualAnswers) {
+                            detected[qNo] = detectedDigits.join('');
+                        }
+                    });
+                }
+
+                // ภาษาไทย (รหัส 61): ตอนที่ 2 (ข้อ 21.1 มีคำลำดับที่ 1-10 วงกลม 1-10 และ ข้อ 21.2 มีคำลำดับที่ 1-13 วงกลม 1-13)
+                if (sub === '61' && canonicalMap.part2ThaiBubbles) {
+                    ['21.1', '21.2'].forEach(subQ => {
+                        const qMap = canonicalMap.part2ThaiBubbles[subQ];
+                        if (!qMap || !qMap.rows) return;
+                        const maxOrder = qMap.maxOrder || (subQ === '21.1' ? 10 : 13);
+                        let bestChoice = 0;
+                        let bestRowOrder = 1;
+                        let maxOrdDrop = 0;
+                        let secondOrdDrop = 0;
+                        const gridPts = {};
+
+                        for (let rowOrder = 1; rowOrder <= maxOrder; rowOrder++) {
+                            const rMeta = qMap.rows[rowOrder];
+                            if (!rMeta) continue;
+                            gridPts[rowOrder] = {};
+                            for (let c = 1; c <= maxOrder; c++) {
+                                const uv = rMeta.choices[c];
+                                if (!uv) continue;
+                                const pt = calib.getPart2CalibratedXY(subQ, rMeta.rowIdx, uv.u, uv.v);
+                                gridPts[rowOrder][c] = pt;
+                                if (!preserveManualAnswers) {
+                                    const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(4, Math.round(4.8 * dotScale)));
+                                    if (dVal > maxOrdDrop) {
+                                        secondOrdDrop = maxOrdDrop;
+                                        maxOrdDrop = dVal;
+                                        bestChoice = c;
+                                        bestRowOrder = rowOrder;
+                                    } else if (dVal > secondOrdDrop) {
+                                        secondOrdDrop = dVal;
+                                    }
+                                }
+                            }
+                        }
+
+                        if (!preserveManualAnswers) {
+                            detected[subQ] = (maxOrdDrop >= 28 && (maxOrdDrop - secondOrdDrop >= 7)) ? bestChoice : 0;
+                        }
+
+                        const chosenOrd = Number(detected[subQ] || 0);
+                        const rightOrd = Number(key[subQ]);
+                        const targetRow = bestRowOrder || 1;
+                        if (chosenOrd > 0 && gridPts[targetRow] && gridPts[targetRow][chosenOrd]) {
+                            const pt = gridPts[targetRow][chosenOrd];
+                            if (chosenOrd === rightOrd) {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                                ctx.fill();
+                                ctx.lineWidth = Math.round(2 * dotScale);
+                                ctx.strokeStyle = '#059669';
+                                ctx.stroke();
+                                ctx.restore();
+                            } else {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                                ctx.fill();
+                                ctx.restore();
+                            }
+                        }
+                    });
+                }
             }
 
             appState.currentScanDraft.answers = detected;
@@ -3744,7 +4027,7 @@
 
             ctx.fillStyle = '#0f172a';
             ctx.font = 'bold 14px Prompt, Sarabun, sans-serif';
-            ctx.fillText(`พ.ป.น. (PPN) ร.ร.บ้านโพนก้างปลาฯ • รหัส ${spec.code} (${spec.name})`, px + 52, py + 36);
+            ctx.fillText(`ร.ร.บ้านโพนก้างปลาโนนสมบูรณ์ • รหัส ${spec.code} (${spec.name})`, px + 52, py + 36);
             ctx.font = '12px Prompt, Sarabun, sans-serif';
             ctx.fillStyle = '#475569';
             ctx.fillText(`ชุดข้อสอบที่ ${formCode} • ส่องให้สี่เหลี่ยมดำ 4 มุมตรงกรอบเล็ง`, px + 52, py + 56);
@@ -3836,23 +4119,60 @@
             const key = getActiveSubjectKey(sub, formCode);
             const evalRes = evaluateStudentSubmission(sub, ans, formCode);
             const maxPts = getSubjectTotalPossiblePoints(sub);
+            const scanPart = Number(appState.currentScanPart) || 1;
 
             document.getElementById('scan-live-score').textContent = evalRes.totalScore.toFixed(2);
             const maxEl = document.getElementById('scan-live-max-score');
             if (maxEl) maxEl.textContent = `/ ${maxPts.toFixed(0)} คะแนน`;
             document.getElementById('scan-live-breakdown').textContent = `ชุดที่ ${formCode} • ตอนที่ 1: ${evalRes.part1Score} คะแนน | ตอนที่ 2/3: ${evalRes.part2Score} คะแนน`;
 
-            // อัปเดตคะแนนบนแผงลอยที่ค้างอยู่บนหน้าจอกล้องหลังสแกนติด
+            // อัปเดตคะแนนบนแผงลอยโปร่งแสงที่ค้างอยู่บนหน้าจอกล้องหลังสแกนติด
+            const ovPartBadge = document.getElementById('overlay-scanned-part-badge');
             const ovSub = document.getElementById('overlay-result-subject');
             const ovBreak = document.getElementById('overlay-result-breakdown');
             const ovScore = document.getElementById('overlay-result-score');
             const ovMax = document.getElementById('overlay-result-max');
+            const btnScanPart2 = document.getElementById('btn-overlay-scan-part2');
+            const ovThaiBox = document.getElementById('overlay-thai-part3-box');
+            const ovThaiInput = document.getElementById('overlay-thai-essay-input');
+
+            if (ovPartBadge) {
+                if (sub === '65' || sub === '61') {
+                    ovPartBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> สแกนครบทั้งตอนที่ 1 และตอนที่ 2 สำเร็จ`;
+                } else if (sub === '64') {
+                    ovPartBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> สแกนรอบที่ ${scanPart} (ตอนที่ ${scanPart}) สำเร็จ`;
+                } else {
+                    ovPartBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> สแกนตรวจข้อสอบสำเร็จ`;
+                }
+            }
             if (ovSub) ovSub.textContent = `${spec.name} ป.6 (รหัส ${spec.code} • ชุดที่ ${formCode})`;
             if (ovBreak) ovBreak.textContent = `ตอนที่ 1: ${evalRes.part1Score} คะแนน | ตอนที่ 2/3: ${evalRes.part2Score} คะแนน`;
             if (ovScore) ovScore.textContent = evalRes.totalScore.toFixed(2);
             if (ovMax) ovMax.textContent = `/ ${maxPts.toFixed(0)}`;
 
-            // แสดงหรือซ่อนกล่องกรอกคะแนนอัตนัย ตอนที่ 3 สำหรับวิชาภาษาไทย (รหัส 61)
+            // แสดงปุ่ม "สแกนตอนที่ 2 ต่อ" เฉพาะวิชาคณิตศาสตร์ (รหัส 64) เมื่อเพิ่งสแกนรอบที่ 1 (ตอนที่ 1) เสร็จ
+            // ส่วนวิชาวิทย์ (65) และภาษาไทย (61) สแกนรอบเดียวได้ครบทั้งตอนที่ 1 และ 2 แล้ว
+            if (btnScanPart2) {
+                if (sub === '64' && scanPart === 1) {
+                    btnScanPart2.classList.remove('hidden');
+                    btnScanPart2.classList.add('flex');
+                } else {
+                    btnScanPart2.classList.add('hidden');
+                    btnScanPart2.classList.remove('flex');
+                }
+            }
+
+            // แสดงช่องกรอกคะแนนข้อเขียน ตอนที่ 3 (ข้อ 22) บนหน้าจอสแกนสำหรับวิชาภาษาไทย (รหัส 61)
+            if (ovThaiBox) {
+                if (sub === '61') {
+                    ovThaiBox.classList.remove('hidden');
+                    if (ovThaiInput) ovThaiInput.value = ans['22'] !== undefined ? ans['22'] : 0;
+                } else {
+                    ovThaiBox.classList.add('hidden');
+                }
+            }
+
+            // แสดงหรือซ่อนกล่องกรอกคะแนนอัตนัย ตอนที่ 3 สำหรับวิชาภาษาไทย (รหัส 61) ด้านข้าง
             const thaiManualBox = document.getElementById('thai-part3-manual-box');
             if (thaiManualBox) {
                 if (sub === '61') {
@@ -3941,8 +4261,8 @@
                     <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 - 21.2) & ตอนที่ 3 อัตนัย (ข้อ 22 ครูกรอกคะแนนเอง)</p>
                     <div class="grid grid-cols-3 gap-2">
                         <div class="p-2 rounded-lg border bg-white">
-                            <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.1 (ลำดับ 1-13)</label>
-                            <input type="number" min="1" max="13" value="${ans['21.1'] || 1}" onchange="updateDraftThaiPart2('21.1', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
+                            <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.1 (ลำดับ 1-10)</label>
+                            <input type="number" min="1" max="10" value="${ans['21.1'] || 1}" onchange="updateDraftThaiPart2('21.1', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
                         </div>
                         <div class="p-2 rounded-lg border bg-white">
                             <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.2 (ลำดับ 1-13)</label>
@@ -3995,6 +4315,12 @@
 
         function updateDraftThaiPart2(qNo, val) {
             appState.currentScanDraft.answers[qNo] = Number(val);
+            const essaySide = document.getElementById('scan-thai-essay-input');
+            const essayOv = document.getElementById('overlay-thai-essay-input');
+            if (qNo === '22') {
+                if (essaySide && Number(essaySide.value) !== Number(val)) essaySide.value = val;
+                if (essayOv && Number(essayOv.value) !== Number(val)) essayOv.value = val;
+            }
             if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
                 reprocessLastCapturedSheet(true);
             } else {
@@ -4003,7 +4329,7 @@
             }
         }
 
-        async function saveScannedResult() {
+        async function saveScannedResult(fromCameraOverlay = false) {
             const sub = appState.currentSubject;
             const studentId = document.getElementById('scan-student-select')?.value;
             const formCode = document.getElementById('scan-form-code')?.value || '100';
@@ -4011,7 +4337,7 @@
 
             if (!stu) {
                 showToast('กรุณาเลือกนักเรียนก่อนบันทึกผลสอบ', 'error');
-                return;
+                return null;
             }
 
             // Ensure there is an active exam session in Supabase so foreign key constraint succeeds
@@ -4069,16 +4395,20 @@
                 const { error } = await appState.supabaseClient.from('ppn_exam_results').upsert([rowPayload], { onConflict: 'id' });
                 if (error) {
                     showToast(`บันทึกผลสอบลง Supabase ไม่สำเร็จ: ${error.message}`, 'error');
-                    return;
+                    return null;
                 }
             }
 
             refreshCurrentView();
-            showSaveSuccessDialog(`บันทึกผลคะแนนของ ${stu.fullName} (${scoreDetails.totalScore.toFixed(2)} คะแนน) เรียบร้อยแล้ว`);
+            showToast(`บันทึกคะแนนของ ${stu.fullName} (${scoreDetails.totalScore.toFixed(2)} คะแนน) เรียบร้อยแล้ว`, 'success');
+            if (!fromCameraOverlay) {
+                showSaveSuccessDialog(`บันทึกผลคะแนนของ ${stu.fullName} (${scoreDetails.totalScore.toFixed(2)} คะแนน) เรียบร้อยแล้ว`);
+            }
+            return { studentName: stu.fullName, totalScore: scoreDetails.totalScore };
         }
 
         /* --------------------------------------------------------------------------
-           7. TAB 3: A4 ANSWER SHEET GENERATOR & GAS PRINT FALLBACK
+           7. TAB 3: A4 ANSWER SHEET GENERATOR, PRINT & DIRECT DOWNLOAD
         -------------------------------------------------------------------------- */
         function handlePrintAnswerSheet() {
             try {
@@ -4087,6 +4417,47 @@
             } catch (e) {
                 showToast('กรุณากดปุ่มพิมพ์ของเบราว์เซอร์ (Ctrl+P หรือ Cmd+P)', 'info');
                 window.print();
+            }
+        }
+
+        async function downloadAnswerSheetPDF() {
+            const container = document.getElementById('printable-sheets-container');
+            const btn = document.getElementById('btn-download-sheet-pdf');
+            if (!container) return;
+
+            const sub = appState.currentSubject;
+            const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
+            const prefillId = document.getElementById('sheet-student-prefill')?.value || 'blank';
+            const stu = appState.students.find(s => s.id === prefillId);
+            const filename = `กระดาษคำตอบ_ONET_${spec.code}_${spec.name}${stu ? '_' + stu.seatCode : ''}.pdf`;
+
+            if (typeof window.html2pdf !== 'undefined') {
+                try {
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> กำลังสร้างไฟล์ PDF...`;
+                    }
+                    showToast('กำลังสร้างไฟล์กระดาษคำตอบ PDF สำหรับดาวน์โหลด...', 'info');
+                    const opt = {
+                        margin: 0,
+                        filename: filename,
+                        image: { type: 'jpeg', quality: 0.98 },
+                        html2canvas: { scale: 2, useCORS: true, logging: false },
+                        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    };
+                    await window.html2pdf().set(opt).from(container).save();
+                    showToast('ดาวน์โหลดกระดาษคำตอบ PDF สำเร็จแล้ว', 'success');
+                } catch (err) {
+                    console.error('PDF Download Error:', err);
+                    handlePrintAnswerSheet();
+                } finally {
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = `<i class="fa-solid fa-download"></i> ดาวน์โหลดกระดาษคำตอบ`;
+                    }
+                }
+            } else {
+                handlePrintAnswerSheet();
             }
         }
 
@@ -4139,48 +4510,37 @@
             const examDateDisplay = currentSes ? formatThaiDate(currentSes.examDate) : '.........................';
 
             return `
-                <!-- Top Header Banner: พ.ป.น. PPN โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์ -->
-                <div class="flex items-start justify-between border-b-2 border-black pb-2 mb-2">
-                    <div class="flex items-center gap-3">
-                        <img src="https://drive.google.com/thumbnail?id=1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB&sz=w200"
-                             onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/d/1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB';"
-                             alt="ตราโรงเรียน"
-                             class="w-11 h-11 object-contain">
-                        <div class="text-center pr-1">
-                            <div class="text-xs font-bold leading-tight">พ.ป.น.</div>
-                            <div class="text-[10px] font-bold tracking-wider">PPN</div>
-                        </div>
-                        <div>
-                            <div class="text-sm font-bold leading-tight">โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</div>
-                            <div class="text-xs font-semibold leading-snug">กระดาษคำตอบการทดสอบทางการศึกษาระดับชาติขั้นพื้นฐาน (O-NET)</div>
-                            <div class="text-xs font-bold leading-snug">ชั้นประถมศึกษาปีที่ 6</div>
-                        </div>
+                <!-- Top Header Banner: รูปแบบเดิมโดยไม่ใส่ตราโรงเรียน และจัดขนาดให้กะทัดรัดแยกออกจากส่วนฝนข้อสอบอย่างชัดเจน -->
+                <div class="flex items-center justify-between border-b-2 border-black pb-1.5 mb-2 px-2">
+                    <div>
+                        <div class="text-sm font-bold leading-tight">โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</div>
+                        <div class="text-[11px] font-semibold leading-snug">กระดาษคำตอบการทดสอบทางการศึกษาระดับชาติขั้นพื้นฐาน (O-NET) ชั้นประถมศึกษาปีที่ 6</div>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <div class="border-2 border-black px-3 py-1 text-center bg-slate-100">
-                            <div class="text-[10px] font-semibold">รหัสวิชา</div>
-                            <div class="text-xl font-black leading-none">${spec.code}</div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <div class="border-2 border-black px-2.5 py-0.5 text-center bg-slate-100">
+                            <div class="text-[9px] font-semibold">รหัสวิชา</div>
+                            <div class="text-base font-black leading-none">${spec.code}</div>
                         </div>
-                        <div class="border-2 border-black px-3 py-1 text-center">
-                            <div class="text-[10px] font-semibold">วิชา</div>
-                            <div class="text-sm font-extrabold leading-tight">${spec.name}</div>
+                        <div class="border-2 border-black px-3 py-0.5 text-center">
+                            <div class="text-[9px] font-semibold">รายวิชา</div>
+                            <div class="text-xs font-extrabold leading-tight">${spec.name}</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Student Info & ID Grid Section -->
-                <div class="grid grid-cols-12 gap-2 border border-black p-2 mb-2 text-[11px]">
+                <!-- Student Info & ID Grid Section (แยกส่วนชัดเจน ไม่ซ้อนทับกับตารางฝนคำตอบด้านล่าง) -->
+                <div class="grid grid-cols-12 gap-2 border-2 border-black p-2 mb-3 bg-white text-[10.5px]">
                     <div class="col-span-5 space-y-1 pr-2 border-r border-black flex flex-col justify-between">
                         <div>
                             <div class="flex justify-between border-b border-dotted border-black pb-0.5">
                                 <span class="font-bold">ชื่อ-สกุล:</span>
                                 <span class="font-semibold">${stu ? stu.fullName : '....................................................................'}</span>
                             </div>
-                            <div class="flex justify-between border-b border-dotted border-black pb-0.5 mt-1">
+                            <div class="flex justify-between border-b border-dotted border-black pb-0.5 mt-0.5">
                                 <span class="font-bold">สถานที่สอบ:</span>
                                 <span>โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</span>
                             </div>
-                            <div class="flex justify-between border-b border-dotted border-black pb-0.5 mt-1">
+                            <div class="flex justify-between border-b border-dotted border-black pb-0.5 mt-0.5">
                                 <span class="font-bold">ห้องสอบ:</span>
                                 <span>${stu ? stu.room : '..........'}</span>
                                 <span class="font-bold">วันที่สอบ:</span>
@@ -4191,13 +4551,13 @@
                         </div>
 
                         <!-- Exam Set Code (รหัสชุดข้อสอบ 100 - 600) -->
-                        <div class="border border-black p-1.5 bg-slate-50 mt-1">
-                            <div class="font-bold text-[10px] mb-1">คำสั่ง: ระบายรหัสชุดข้อสอบวิชา${spec.name}</div>
+                        <div class="border border-black p-1 bg-slate-50 mt-1">
+                            <div class="font-bold text-[9.5px] mb-0.5">คำสั่ง: ระบายรหัสชุดข้อสอบวิชา${spec.name}</div>
                             <div class="grid grid-cols-6 gap-1 text-center">
                                 ${['100', '200', '300', '400', '500', '600'].map(code => `
                                     <div class="flex flex-col items-center">
-                                        <span class="omr-bubble text-[9px]"></span>
-                                        <span class="text-[9px] font-bold mt-0.5">${code}</span>
+                                        <span class="omr-bubble" style="width:16px; height:16px; font-size:8px;"></span>
+                                        <span class="text-[8.5px] font-bold mt-0.5">${code}</span>
                                     </div>
                                 `).join('')}
                             </div>
@@ -4208,28 +4568,28 @@
                     <div class="col-span-7 flex flex-col justify-between pl-1">
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <div class="font-bold text-[10px] text-center mb-0.5">เลขประจำตัวประชาชน 13 หลัก</div>
+                                <div class="font-bold text-[9.5px] text-center mb-0.5">เลขประจำตัวประชาชน 13 หลัก</div>
                                 <div class="grid grid-cols-13 gap-0.5 text-center border border-black p-0.5 bg-white" style="grid-template-columns: repeat(13, minmax(0, 1fr));">
-                                    ${citizenDigits.map(d => `<div class="border border-slate-400 h-4 text-[10px] font-mono font-bold flex items-center justify-center">${d}</div>`).join('')}
+                                    ${citizenDigits.map(d => `<div class="border border-slate-400 h-4 text-[9.5px] font-mono font-bold flex items-center justify-center">${d}</div>`).join('')}
                                 </div>
                             </div>
                             <div>
-                                <div class="font-bold text-[10px] text-center mb-0.5">เลขที่นั่งสอบ 8 หลัก</div>
+                                <div class="font-bold text-[9.5px] text-center mb-0.5">เลขที่นั่งสอบ 8 หลัก</div>
                                 <div class="grid grid-cols-8 gap-0.5 text-center border border-black p-0.5 bg-white">
-                                    ${seatDigits.map(d => `<div class="border border-slate-400 h-4 text-[10px] font-mono font-bold flex items-center justify-center">${d}</div>`).join('')}
+                                    ${seatDigits.map(d => `<div class="border border-slate-400 h-4 text-[9.5px] font-mono font-bold flex items-center justify-center">${d}</div>`).join('')}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Signatures & Instructions -->
-                        <div class="grid grid-cols-2 gap-2 mt-2 pt-1 border-t border-slate-300 text-[10px]">
+                        <div class="grid grid-cols-2 gap-2 mt-1.5 pt-1 border-t border-slate-300 text-[9.5px]">
                             <div>
                                 <div>ลายมือชื่อผู้เข้าสอบ.......................................................</div>
-                                <div class="text-[9px] text-slate-600 mt-0.5">• ใช้ดินสอดำ 2B ระบายวงกลมให้ดำเต็มวง</div>
+                                <div class="text-[8.5px] text-slate-600 mt-0.5">• ใช้ดินสอดำ 2B ระบายวงกลมให้ดำเต็มวง</div>
                             </div>
                             <div>
                                 <div>ลายมือชื่อกรรมการคุมสอบ..............................................</div>
-                                <div class="text-[9px] font-bold text-slate-800 mt-0.5">• ห้ามขีดเขียนทับจุดสี่เหลี่ยมสีดำทั้ง 4 มุม</div>
+                                <div class="text-[8.5px] font-bold text-slate-800 mt-0.5">• ห้ามขีดเขียนทับจุดสี่เหลี่ยมสีดำทั้ง 4 มุม</div>
                             </div>
                         </div>
                     </div>
@@ -4239,22 +4599,22 @@
 
         function buildA4SheetPage1(spec, stu) {
             // ใช้ตารางพิกัดมาตรฐาน 4 ระดับ (1. มุม 4 จุด, 2. จุดอ้างอิงด้านข้าง, 3. จุดอ้างอิงภายใน, 4. วงกลมคำตอบ)
-            // โดยวางตำแหน่งทุกองค์ประกอบอ้างอิงจากจุดศูนย์กลางของมาร์ก 4 มุม (11.17mm จากขอบกระดาษ A4)
+            // โดยวางตำแหน่งทุกองค์ประกอบอ้างอิงจากจุดศูนย์กลางของมาร์ก 4 มุม (8.9mm จากขอบกระดาษ A4)
             const canonicalMap = getCanonicalSubjectBubbleUVMap(spec.code);
             const totalMcq = spec.part1.count;
             const cols = canonicalMap.cols;
 
-            // วาดจุดอ้างอิงด้านข้าง (Side Timing Marks) ซ้าย-ขวา ของทุกบรรทัดทั้งตอนที่ 1 และตอนที่ 2
+            // วาดจุดอ้างอิงด้านข้าง (Side Timing Marks) เฉพาะของหน้าที่ 1 (page === 1)
             let sideMarksHtml = '';
-            (canonicalMap.sideMarks || []).forEach(sm => {
+            (canonicalMap.sideMarks || []).filter(sm => sm.page === 1).forEach(sm => {
                 const leftPct = (sm.u * 100).toFixed(3);
                 const topPct = (sm.v * 100).toFixed(3);
                 sideMarksHtml += `<div class="side-timing-mark" style="left:${leftPct}%; top:${topPct}%;"></div>`;
             });
 
-            // วาดจุดอ้างอิงภายใน (Internal Reference Marks) กำกับมุมบน-ล่างของแต่ละคอลัมน์ในตอนที่ 1 และแต่ละกล่องในตอนที่ 2
+            // วาดจุดอ้างอิงภายใน (Internal Reference Marks) เฉพาะของหน้าที่ 1 (page === 1)
             let internalMarksHtml = '';
-            (canonicalMap.internalMarks || []).forEach(im => {
+            (canonicalMap.internalMarks || []).filter(im => im.page === 1).forEach(im => {
                 const leftPct = (im.u * 100).toFixed(3);
                 const topPct = (im.v * 100).toFixed(3);
                 internalMarksHtml += `<div class="internal-ref-mark" style="left:${leftPct}%; top:${topPct}%;"></div>`;
@@ -4287,13 +4647,15 @@
             const boxHeightPct = ((canonicalMap.gridBoxBottomV - canonicalMap.gridBoxTopV) * 100).toFixed(2);
             let colHeadersHtml = '';
             for (let c = 0; c < cols; c++) {
-                const colLeftU = cols === 3 ? (0.035 + c * 0.314) : (0.025 + c * 0.244);
-                const colWidthU = cols === 3 ? 0.302 : 0.232;
+                const colLeftU = cols === 3
+                    ? (0.035 + c * 0.314)
+                    : (cols === 4 ? (0.025 + c * 0.244) : (0.025 + c * 0.1915));
+                const colWidthU = cols === 3 ? 0.302 : (cols === 4 ? 0.232 : 0.184);
                 colHeadersHtml += `
                     <div style="position:absolute; left:${(colLeftU * 100).toFixed(2)}%; top:${boxTopPct}%; width:${(colWidthU * 100).toFixed(2)}%; height:${boxHeightPct}%; border:1.5px solid #000; box-sizing:border-box;">
-                        <div class="flex items-center justify-between text-[10px] font-bold border-b border-black px-2.5 py-1 bg-slate-50">
+                        <div class="flex items-center justify-between text-[9px] font-bold border-b border-black px-1.5 py-0.5 bg-slate-50">
                             <span>ข้อที่</span>
-                            <span>ตัวเลือกคำตอบ</span>
+                            <span>ตัวเลือก</span>
                         </div>
                     </div>
                 `;
@@ -4306,7 +4668,7 @@
                 ['19', '20'].forEach((qNo, boxIdx) => {
                     const boxLeftPct = boxIdx === 0 ? '4.5%' : '52.5%';
                     sciPart2Bubbles += `
-                        <div style="position:absolute; left:${boxLeftPct}; top:61.5%; width:43%; height:17.5%; border:1.5px solid #000; padding:6px;">
+                        <div style="position:absolute; left:${boxLeftPct}; top:63.0%; width:43%; height:17.5%; border:1.5px solid #000; padding:6px;">
                             <div class="flex justify-between text-xs font-bold border-b border-black pb-1">
                                 <span>ข้อ ${qNo} คำถามย่อย</span>
                                 <div class="flex gap-5 pr-3"><span>ใช่ (1)</span><span>ไม่ใช่ (2)</span></div>
@@ -4327,69 +4689,57 @@
                     });
                 });
                 extraPartHtml = `
-                    <div style="position:absolute; left:3.5%; top:57.5%; right:3.5%; font-size:11px; font-weight:700;">
+                    <div style="position:absolute; left:3.5%; top:59.0%; right:3.5%; font-size:11px; font-weight:700;">
                         ตอนที่ 2 : แบบปรนัยเลือกตอบเชิงซ้อน จำนวน 2 ข้อ (ข้อ 19 - 20) — หากเลือก "ใช่" ระบาย 1 หากเลือก "ไม่ใช่" ระบาย 2
                     </div>
                     ${sciPart2Bubbles}
                 `;
-            } else if (spec.code === '64' && canonicalMap.part2MathBubbles) {
-                // วาด ตอนที่ 2 ของคณิตศาสตร์ (ข้อ 12 - 15 ระบายตัวเลข 3 หลัก) ลงในครึ่งล่างของแผ่นที่ 1 พร้อมจุดอ้างอิงด้านข้างและภายใน
-                let mathPart2Html = '';
-                ['12', '13', '14', '15'].forEach(qNo => {
-                    const boxMeta = canonicalMap.part2MathBubbles[qNo];
-                    const leftPct = (boxMeta.boxLeftU * 100).toFixed(2);
-                    const widthPct = (boxMeta.boxWidthU * 100).toFixed(2);
-                    mathPart2Html += `
-                        <div style="position:absolute; left:${leftPct}%; top:52.5%; width:${widthPct}%; height:39.5%; border:1.5px solid #000; box-sizing:border-box;">
-                            <div class="text-[10px] font-bold text-center border-b border-black py-0.5 bg-slate-50">ข้อ ${qNo} (3 หลัก)</div>
-                            <div class="flex justify-around text-[8px] font-bold border-b border-slate-300 py-0.5 pl-4">
-                                <span>ร้อย</span><span>สิบ</span><span>หน่วย</span>
+            } else if (spec.code === '64') {
+                // วิชาคณิตศาสตร์ (รหัส 64): หน้าแรกแสดงเฉพาะ ตอนที่ 1 (ข้อ 1 - 11) เท่านั้น ส่วน ตอนที่ 2 (ข้อ 12 - 15) ย้ายไปอยู่หน้าที่ 2
+                extraPartHtml = `
+                    <div style="position:absolute; left:3.5%; top:53.0%; right:3.5%; border:1.5px dashed #475569; padding:10px 14px; background:#f8fafc;" class="text-center">
+                        <div class="text-xs font-bold text-slate-900">ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ จำนวน 4 ข้อ (ข้อ 12 - 15) อยู่ในกระดาษคำตอบหน้าที่ 2</div>
+                        <div class="text-[10px] text-slate-600 mt-0.5">กรุณาพลิกไปทำหรือพิมพ์กระดาษคำตอบ หน้าที่ 2 สำหรับระบายคำตอบข้อ 12 - 15</div>
+                    </div>
+                `;
+            } else if (spec.code === '61') {
+                // วิชาภาษาไทย (รหัส 61): ตอนที่ 2 แบบเรียงลำดับ
+                // ข้อ 21.1 มี คำลำดับที่ 1 - 10 และวงกลม 1 - 10 ในแต่ละแถว
+                // ข้อ 21.2 มี คำลำดับที่ 1 - 13 และวงกลม 1 - 13 ในแต่ละแถว
+                let thaiPart2Bubbles = '';
+                ['21.1', '21.2'].forEach((subQ) => {
+                    const boxMeta = canonicalMap.part2ThaiBubbles[subQ];
+                    const maxOrder = boxMeta.maxOrder || (subQ === '21.1' ? 10 : 13);
+                    const boxLeftPct = (boxMeta.boxBaseU * 100).toFixed(2) + '%';
+                    const boxWidthPct = (boxMeta.boxWidthU * 100).toFixed(2) + '%';
+                    thaiPart2Bubbles += `
+                        <div style="position:absolute; left:${boxLeftPct}; top:51.4%; width:${boxWidthPct}; height:41.8%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
+                            <div class="text-[11px] font-bold px-2.5 py-0.5 border-b border-black bg-slate-100 flex items-center justify-between">
+                                <span>ข้อ ${subQ}</span>
+                                <span class="text-[9px] font-semibold text-slate-700">ระบายวงกลม 1 - ${maxOrder} เพียง 1 วงในแต่ละลำดับ</span>
                             </div>
                         </div>
                     `;
-                    for (let d = 0; d <= 9; d++) {
-                        const dMeta = boxMeta.digits[d];
-                        const topPct = (dMeta.v * 100).toFixed(3);
-                        const lblPct = ((boxMeta.boxLeftU + 0.018) * 100).toFixed(3);
-                        mathPart2Html += `<div style="position:absolute; left:${lblPct}%; top:${topPct}%; transform:translateY(-50%); font-size:9px; font-weight:700;">${d}</div>`;
-                        [0, 1, 2].forEach(pIdx => {
-                            const uPct = (dMeta.places[pIdx].u * 100).toFixed(3);
-                            mathPart2Html += `
-                                <span class="omr-bubble" style="position:absolute; left:${uPct}%; top:${topPct}%; transform:translate(-50%, -50%); width:15px; height:15px; font-size:8px;">${d}</span>
-                            `;
-                        });
-                    }
-                });
-                extraPartHtml = `
-                    <div style="position:absolute; left:3.5%; top:48.8%; right:3.5%; font-size:11px; font-weight:700;">
-                        ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ 3 หลัก จำนวน 4 ข้อ (ข้อ 12 - 15) — ระบายให้ครบทั้งหลักร้อย หลักสิบ และหลักหน่วย
-                    </div>
-                    ${mathPart2Html}
-                `;
-            } else if (spec.code === '61') {
-                // วาด ตอนที่ 2 ของภาษาไทย (ข้อ 21.1 และ 21.2) ด้วยพิกัด (u, v) เดียวกับตัวสแกนมือถือ
-                let thaiPart2Bubbles = '';
-                ['21.1', '21.2'].forEach((subQ, boxIdx) => {
-                    const boxLeftPct = boxIdx === 0 ? '4.5%' : '52.5%';
-                    thaiPart2Bubbles += `
-                        <div style="position:absolute; left:${boxLeftPct}; top:61.5%; width:43%; height:28.5%; border:1.5px solid #000; padding:6px;">
-                            <div class="text-xs font-bold text-center border-b border-black pb-0.5">ข้อ ${subQ} (ระบายคำลำดับที่ 1 - 13)</div>
-                        </div>
-                    `;
-                    for (let ord = 1; ord <= 13; ord++) {
-                        const ordMeta = canonicalMap.part2ThaiBubbles[subQ][ord];
-                        const topPct = (ordMeta.v * 100).toFixed(3);
-                        const lblPct = (ordMeta.labelU * 100).toFixed(3);
-                        const uPct = (ordMeta.u * 100).toFixed(3);
+                    for (let rowOrder = 1; rowOrder <= maxOrder; rowOrder++) {
+                        const rMeta = boxMeta.rows[rowOrder];
+                        const topPct = (rMeta.v * 100).toFixed(3);
+                        const lblPct = (rMeta.labelU * 100).toFixed(3);
                         thaiPart2Bubbles += `
-                            <div style="position:absolute; left:${lblPct}%; top:${topPct}%; transform:translateY(-50%); font-size:10px; font-weight:600;">ลำดับที่ ${ord}</div>
-                            <span class="omr-bubble" style="position:absolute; left:${uPct}%; top:${topPct}%; transform:translate(-50%, -50%); width:16px; height:16px; font-size:9px;">${ord}</span>
+                            <div style="position:absolute; left:${lblPct}%; top:${topPct}%; transform:translateY(-50%); font-size:9.5px; font-weight:700; white-space:nowrap;">คำลำดับที่ ${rowOrder}</div>
                         `;
+                        for (let c = 1; c <= maxOrder; c++) {
+                            const cUV = rMeta.choices[c];
+                            const uPct = (cUV.u * 100).toFixed(3);
+                            thaiPart2Bubbles += `
+                                <span class="omr-bubble" style="position:absolute; left:${uPct}%; top:${topPct}%; transform:translate(-50%, -50%); width:14px; height:14px; font-size:7.5px; border-width:1px;">${c}</span>
+                            `;
+                        }
                     }
                 });
                 extraPartHtml = `
-                    <div style="position:absolute; left:3.5%; top:57.5%; right:3.5%; font-size:11px; font-weight:700;">
-                        ตอนที่ 2 : แบบเรียงลำดับ จำนวน 1 ข้อ (ข้อ 21.1 และ 21.2) — ระบาย 1 คำตอบที่ถูกที่สุดในแต่ละลำดับ
+                    <div style="position:absolute; left:2.5%; top:48.4%; right:2.5%; font-size:11px; font-weight:700;" class="flex items-center justify-between">
+                        <span>ตอนที่ 2 : แบบเรียงลำดับ จำนวน 1 ข้อ (ข้อ 21.1 และ ข้อ 21.2)</span>
+                        <span class="text-[10px] font-semibold">วิธีการตอบ : ระบาย 1 คำตอบที่เป็นคำตอบที่ถูกที่สุดในแต่ละลำดับ</span>
                     </div>
                     ${thaiPart2Bubbles}
                 `;
@@ -4405,7 +4755,9 @@
 
                     <!-- พื้นที่พิกัดสัมบูรณ์ 4 ระดับ (Canonical Coordinate Frame) ที่มีมุมทั้ง 4 อยู่ตรงกับจุดศูนย์กลางของ Fiducial Markers (8.9mm จากขอบ A4) -->
                     <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:8.9mm; pointer-events:none; z-index:10;">
-                        <div style="position:absolute; left:3.5%; top:${(canonicalMap.gridBoxTopV * 100 - 3.2).toFixed(2)}%; right:3.5%;" class="flex items-center justify-between">
+                        <!-- เส้นคั่นแยกส่วนกรอกข้อมูลนักเรียนด้านบน กับ ส่วนฝนข้อสอบด้านล่างอย่างชัดเจน -->
+                        <div style="position:absolute; left:2.5%; right:2.5%; top:${(canonicalMap.gridBoxTopV * 100 - 4.2).toFixed(2)}%; border-top:2px solid #0f172a;"></div>
+                        <div style="position:absolute; left:3.5%; top:${(canonicalMap.gridBoxTopV * 100 - 3.0).toFixed(2)}%; right:3.5%;" class="flex items-center justify-between">
                             <span class="text-xs font-bold">${spec.part1.title}</span>
                             <span class="text-[10px] font-semibold">วิธีการตอบ: ระบาย 1 คำตอบที่ถูกที่สุดในแต่ละข้อ</span>
                         </div>
@@ -4428,77 +4780,97 @@
         }
 
         function buildA4SheetPage2(spec, stu) {
-            let page2Body = '';
-
             if (spec.code === '64') {
-                page2Body = `
-                    <div class="border-2 border-black p-3 mt-1">
-                        <div class="text-xs font-bold mb-1">ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ จำนวน 4 ข้อ (ข้อ 12 - 15)</div>
-                        <div class="text-[10px] mb-3 space-y-0.5">
-                            <div>• ให้เขียนตัวเลขที่เป็นคำตอบลงในช่องว่างให้ตรงกับหลักเลข (หลักร้อย หลักสิบ หลักหน่วย) ให้ครบทั้งสามหลัก</div>
-                            <div>• ใช้ดินสอดำ 2B ระบายในวงกลมให้ตรงกับหลักเลขครบทุกหลัก เช่น คำตอบคือ 52 ต้องระบาย 052</div>
+                // วิชาคณิตศาสตร์ (รหัส 64) หน้าที่ 2: แสดง ตอนที่ 2 (ข้อ 12 - 15 แบบระบายตัวเลข 3 หลัก) พร้อมจุดอ้างอิง 4 ระดับครบถ้วน
+                const canonicalMap = getCanonicalSubjectBubbleUVMap('64');
+                let sideMarksP2Html = '';
+                (canonicalMap.sideMarks || []).filter(sm => sm.page === 2).forEach(sm => {
+                    sideMarksP2Html += `<div class="side-timing-mark" style="left:${(sm.u * 100).toFixed(3)}%; top:${(sm.v * 100).toFixed(3)}%;"></div>`;
+                });
+
+                let internalMarksP2Html = '';
+                (canonicalMap.internalMarks || []).filter(im => im.page === 2).forEach(im => {
+                    internalMarksP2Html += `<div class="internal-ref-mark" style="left:${(im.u * 100).toFixed(3)}%; top:${(im.v * 100).toFixed(3)}%;"></div>`;
+                });
+
+                let mathPage2Html = '';
+                ['12', '13', '14', '15'].forEach(qNo => {
+                    const boxMeta = canonicalMap.part2MathBubbles[qNo];
+                    const leftPct = (boxMeta.boxLeftU * 100).toFixed(2);
+                    const widthPct = (boxMeta.boxWidthU * 100).toFixed(2);
+                    mathPage2Html += `
+                        <div style="position:absolute; left:${leftPct}%; top:33.0%; width:${widthPct}%; height:52.5%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
+                            <div class="text-xs font-bold text-center border-b border-black py-1 bg-slate-100">ข้อ ${qNo}</div>
+                            <div class="flex justify-around text-[9px] font-bold border-b border-black py-1 pl-5 bg-slate-50">
+                                <span>หลักร้อย</span><span>หลักสิบ</span><span>หลักหน่วย</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1.5 px-3 py-1.5 pl-7 border-b border-slate-300">
+                                <div class="border border-black h-5"></div>
+                                <div class="border border-black h-5"></div>
+                                <div class="border border-black h-5"></div>
+                            </div>
                         </div>
-                        <div class="grid grid-cols-4 gap-3">
-                            ${[12, 13, 14, 15].map(qNo => `
-                                <div class="border-2 border-black p-2 text-center">
-                                    <div class="text-xs font-bold border-b border-black pb-1 mb-1">ข้อ ${qNo}</div>
-                                    <div class="grid grid-cols-3 gap-1 text-[9px] font-bold mb-1">
-                                        <div>หลักร้อย</div><div>หลักสิบ</div><div>หลักหน่วย</div>
-                                    </div>
-                                    <div class="grid grid-cols-3 gap-1 mb-2">
-                                        <div class="border border-black h-6"></div>
-                                        <div class="border border-black h-6"></div>
-                                        <div class="border border-black h-6"></div>
-                                    </div>
-                                    <div class="space-y-1">
-                                        ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(digit => `
-                                            <div class="grid grid-cols-3 gap-1 justify-items-center">
-                                                <span class="omr-bubble">${digit}</span>
-                                                <span class="omr-bubble">${digit}</span>
-                                                <span class="omr-bubble">${digit}</span>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            `).join('')}
+                    `;
+                    for (let d = 0; d <= 9; d++) {
+                        const dMeta = boxMeta.digits[d];
+                        const topPct = (dMeta.v * 100).toFixed(3);
+                        const lblPct = ((boxMeta.boxLeftU + 0.018) * 100).toFixed(3);
+                        mathPage2Html += `<div style="position:absolute; left:${lblPct}%; top:${topPct}%; transform:translateY(-50%); font-size:10px; font-weight:700;">${d}</div>`;
+                        [0, 1, 2].forEach(pIdx => {
+                            const uPct = (dMeta.places[pIdx].u * 100).toFixed(3);
+                            mathPage2Html += `
+                                <span class="omr-bubble" style="position:absolute; left:${uPct}%; top:${topPct}%; transform:translate(-50%, -50%); width:18px; height:18px; font-size:9px;">${d}</span>
+                            `;
+                        });
+                    }
+                });
+
+                return `
+                    <div class="a4-sheet flex flex-col justify-between" style="height:297mm;">
+                        <div class="fiducial-marker marker-tl"></div>
+                        <div class="fiducial-marker marker-tr"></div>
+                        <div class="fiducial-marker marker-bl"></div>
+                        <div class="fiducial-marker marker-br"></div>
+
+                        <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:8.9mm; pointer-events:none; z-index:10;">
+                            <div style="position:absolute; left:3.5%; top:28.5%; right:3.5%;">
+                                <div class="text-xs font-bold">ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ 3 หลัก จำนวน 4 ข้อ (ข้อ 12 - 15)</div>
+                                <div class="text-[10px] font-medium">คำชี้แจง: เขียนตัวเลขลงในช่องว่างและระบายวงกลมให้ครบทั้งหลักร้อย หลักสิบ และหลักหน่วย (เช่น คำตอบคือ 52 ต้องระบาย 052)</div>
+                            </div>
+                            ${sideMarksP2Html}
+                            ${internalMarksP2Html}
+                            ${mathPage2Html}
+                        </div>
+
+                        <div class="z-20">
+                            ${buildCommonA4Header(spec, stu, 2)}
+                        </div>
+                        <div class="z-20 flex items-center justify-between text-[10px] font-bold pt-2 border-t border-black">
+                            <span>เลือกโหมด "สแกนตอนที่ 2" ในแอปมือถือเพื่อสแกนตรวจข้อ 12 - 15 ในหน้านี้</span>
+                            <span>กระดาษคำตอบวิชา${spec.name} (รหัส ${spec.code}) - หน้าที่ 2</span>
                         </div>
                     </div>
                 `;
-            } else if (spec.code === '61') {
+            }
+
+            let page2Body = '';
+            if (spec.code === '61') {
                 page2Body = `
                     <div class="border-2 border-black p-3 mt-1 space-y-3">
                         <div class="flex items-center justify-between border-b border-black pb-1">
                             <span class="text-xs font-bold">ตอนที่ 3 : แบบอัตนัย จำนวน 1 ข้อ (ข้อ 22)</span>
-                            <span class="text-[10px] font-semibold">เขียนด้วยปากกาหรือดินสอด้วยลายมือตัวบรรจง</span>
+                            <span class="text-[10px] font-semibold">เขียนด้วยปากกาหรือดินสอด้วยลายมือตัวบรรจง (ครูกรอกคะแนนในระบบได้โดยตรง)</span>
                         </div>
                         <div class="text-xs font-bold">22. จงเขียนสรุปใจความสำคัญของบทอ่าน (20 คะแนน)</div>
-                        <div class="space-y-5 py-4 px-2 border border-slate-400">
-                            ${Array.from({ length: 8 }, () => `<div class="border-b border-dotted border-black h-5"></div>`).join('')}
-                        </div>
-
-                        <div class="border-2 border-black p-2.5 bg-slate-50 mt-4">
-                            <div class="text-xs font-bold mb-1">สำหรับกรรมการตรวจข้อสอบอัตนัย (ระบายคะแนนที่ได้ 00 - 20 คะแนน เพื่อสแกนเข้าระบบ)</div>
-                            <div class="grid grid-cols-2 gap-4">
-                                <div>
-                                    <span class="text-[10px] font-bold block mb-1">หลักสิบ (0 - 2)</span>
-                                    <div class="flex gap-3">
-                                        ${[0, 1, 2].map(d => `<div class="flex items-center gap-1"><span class="omr-bubble">${d}</span></div>`).join('')}
-                                    </div>
-                                </div>
-                                <div>
-                                    <span class="text-[10px] font-bold block mb-1">หลักหน่วย (0 - 9)</span>
-                                    <div class="flex flex-wrap gap-2">
-                                        ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => `<span class="omr-bubble">${d}</span>`).join('')}
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="space-y-6 py-4 px-2 border border-slate-400">
+                            ${Array.from({ length: 10 }, () => `<div class="border-b border-dotted border-black h-6"></div>`).join('')}
                         </div>
                     </div>
                 `;
             }
 
             return `
-                <div class="a4-sheet flex flex-col justify-between">
+                <div class="a4-sheet flex flex-col justify-between" style="height:297mm;">
                     <!-- 1. จุดสี่เหลี่ยมสีดำที่มุมทั้ง 4 ด้านของกระดาษ A4 (วางติดกับขอบกระดาษ .a4-sheet โดยตรง) -->
                     <div class="fiducial-marker marker-tl"></div>
                     <div class="fiducial-marker marker-tr"></div>
@@ -4510,7 +4882,7 @@
                         ${page2Body}
                     </div>
                     <div class="flex items-center justify-between text-[10px] font-bold pt-2 border-t border-black">
-                        <span>เครื่องสแกนจะตรวจข้อมูลตามรอยระบายดินสอ 2B ภายในกรอบจุดมาร์ก 4 มุม</span>
+                        <span>สำหรับข้อสอบอัตนัย ครูผู้ตรวจสามารถกรอกคะแนนในหน้าสแกนได้ทันทีโดยไม่ต้องสแกนแผ่นนี้</span>
                         <span>กระดาษคำตอบวิชา${spec.name} (รหัส ${spec.code}) - หน้าที่ 2</span>
                     </div>
                 </div>
@@ -4698,19 +5070,19 @@
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                             <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs font-bold text-slate-900">ข้อ 21.1 (เรียงลำดับ)</span>
+                                    <span class="text-xs font-bold text-slate-900">ข้อ 21.1 (เรียงลำดับ 1-10)</span>
                                     <div class="flex items-center gap-1">
                                         <span class="text-[11px] text-slate-600 font-bold">คะแนน:</span>
                                         <input type="number" step="0.5" min="0" value="${m211.points}" onchange="setItemPoints('21.1', this.value)" class="w-14 text-center font-mono text-xs font-bold py-1 rounded border bg-white text-emerald-700">
                                     </div>
                                 </div>
                                 <input type="text" value="${m211.indicator}" placeholder="ตัวชี้วัด" onchange="setItemIndicator('21.1', this.value)" class="w-full text-xs py-1 px-2 rounded border bg-white">
-                                <label class="block text-[10px] text-slate-600 font-semibold">คำลำดับที่ถูกต้อง (1-13):</label>
-                                <input type="number" min="1" max="13" value="${key['21.1']}" onchange="setThaiExtraKey('21.1', this.value)" class="w-full font-bold text-sm py-1.5 px-3 rounded-lg border border-slate-300 bg-white">
+                                <label class="block text-[10px] text-slate-600 font-semibold">คำลำดับที่ถูกต้อง (1-10):</label>
+                                <input type="number" min="1" max="10" value="${key['21.1']}" onchange="setThaiExtraKey('21.1', this.value)" class="w-full font-bold text-sm py-1.5 px-3 rounded-lg border border-slate-300 bg-white">
                             </div>
                             <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs font-bold text-slate-900">ข้อ 21.2 (เรียงลำดับ)</span>
+                                    <span class="text-xs font-bold text-slate-900">ข้อ 21.2 (เรียงลำดับ 1-13)</span>
                                     <div class="flex items-center gap-1">
                                         <span class="text-[11px] text-slate-600 font-bold">คะแนน:</span>
                                         <input type="number" step="0.5" min="0" value="${m212.points}" onchange="setItemPoints('21.2', this.value)" class="w-14 text-center font-mono text-xs font-bold py-1 rounded border bg-white text-emerald-700">
@@ -4777,7 +5149,8 @@
 
         function setThaiExtraKey(qNo, val) {
             const fc = appState.currentKeyFormCode || '100';
-            appState.answerKeys['61'][fc][qNo] = Math.min(13, Math.max(1, Number(val)));
+            const maxVal = qNo === '21.1' ? 10 : 13;
+            appState.answerKeys['61'][fc][qNo] = Math.min(maxVal, Math.max(1, Number(val)));
             renderAnswerKeyEditor();
         }
 
@@ -5377,30 +5750,147 @@
             const activeKey = getActiveSubjectKey(sub, res.formCode || '100');
 
             let detailsHtml = `
-                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center justify-between">
+                <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                        <p class="font-bold text-slate-900">${stu.fullName} (${stu.room})</p>
+                        <p class="font-bold text-slate-900 text-sm">${stu.fullName} (${stu.room})</p>
                         <p class="text-xs text-slate-600">เลขที่นั่งสอบ: ${stu.seatCode} • ชุดข้อสอบ: ${res.formCode}</p>
+                        <p class="text-xs font-semibold text-indigo-700 mt-1">
+                            คะแนนตอนที่ 1: ${res.scoreDetails.part1Score.toFixed(2)} คะแนน
+                            ${spec.part2 ? ` | ตอนที่ 2${sub === '61' ? '/3' : ''}: ${res.scoreDetails.part2Score.toFixed(2)} คะแนน` : ''}
+                        </p>
                     </div>
-                    <div class="text-right">
-                        <span class="text-2xl font-extrabold text-indigo-600">${res.scoreDetails.totalScore.toFixed(2)}</span>
-                        <span class="text-xs text-slate-600 block">คะแนนรวม</span>
+                    <div class="text-right bg-indigo-50 border border-indigo-200 px-3.5 py-2 rounded-xl">
+                        <span class="text-2xl font-extrabold text-indigo-700">${res.scoreDetails.totalScore.toFixed(2)}</span>
+                        <span class="text-[11px] text-indigo-900 font-semibold block">คะแนนรวม</span>
                     </div>
                 </div>
-                <div class="grid grid-cols-4 gap-2 pt-2">
+
+                <!-- ตอนที่ 1 -->
+                <div class="pt-2">
+                    <h4 class="text-xs font-extrabold text-slate-800 mb-2 flex items-center justify-between">
+                        <span>${spec.part1.title}</span>
+                        <span class="text-indigo-700">ได้ ${res.scoreDetails.part1Score.toFixed(2)} คะแนน</span>
+                    </h4>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
             `;
 
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
                 const isOk = res.scoreDetails.itemCorrectMap[q];
-                const stuAns = normalizeAnswerLookup(res.answers, q);
+                const rawAns = normalizeAnswerLookup(res.answers, q);
+                const stuAns = (rawAns !== undefined && Number(rawAns) > 0) ? rawAns : 'ว่าง';
                 detailsHtml += `
                     <div class="p-2 rounded-lg border text-xs ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'}">
-                        <span class="font-bold">ข้อ ${q}:</span> ตอบ ${stuAns !== undefined ? stuAns : '-'}
+                        <span class="font-bold">ข้อ ${q}:</span> ตอบ ${stuAns}
                         ${isOk ? '<i class="fa-solid fa-check float-right mt-0.5 text-emerald-600"></i>' : `<span class="float-right text-[10px] font-bold">(เฉลย ${activeKey[q]})</span>`}
                     </div>
                 `;
             }
-            detailsHtml += `</div>`;
+            detailsHtml += `</div></div>`;
+
+            // แสดงรายละเอียดคะแนนในตอนอื่น ๆ สำหรับวิชาที่มีหลายตอน
+            if (sub === '65') {
+                detailsHtml += `
+                    <div class="pt-3 border-t border-slate-200">
+                        <h4 class="text-xs font-extrabold text-slate-800 mb-2 flex items-center justify-between">
+                            <span>ตอนที่ 2 : แบบเลือกตอบเชิงซ้อน ใช่/ไม่ใช่ (ข้อ 19 - 20)</span>
+                            <span class="text-indigo-700">ได้ ${res.scoreDetails.part2Score.toFixed(2)} คะแนน</span>
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                            ${['19', '20'].map(qNo => {
+                                const isOk = res.scoreDetails.itemCorrectMap[qNo];
+                                const stuObj = normalizeAnswerLookup(res.answers, qNo) || { '1': 0, '2': 0, '3': 0 };
+                                const keyObj = normalizeAnswerLookup(activeKey, qNo) || { '1': 1, '2': 2, '3': 1 };
+                                const ptsEarned = Number(res.scoreDetails.itemPointsEarnedMap?.[qNo] || 0);
+                                const fmtYN = (v) => Number(v) === 1 ? '1(ใช่)' : (Number(v) === 2 ? '2(ไม่ใช่)' : 'ว่าง');
+                                return `
+                                    <div class="p-2.5 rounded-xl border text-xs ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'} space-y-1">
+                                        <div class="flex items-center justify-between font-bold">
+                                            <span>ข้อ ${qNo}</span>
+                                            <span>ได้ ${ptsEarned.toFixed(2)} คะแนน</span>
+                                        </div>
+                                        <div class="text-[11px]">นักเรียนตอบ: ${qNo}.1=${fmtYN(stuObj['1'])}, ${qNo}.2=${fmtYN(stuObj['2'])}, ${qNo}.3=${fmtYN(stuObj['3'])}</div>
+                                        <div class="text-[10px] text-slate-600 font-semibold">เฉลย: ${qNo}.1=${fmtYN(keyObj['1'])}, ${qNo}.2=${fmtYN(keyObj['2'])}, ${qNo}.3=${fmtYN(keyObj['3'])}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (sub === '64') {
+                detailsHtml += `
+                    <div class="pt-3 border-t border-slate-200">
+                        <h4 class="text-xs font-extrabold text-slate-800 mb-2 flex items-center justify-between">
+                            <span>ตอนที่ 2 : แบบระบายตัวเลข 3 หลัก (ข้อ 12 - 15)</span>
+                            <span class="text-indigo-700">ได้ ${res.scoreDetails.part2Score.toFixed(2)} คะแนน</span>
+                        </h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            ${['12', '13', '14', '15'].map(qNo => {
+                                const isOk = res.scoreDetails.itemCorrectMap[qNo];
+                                const stuVal = normalizeAnswerLookup(res.answers, qNo) || '---';
+                                const keyVal = normalizeAnswerLookup(activeKey, qNo) || '000';
+                                const ptsEarned = Number(res.scoreDetails.itemPointsEarnedMap?.[qNo] || 0);
+                                return `
+                                    <div class="p-2.5 rounded-xl border text-xs ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'} space-y-1">
+                                        <div class="flex justify-between font-bold">
+                                            <span>ข้อ ${qNo}</span>
+                                            <span>+${ptsEarned.toFixed(2)}</span>
+                                        </div>
+                                        <div class="font-mono font-bold">ตอบ: ${stuVal}</div>
+                                        <div class="text-[10px] font-semibold">เฉลย: ${keyVal}</div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            } else if (sub === '61') {
+                const pts21_1 = Number(res.scoreDetails.itemPointsEarnedMap?.['21.1'] || 0);
+                const pts21_2 = Number(res.scoreDetails.itemPointsEarnedMap?.['21.2'] || 0);
+                const part2OnlyScore = pts21_1 + pts21_2;
+                const essayScore = Number(res.scoreDetails.itemPointsEarnedMap?.['22'] || 0);
+                const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
+
+                detailsHtml += `
+                    <div class="pt-3 border-t border-slate-200 space-y-3">
+                        <div>
+                            <h4 class="text-xs font-extrabold text-slate-800 mb-2 flex items-center justify-between">
+                                <span>ตอนที่ 2 : แบบเรียงลำดับ (ข้อ 21.1 - 21.2)</span>
+                                <span class="text-indigo-700">ได้ ${part2OnlyScore.toFixed(2)} คะแนน</span>
+                            </h4>
+                            <div class="grid grid-cols-2 gap-2">
+                                ${['21.1', '21.2'].map(qNo => {
+                                    const isOk = res.scoreDetails.itemCorrectMap[qNo];
+                                    const rawVal = Number(normalizeAnswerLookup(res.answers, qNo) || 0);
+                                    const stuText = rawVal > 0 ? `ข้อความที่ ${rawVal}` : 'ว่าง';
+                                    const keyVal = normalizeAnswerLookup(activeKey, qNo);
+                                    const pts = Number(res.scoreDetails.itemPointsEarnedMap?.[qNo] || 0);
+                                    return `
+                                        <div class="p-2.5 rounded-xl border text-xs ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'}">
+                                            <div class="flex justify-between font-bold mb-0.5">
+                                                <span>ข้อ ${qNo}</span>
+                                                <span>ได้ ${pts.toFixed(2)} คะแนน</span>
+                                            </div>
+                                            <div>ตอบ: ${stuText} <span class="text-[10px] font-semibold">(เฉลย ข้อความที่ ${keyVal})</span></div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+
+                        <!-- วิชาภาษาไทย ตอนที่ 3 แสดงเฉพาะคะแนนที่ได้ -->
+                        <div class="p-3 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-between">
+                            <div>
+                                <span class="text-xs font-extrabold text-amber-950 block">ตอนที่ 3 : แบบอัตนัย (ข้อ 22)</span>
+                                <span class="text-[11px] text-amber-800">คะแนนข้อเขียนที่ครูประเมิน</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-lg font-black text-amber-900">${essayScore.toFixed(2)}</span>
+                                <span class="text-xs font-bold text-amber-800"> / ${maxEssayPts} คะแนน</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
 
             openModal(`ใบรายงานผลรายบุคคล - วิชา${spec.name}`, detailsHtml);
         }
