@@ -830,66 +830,57 @@
                                     
                                     <!-- Top Translucent Subject & Form Info Card (ลอยตรงกลางด้านบนเหมือนภาพตัวอย่าง) -->
                                     <div class="relative z-20 flex flex-col items-center mt-1 pointer-events-auto">
-                                        <div class="bg-white/85 backdrop-blur-md text-slate-900 px-4 py-2.5 rounded-xl shadow-lg border border-white/70 text-center max-w-[300px] w-full">
+                                        <div class="bg-white/80 backdrop-blur-md text-slate-900 px-4 py-2 rounded-xl shadow-lg border border-white/70 text-center max-w-[270px] w-full">
                                             <div id="scanner-top-subject-title" class="text-sm sm:text-base font-extrabold text-slate-800 leading-tight">
                                                 วิทยาศาสตร์ ป.6
                                             </div>
                                             <div id="scanner-top-form-subtitle" class="text-[11px] font-semibold text-slate-600 mt-0.5">
                                                 20 Question Form (ชุดที่ 100)
                                             </div>
-                                            <!-- แถบเลือกตอนที่ต้องการสแกน (ตอนที่ 1 / ตอนที่ 2) -->
-                                            <div id="scanner-part-switcher" class="flex items-center justify-center gap-1.5 mt-1.5">
-                                                <button type="button" id="btn-mode-part1" onclick="selectScanPartMode(1)" class="px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-emerald-700 text-white shadow-sm cursor-pointer">
-                                                    สแกนตอนที่ 1
-                                                </button>
-                                                <button type="button" id="btn-mode-part2" onclick="selectScanPartMode(2)" class="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 cursor-pointer">
-                                                    สแกนตอนที่ 2
-                                                </button>
-                                            </div>
-                                            <div id="scanner-status-text" class="text-xs font-extrabold text-slate-950 mt-1.5 leading-snug">
+                                            <div id="scanner-status-text" class="text-xs font-extrabold text-slate-950 mt-1 leading-snug">
                                                 Align 4 corner squares with viewfinders<br>
-                                                <span class="text-[11px] font-bold text-emerald-800">(วางสี่เหลี่ยมดำ 4 มุมให้ตรงและถือค้างให้นิ่ง)</span>
+                                                <span class="text-[11px] font-bold text-emerald-800">(วางสี่เหลี่ยมดำ 4 มุมให้ตรงกรอบเล็ง)</span>
                                             </div>
                                             <!-- แถบความคืบหน้าการล็อกมุมอัตโนมัติ -->
-                                            <div class="w-full bg-slate-300/80 h-2 rounded-full overflow-hidden mt-1.5">
+                                            <div class="w-full bg-slate-300/80 h-1.5 rounded-full overflow-hidden mt-1.5">
                                                 <div id="auto-lock-progress-bar" class="bg-emerald-600 h-full w-0 transition-all duration-150"></div>
                                             </div>
                                         </div>
                                     </div>
 
                                     <!-- 4 Corner Viewfinder Squares (แยกมุมบนและมุมล่างให้ห่างกันเต็มความสูงกระดาษ A4) -->
-                                <!-- แผงแสดงคะแนนค้างบนหน้าจออัตโนมัติเมื่อสแกนติด + เลือกนักเรียน + ปุ่มสแกนตอนที่ 2 ต่อ + ปุ่มบันทึก & ปุ่มสแกนใหม่ -->
-                                <div id="auto-scan-result-overlay" class="hidden absolute inset-x-3 bottom-3 z-30 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border-2 border-emerald-400 shadow-2xl space-y-2.5">
+                                    <div id="large-registration-boxes" class="absolute inset-0 pointer-events-none">
+                                        <!-- มุมบนซ้าย (TL) - วางสูงขึ้นเพื่อให้รับกับสัดส่วนความสูง A4 -->
+                                        <div id="vf-box-tl" class="absolute top-[13%] left-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
+                                        </div>
+                                        <!-- มุมบนขวา (TR) -->
+                                        <div id="vf-box-tr" class="absolute top-[13%] right-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
+                                        </div>
+                                        <!-- มุมล่างซ้าย (BL) - ขยับลงมาด้านล่างสุดเพื่อให้ระยะห่างบน-ล่างไกลกัน ส่อง A4 ทั้งแผ่นได้ง่าย -->
+                                        <div id="vf-box-bl" class="absolute bottom-[5%] left-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
+                                        </div>
+                                        <!-- มุมล่างขวา (BR) -->
+                                        <div id="vf-box-br" class="absolute bottom-[5%] right-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- แผงแสดงคะแนนค้างบนหน้าจออัตโนมัติเมื่อสแกนติด + เลือกนักเรียน + ปุ่มบันทึก & ปุ่มสแกนใหม่ -->
+                                <div id="auto-scan-result-overlay" class="hidden absolute inset-x-3 bottom-3 z-30 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border-2 border-emerald-400 shadow-2xl space-y-3">
                                     <div class="flex items-center justify-between gap-2">
                                         <div>
-                                            <span id="overlay-scanned-part-badge" class="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2.5 py-0.5 rounded-full">
-                                                <i class="fa-solid fa-circle-check"></i> สแกนตอนที่ 1 สำเร็จ
+                                            <span class="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-2.5 py-0.5 rounded-full">
+                                                <i class="fa-solid fa-circle-check"></i> สแกนและตรวจคำตอบสำเร็จ
                                             </span>
                                             <h4 id="overlay-result-subject" class="text-sm font-bold text-white mt-1">วิทยาศาสตร์ ป.6 (รหัส 65)</h4>
-                                            <p id="overlay-result-breakdown" class="text-xs text-slate-300">ตอนที่ 1: 0 คะแนน | ตอนที่ 2: รอสแกน</p>
+                                            <p id="overlay-result-breakdown" class="text-xs text-slate-300">ตอนที่ 1: 0 คะแนน | ตอนที่ 2: 0 คะแนน</p>
                                         </div>
                                         <div class="text-right bg-emerald-500/20 border border-emerald-400/50 px-4 py-2 rounded-xl shrink-0">
-                                            <span class="text-[10px] text-emerald-200 block font-semibold">คะแนนรวมที่ได้</span>
+                                            <span class="text-[10px] text-emerald-200 block font-semibold">คะแนนที่ได้</span>
                                             <div class="flex items-baseline justify-end gap-1">
                                                 <span id="overlay-result-score" class="text-3xl font-black text-emerald-400">0.00</span>
                                                 <span id="overlay-result-max" class="text-xs text-emerald-100">/ 100</span>
                                             </div>
-                                        </div>
-                                    </div>
-
-                                    <!-- ช่องกรอกคะแนนข้อเขียนวิชาภาษาไทย ตอนที่ 3 (ข้อ 22) ทันทีโดยไม่ต้องสแกน -->
-                                    <div id="overlay-thai-essay-box" class="hidden bg-amber-500/20 border border-amber-400/60 rounded-xl p-2.5 flex items-center justify-between gap-2">
-                                        <div>
-                                            <span class="text-xs font-extrabold text-amber-300 block">
-                                                <i class="fa-solid fa-pen-clip mr-1"></i> ตอนที่ 3 ข้อเขียน (ข้อ 22) กรอกคะแนนได้เลย:
-                                            </span>
-                                            <span class="text-[10px] text-amber-100">ไม่ต้องสแกนตอนที่ 3 (เต็ม 20 คะแนน)</span>
-                                        </div>
-                                        <div class="flex items-center gap-1.5">
-                                            <input type="number" id="overlay-thai-essay-input" min="0" max="20" step="0.5" value="0"
-                                                   oninput="updateDraftThaiPart2('22', this.value)"
-                                                   class="w-20 text-center font-extrabold text-sm py-1.5 px-2 rounded-lg border-2 border-amber-400 bg-slate-900 text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-300">
-                                            <span id="overlay-thai-essay-max" class="text-xs font-bold text-amber-200">/ 20</span>
                                         </div>
                                     </div>
 
@@ -912,19 +903,12 @@
                                         </div>
                                     </div>
 
-                                    <!-- ปุ่มสแกนตอนที่ 2 ต่อ (แสดงเฉพาะวิชาที่มีตอนที่ 2 ให้สแกน: วิทย์ 65, คณิต 64, ไทย 61) -->
-                                    <div id="overlay-part2-action-row" class="pt-0.5">
-                                        <button type="button" id="btn-scan-part2-next" onclick="startScanForPart(2)" class="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold py-2.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 text-xs sm:text-sm transition cursor-pointer">
-                                            <i class="fa-solid fa-camera-rotate"></i> <span id="btn-scan-part2-next-text">สแกนตอนที่ 2 ต่อ</span>
-                                        </button>
-                                    </div>
-
-                                    <div class="grid grid-cols-2 gap-2.5 pt-0.5">
-                                        <button type="button" onclick="saveAndRescanNext()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-2.5 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm transition cursor-pointer">
+                                    <div class="grid grid-cols-2 gap-2.5 pt-1">
+                                        <button type="button" onclick="saveAndRescanNext()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm transition cursor-pointer">
                                             <i class="fa-solid fa-floppy-disk"></i> บันทึกคะแนน
                                         </button>
-                                        <button type="button" onclick="rescanCurrentPart()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-2.5 px-4 rounded-xl border border-slate-500 flex items-center justify-center gap-2 text-sm transition cursor-pointer">
-                                            <i class="fa-solid fa-rotate-right"></i> <span id="btn-rescan-current-part-text">สแกนตอนนี้ใหม่</span>
+                                        <button type="button" onclick="startNextAutoScan()" class="w-full bg-slate-700 hover:bg-slate-600 text-white font-bold py-3 px-4 rounded-xl border border-slate-500 flex items-center justify-center gap-2 text-sm transition cursor-pointer">
+                                            <i class="fa-solid fa-rotate-right"></i> สแกนใหม่
                                         </button>
                                     </div>
                                 </div>
@@ -1351,8 +1335,6 @@
             allRawResults: [],
             cameraStream: null,
             contourCheckInterval: null,
-            currentScanPart: 1, // 1 = สแกนตอนที่ 1, 2 = สแกนตอนที่ 2
-            scannedPartsStatus: { part1: false, part2: false },
             currentScanDraft: {
                 studentId: '',
                 formCode: '100',
@@ -1578,15 +1560,14 @@
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
                 answers[q] = 0;
             }
-            // ตั้งค่าเริ่มต้นของ ตอนที่ 2 เป็นค่าว่างทั้งหมด (0 หรือ '') เพื่อไม่ให้มีคะแนนตอนที่ 2 ติดมาตอนสแกนเฉพาะตอนที่ 1
             if (subjectCode === '65') {
-                answers['19'] = { '1': 0, '2': 0, '3': 0 };
-                answers['20'] = { '1': 0, '2': 0, '3': 0 };
+                answers['19'] = { '1': 1, '2': 1, '3': 1 };
+                answers['20'] = { '1': 1, '2': 1, '3': 1 };
             } else if (subjectCode === '64') {
-                ['12', '13', '14', '15'].forEach(qNo => { answers[qNo] = ''; });
+                ['12', '13', '14', '15'].forEach(qNo => { answers[qNo] = '000'; });
             } else if (subjectCode === '61') {
-                answers['21.1'] = 0;
-                answers['21.2'] = 0;
+                answers['21.1'] = 1;
+                answers['21.2'] = 1;
                 answers['22'] = 0;
             }
             return answers;
@@ -1644,17 +1625,12 @@
 
             if (subjectCode === '65') {
                 ['19', '20'].forEach(qNo => {
-                    const stuObj = normalizeAnswerLookup(ans, qNo) || { '1': 0, '2': 0, '3': 0 };
+                    const stuObj = normalizeAnswerLookup(ans, qNo) || { '1': 1, '2': 1, '3': 1 };
                     const keyObj = normalizeAnswerLookup(key, qNo) || { '1': 1, '2': 2, '3': 1 };
                     const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
-                    const s1 = Number(stuObj['1'] || 0);
-                    const s2 = Number(stuObj['2'] || 0);
-                    const s3 = Number(stuObj['3'] || 0);
-                    const allFilled = s1 > 0 && s2 > 0 && s3 > 0;
-                    const allMatch = allFilled &&
-                                     (s1 === Number(keyObj['1'])) &&
-                                     (s2 === Number(keyObj['2'])) &&
-                                     (s3 === Number(keyObj['3']));
+                    const allMatch = (Number(stuObj['1']) === Number(keyObj['1'])) &&
+                                     (Number(stuObj['2']) === Number(keyObj['2'])) &&
+                                     (Number(stuObj['3']) === Number(keyObj['3']));
                     itemCorrectMap[qNo] = allMatch;
                     itemPointsEarnedMap[qNo] = allMatch ? itemPts : 0;
                     if (allMatch) part2Score += itemPts;
@@ -1663,19 +1639,17 @@
                 ['12', '13', '14', '15'].forEach(qNo => {
                     const rawStu = normalizeAnswerLookup(ans, qNo);
                     const rawKey = normalizeAnswerLookup(key, qNo);
-                    const hasStuAns = rawStu !== undefined && rawStu !== null && String(rawStu).trim() !== '' && !String(rawStu).includes('-');
-                    const stuVal = hasStuAns ? String(rawStu).trim().padStart(3, '0') : '';
+                    const stuVal = String(rawStu !== undefined ? rawStu : '000').padStart(3, '0');
                     const keyVal = String(rawKey !== undefined ? rawKey : '000').padStart(3, '0');
                     const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
-                    const isCorrect = hasStuAns && stuVal === keyVal;
+                    const isCorrect = stuVal === keyVal;
                     itemCorrectMap[qNo] = isCorrect;
                     itemPointsEarnedMap[qNo] = isCorrect ? itemPts : 0;
                     if (isCorrect) part2Score += itemPts;
                 });
             } else if (subjectCode === '61') {
                 ['21.1', '21.2'].forEach(qNo => {
-                    const stuVal = Number(normalizeAnswerLookup(ans, qNo) || 0);
-                    const isCorrect = stuVal > 0 && stuVal === Number(normalizeAnswerLookup(key, qNo));
+                    const isCorrect = Number(normalizeAnswerLookup(ans, qNo)) === Number(normalizeAnswerLookup(key, qNo));
                     const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
                     itemCorrectMap[qNo] = isCorrect;
                     itemPointsEarnedMap[qNo] = isCorrect ? itemPts : 0;
@@ -1847,104 +1821,254 @@
             const overlayCode = document.getElementById('scanner-overlay-code');
             if (overlayCode) overlayCode.textContent = appState.currentSubject;
 
-            appState.currentScanPart = 1;
-            appState.scannedPartsStatus = { part1: false, part2: false };
-            appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, appState.currentScanDraft.formCode || '100');
             updateScannerTopSubjectBanner();
+            appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, appState.currentScanDraft.formCode || '100');
             refreshCurrentView();
         }
 
-        function subjectHasScannablePart2(subjectCode) {
-            const sub = String(subjectCode || appState.currentSubject || '65');
-            return sub === '65' || sub === '64' || sub === '61';
-        }
-
-        function selectScanPartMode(partNum) {
-            const sub = appState.currentSubject;
-            if (partNum === 2 && !subjectHasScannablePart2(sub)) {
-                showToast('วิชาภาษาอังกฤษ (รหัส 63) มีเฉพาะตอนที่ 1 เท่านั้น', 'info');
-                return;
-            }
-            appState.currentScanPart = partNum === 2 ? 2 : 1;
-            updateScannerTopSubjectBanner();
-        }
-
-        function startScanForPart(partNum) {
-            const sub = appState.currentSubject;
-            if (partNum === 2 && !subjectHasScannablePart2(sub)) {
-                return;
-            }
-            appState.currentScanPart = partNum === 2 ? 2 : 1;
-            lastCapturedSheetImageCanvas = null;
-            lastDetectedSheetCorners = null;
-            const resultOverlay = document.getElementById('auto-scan-result-overlay');
-            if (resultOverlay) resultOverlay.classList.add('hidden');
-            updateScannerTopSubjectBanner();
-            startLiveAutoScanner();
-        }
-
-        function rescanCurrentPart() {
-            const part = appState.currentScanPart || 1;
-            const sub = appState.currentSubject;
-            const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
-            if (part === 1) {
-                for (let q = spec.part1.start; q <= spec.part1.end; q++) {
-                    appState.currentScanDraft.answers[q] = 0;
-                }
-                appState.scannedPartsStatus.part1 = false;
-            } else {
-                if (sub === '65') {
-                    appState.currentScanDraft.answers['19'] = { '1': 0, '2': 0, '3': 0 };
-                    appState.currentScanDraft.answers['20'] = { '1': 0, '2': 0, '3': 0 };
-                } else if (sub === '64') {
-                    ['12', '13', '14', '15'].forEach(qNo => { appState.currentScanDraft.answers[qNo] = ''; });
-                } else if (sub === '61') {
-                    appState.currentScanDraft.answers['21.1'] = 0;
-                    appState.currentScanDraft.answers['21.2'] = 0;
-                }
-                appState.scannedPartsStatus.part2 = false;
-            }
-            startScanForPart(part);
-        }
-
         function updateScannerTopSubjectBanner() {
-            const sub = appState.currentSubject;
-            const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
+            const spec = SUBJECT_SPECS[appState.currentSubject] || SUBJECT_SPECS['65'];
             const formCode = document.getElementById('scan-form-code')?.value || '100';
-            const part = appState.currentScanPart || 1;
             const titleEl = document.getElementById('scanner-top-subject-title');
             const subEl = document.getElementById('scanner-top-form-subtitle');
-            const partSwitcher = document.getElementById('scanner-part-switcher');
-            const btnP1 = document.getElementById('btn-mode-part1');
-            const btnP2 = document.getElementById('btn-mode-part2');
-
-            let partDesc = `ตอนที่ 1 (ข้อ ${spec.part1.start}-${spec.part1.end})`;
-            if (part === 2) {
-                if (sub === '65') partDesc = 'ตอนที่ 2 (ข้อ 19 - 20 ใช่/ไม่ใช่)';
-                else if (sub === '64') partDesc = 'ตอนที่ 2 (ข้อ 12 - 15 ตัวเลข 3 หลัก)';
-                else if (sub === '61') partDesc = 'ตอนที่ 2 (ข้อ 21.1 - 21.2 เรียงลำดับ)';
-            }
-
             if (titleEl) {
-                titleEl.textContent = `${spec.name} ป.6 • กำลังสแกน${part === 2 ? 'ตอนที่ 2' : 'ตอนที่ 1'}`;
+                titleEl.textContent = `${spec.name} ป.6`;
             }
             if (subEl) {
-                subEl.textContent = `${partDesc} • ชุดที่ ${formCode}`;
+                subEl.textContent = `${spec.totalItems} Question Form (ชุดที่ ${formCode})`;
             }
-            if (partSwitcher) {
-                if (subjectHasScannablePart2(sub)) {
-                    partSwitcher.classList.remove('hidden');
+        }
+
+        function populateGlobalSelectors() {
+            const sesSelect = document.getElementById('global-session');
+            if (sesSelect) {
+                if (appState.examSessions.length === 0) {
+                    sesSelect.innerHTML = `<option value="">-- ยังไม่มีรอบการสอบ --</option>`;
                 } else {
-                    partSwitcher.classList.add('hidden');
+                    sesSelect.innerHTML = appState.examSessions.map(s =>
+                        `<option value="${s.id}" ${s.id === appState.currentSessionId ? 'selected' : ''}>${s.name} (${formatThaiDate(s.examDate)})</option>`
+                    ).join('');
                 }
             }
-            if (btnP1 && btnP2) {
-                if (part === 1) {
-                    btnP1.className = 'px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-emerald-700 text-white shadow-sm cursor-pointer';
-                    btnP2.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 cursor-pointer';
+            const subSelect = document.getElementById('global-subject');
+            if (subSelect) subSelect.value = appState.currentSubject;
+        }
+
+        function refreshCurrentView() {
+            populateGlobalSelectors();
+            populateSheetPrefillDropdown();
+            populateScannerStudentSelect();
+            updateScannerTopSubjectBanner();
+
+            const spec = SUBJECT_SPECS[appState.currentSubject] || SUBJECT_SPECS['65'];
+            const statsBadge = document.getElementById('stats-subject-badge');
+            if (statsBadge) statsBadge.textContent = `รหัสวิชา ${spec.code} : ${spec.name}`;
+            const keySubBadge = document.getElementById('key-subject-badge');
+            if (keySubBadge) keySubBadge.textContent = `รหัสวิชา ${spec.code} : ${spec.name}`;
+            const keySubSelect = document.getElementById('key-subject-select');
+            if (keySubSelect) keySubSelect.value = appState.currentSubject;
+
+            renderDashboard();
+            renderExamSessionsView();
+            renderAnswerKeyEditor();
+            renderStudentsTable();
+            renderPrintableAnswerSheet();
+            renderItemStatistics();
+
+            if (appState.currentTab === 'scanner') {
+                if (!lastCapturedSheetImageCanvas) {
+                    drawSimulatedSheetOnCanvas();
+                }
+                renderScannerDetectedAnswers();
+            }
+        }
+
+        function populateScannerStudentSelect() {
+            const sel = document.getElementById('scan-student-select');
+            const ovSel = document.getElementById('overlay-student-select');
+            if (!sel) return;
+            const prev = sel.value;
+            if (appState.students.length === 0) {
+                const emptyHtml = `<option value="">-- กรุณาเพิ่มรายชื่อนักเรียนก่อน --</option>`;
+                sel.innerHTML = emptyHtml;
+                if (ovSel) ovSel.innerHTML = emptyHtml;
+                return;
+            }
+            const optionsHtml = appState.students.map(s =>
+                `<option value="${s.id}">${s.seatCode} - ${s.fullName} (${s.room})</option>`
+            ).join('');
+            sel.innerHTML = optionsHtml;
+            if (ovSel) ovSel.innerHTML = optionsHtml;
+            if (prev && appState.students.some(s => s.id === prev)) {
+                sel.value = prev;
+                if (ovSel) ovSel.value = prev;
+            }
+        }
+
+        function handleScannerFormCodeChange(formCode) {
+            appState.currentScanDraft.formCode = formCode;
+            const ovFc = document.getElementById('overlay-form-code');
+            if (ovFc && ovFc.value !== formCode) ovFc.value = formCode;
+            updateScannerTopSubjectBanner();
+            if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                reprocessLastCapturedSheet(true);
+            } else {
+                drawSimulatedSheetOnCanvas();
+            }
+            renderScannerDetectedAnswers();
+        }
+
+        function renderDashboard() {
+            const sub = appState.currentSubject;
+            const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
+            const currentSes = appState.examSessions.find(s => s.id === appState.currentSessionId);
+
+            const dashSubBadge = document.getElementById('dash-subject-badge');
+            if (dashSubBadge) dashSubBadge.textContent = `รหัสวิชา ${spec.code} (${spec.name})`;
+            const dashSesBadge = document.getElementById('dash-session-badge');
+            if (dashSesBadge) dashSesBadge.textContent = currentSes ? `รอบการสอบ: ${currentSes.name}` : 'แสดงผลรวมทุกรอบการสอบ';
+
+            let allScores = [];
+            let passTotal = 0;
+            let bestSubName = '-';
+            let bestSubMean = -1;
+
+            const summaryRowsHtml = ['65', '64', '63', '61'].map(sc => {
+                const sp = SUBJECT_SPECS[sc];
+                const resMap = getActiveSessionResults(sc);
+                const scores = Object.values(resMap).map(r => Number(r.scoreDetails?.totalScore || 0));
+                const n = scores.length;
+                const mean = n > 0 ? scores.reduce((a, b) => a + b, 0) / n : 0;
+                const variance = n > 0 ? scores.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / n : 0;
+                const sd = Math.sqrt(variance);
+                const maxSc = n > 0 ? Math.max(...scores) : 0;
+                const minSc = n > 0 ? Math.min(...scores) : 0;
+                const passCnt = scores.filter(s => s >= 50).length;
+                const passPct = n > 0 ? (passCnt / n) * 100 : 0;
+
+                if (n > 0) {
+                    allScores.push(...scores);
+                    passTotal += passCnt;
+                    if (mean > bestSubMean) {
+                        bestSubMean = mean;
+                        bestSubName = `${sp.name} (${mean.toFixed(2)})`;
+                    }
+                }
+
+                const isCurrent = sc === sub;
+                return `
+                    <tr onclick="handleSubjectChange('${sc}')" class="cursor-pointer transition ${isCurrent ? 'bg-indigo-50/70 font-semibold' : 'hover:bg-slate-50'}">
+                        <td class="py-3 px-3">
+                            <span class="font-bold text-slate-900">รหัส ${sp.code} : ${sp.name}</span>
+                        </td>
+                        <td class="py-3 px-3 text-center font-bold">${n} คน</td>
+                        <td class="py-3 px-3 text-center font-bold text-indigo-700">${mean.toFixed(2)}</td>
+                        <td class="py-3 px-3 text-center">${sd.toFixed(2)}</td>
+                        <td class="py-3 px-3 text-center text-emerald-700 font-bold">${maxSc.toFixed(1)}</td>
+                        <td class="py-3 px-3 text-center text-rose-600 font-bold">${minSc.toFixed(1)}</td>
+                        <td class="py-3 px-3 text-center">
+                            <span class="px-2 py-0.5 rounded-full text-xs font-bold ${passPct >= 50 ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                                ${passCnt}/${n} (${passPct.toFixed(0)}%)
+                            </span>
+                        </td>
+                        <td class="py-3 px-3">
+                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                                <div class="bg-indigo-600 h-full" style="width:${Math.min(100, mean)}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            const sumTbody = document.getElementById('dashboard-stats-summary-tbody');
+            if (sumTbody) sumTbody.innerHTML = summaryRowsHtml;
+
+            const totalN = allScores.length;
+            const overallMean = totalN > 0 ? allScores.reduce((a, b) => a + b, 0) / totalN : 0;
+            const overallSd = totalN > 0 ? Math.sqrt(allScores.reduce((acc, v) => acc + Math.pow(v - overallMean, 2), 0) / totalN) : 0;
+            const overallMax = totalN > 0 ? Math.max(...allScores) : 0;
+            const overallMin = totalN > 0 ? Math.min(...allScores) : 0;
+            const overallPassPct = totalN > 0 ? (passTotal / totalN) * 100 : 0;
+
+            document.getElementById('kpi-overall-mean').textContent = overallMean.toFixed(2);
+            document.getElementById('kpi-overall-sd').textContent = `ส่วนเบี่ยงเบนมาตรฐาน (S.D.) = ${overallSd.toFixed(2)}`;
+            document.getElementById('kpi-pass-rate').textContent = `${overallPassPct.toFixed(1)}%`;
+            document.getElementById('kpi-pass-count').textContent = `ผ่านเกณฑ์ ${passTotal} จาก ${totalN} ชุดกระดาษคำตอบ`;
+            document.getElementById('kpi-max-min').textContent = `${overallMax.toFixed(1)} / ${overallMin.toFixed(1)}`;
+            document.getElementById('kpi-highest-subject').textContent = `วิชาที่คะแนนเฉลี่ยสูงสุด: ${bestSubName}`;
+            document.getElementById('kpi-scanned-count').textContent = `${totalN} ใบ`;
+            document.getElementById('kpi-total-students').textContent = `นักเรียนในระบบ ${appState.students.length} คน`;
+
+            // Score Distribution Bars for Active Subject
+            const activeResMap = getActiveSessionResults(sub);
+            const subScores = Object.values(activeResMap).map(r => Number(r.scoreDetails?.totalScore || 0));
+            const subN = subScores.length;
+            const ranges = [
+                { label: '80 - 100 คะแนน (ดีเยี่ยม)', min: 80, max: 100, color: 'bg-emerald-500' },
+                { label: '60 - 79 คะแนน (ดี)', min: 60, max: 79.99, color: 'bg-indigo-500' },
+                { label: '50 - 59 คะแนน (ผ่านเกณฑ์)', min: 50, max: 59.99, color: 'bg-amber-500' },
+                { label: 'ต่ำกว่า 50 คะแนน (ควรเสริม)', min: 0, max: 49.99, color: 'bg-rose-500' }
+            ];
+            const distContainer = document.getElementById('score-distribution-bars');
+            if (distContainer) {
+                distContainer.innerHTML = ranges.map(rg => {
+                    const cnt = subScores.filter(s => s >= rg.min && s <= rg.max).length;
+                    const pct = subN > 0 ? Math.round((cnt / subN) * 100) : 0;
+                    return `
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-xs font-semibold text-slate-700">
+                                <span>${rg.label}</span>
+                                <span>${cnt} คน (${pct}%)</span>
+                            </div>
+                            <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                <div class="${rg.color} h-full transition-all" style="width:${pct}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Individual Student Table
+            const recentTbody = document.getElementById('dashboard-recent-tbody');
+            if (recentTbody) {
+                if (appState.students.length === 0) {
+                    recentTbody.innerHTML = `<tr><td colspan="7" class="text-center py-8 text-slate-500">ยังไม่มีรายชื่อนักเรียนในระบบ</td></tr>`;
                 } else {
-                    btnP1.className = 'px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-200 text-slate-700 hover:bg-slate-300 cursor-pointer';
-                    btnP2.className = 'px-2.5 py-1 rounded-lg text-[11px] font-extrabold bg-sky-600 text-white shadow-sm cursor-pointer';
+                    recentTbody.innerHTML = appState.students.map(stu => {
+                        const r = activeResMap[stu.id];
+                        if (!r) {
+                            return `
+                                <tr class="hover:bg-slate-50">
+                                    <td class="py-3 px-3 font-mono text-xs font-bold text-slate-700">${stu.seatCode}</td>
+                                    <td class="py-3 px-3 font-semibold text-slate-900">${stu.fullName}</td>
+                                    <td class="py-3 px-3 text-center text-slate-400">-</td>
+                                    <td class="py-3 px-3 text-center text-slate-400">-</td>
+                                    <td class="py-3 px-3 text-center text-slate-400">-</td>
+                                    <td class="py-3 px-3 text-right text-xs text-amber-600 font-bold">รอสแกนตรวจ</td>
+                                    <td class="py-3 px-3 text-center">
+                                        <button type="button" onclick="quickScanForStudent('${stu.id}')" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-bold">
+                                            <i class="fa-solid fa-camera mr-1"></i> สแกน
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                        return `
+                            <tr class="hover:bg-slate-50">
+                                <td class="py-3 px-3 font-mono text-xs font-bold text-slate-800">${stu.seatCode}</td>
+                                <td class="py-3 px-3 font-bold text-slate-900">${stu.fullName}</td>
+                                <td class="py-3 px-3 text-center"><span class="px-2 py-0.5 bg-slate-100 rounded text-xs font-bold">ชุด ${r.formCode}</span></td>
+                                <td class="py-3 px-3 text-center font-semibold">${r.scoreDetails.part1Score.toFixed(2)}</td>
+                                <td class="py-3 px-3 text-center font-semibold">${r.scoreDetails.part2Score.toFixed(2)}</td>
+                                <td class="py-3 px-3 text-right font-extrabold text-indigo-700">${r.scoreDetails.totalScore.toFixed(2)}</td>
+                                <td class="py-3 px-3 text-center">
+                                    <button type="button" onclick="inspectStudentResultModal('${stu.id}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-bold">
+                                        ดูผลรายข้อ
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('');
                 }
             }
         }
@@ -2499,20 +2623,40 @@
             if (resBadge) {
                 resBadge.textContent = `มุมเอียง: ${lastPaperOrientationInfo.angleDeg}° | Top-Down 1000×1414`;
             }
-        // ตัวแปรควบคุมการล็อกภาพอัตโนมัติเมื่อสี่เหลี่ยมทั้ง 4 มุมอยู่ในตำแหน่งที่เหมาะสมและมือนิ่งสนิท
+
+            if (showWarpedTopDownMode) {
+                const warped = warpPerspectiveToTopDownCanvas(lastCapturedSheetImageCanvas, lastDetectedSheetCorners, 1000, 1414);
+                lastWarpedTopDownCanvas = warped.canvas;
+                canvas.width = warped.canvas.width;
+                canvas.height = warped.canvas.height;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(warped.canvas, 0, 0);
+                drawDetectedContourPolygon(ctx, warped.canonicalCorners);
+                analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, warped.canonicalCorners, preserveManual, warped.canvas);
+            } else {
+                canvas.width = lastCapturedSheetImageCanvas.width;
+                canvas.height = lastCapturedSheetImageCanvas.height;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(lastCapturedSheetImageCanvas, 0, 0);
+                drawDetectedContourPolygon(ctx, lastDetectedSheetCorners);
+                analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, lastDetectedSheetCorners, preserveManual, lastCapturedSheetImageCanvas);
+            }
+            renderScannerDetectedAnswers();
+        }
+
+        // ตัวแปรควบคุมการล็อกภาพอัตโนมัติเมื่อสี่เหลี่ยมทั้ง 4 มุมอยู่ในตำแหน่งที่เหมาะสม
         let consecutiveAlignedFrames = 0;
-        let previousAlignedCorners = null;
         let autoAnalysisOffscreenCanvas = null;
 
         function evaluateFourCornersAlignmentQuality(ctx, width, height) {
             const corners = detectFourFiducialCorners(ctx, width, height, true);
-            if (!corners || corners.length < 4) return { isAligned: false, isSteady: false, matchedCount: 0, corners: null };
+            if (!corners || corners.length < 4) return { isAligned: false, matchedCount: 0, corners: null };
 
             const [tl, tr, bl, br] = corners;
             const checkCornerContrast = (pt) => {
                 const r = Math.max(4, Math.round(Math.min(width, height) * 0.012));
                 const drop = sampleBubbleDarknessContrast(ctx, pt.x || pt.cx, pt.y || pt.cy, r);
-                return drop >= 26;
+                return drop >= 24;
             };
 
             // ตรวจสอบว่าจุดสี่เหลี่ยมดำทั้ง 4 มุมอยู่ในกรอบเล็งทั้ง 4 มุมบนหน้าจอมือถือจริง (ป้องกันการจับขอบโต๊ะด้านบนสุดของจอ)
@@ -2524,42 +2668,22 @@
             const flags = [cTL, cTR, cBL, cBR];
             const matchedCount = flags.filter(Boolean).length;
 
-            // ตรวจสอบสัดส่วนกระดาษ A4 แนวตั้ง (ความสูงต้องมากกว่าความกว้าง และมุมทั้ง 4 ต้องไม่บิดเบี้ยวผิดรูป)
+            // ตรวจสอบสัดส่วนกระดาษ A4 แนวตั้ง (ความสูงต้องมากกว่าความกว้าง เพื่อให้กรอบบน-ล่างห่างกันอย่างแม่นยำ)
             const topW = Math.hypot(tr.cx - tl.cx, tr.cy - tl.cy);
             const botW = Math.hypot(br.cx - bl.cx, br.cy - bl.cy);
             const leftH = Math.hypot(bl.cx - tl.cx, bl.cy - tl.cy);
             const rightH = Math.hypot(br.cx - tr.cx, br.cy - tr.cy);
 
             const geometryValid =
-                topW > width * 0.44 &&
-                botW > width * 0.44 &&
-                leftH > height * 0.52 &&
-                rightH > height * 0.52 &&
-                leftH > topW * 1.04 &&
-                Math.abs(topW - botW) / Math.max(topW, botW) < 0.22 &&
-                Math.abs(leftH - rightH) / Math.max(leftH, rightH) < 0.22;
-
-            // ตรวจสอบความนิ่งของตำแหน่งกระดาษเทียบกับเฟรมก่อนหน้า (ไม่รีบสแกนขณะมือยังขยับอยู่)
-            let isSteady = false;
-            if (matchedCount === 4 && geometryValid) {
-                if (previousAlignedCorners && previousAlignedCorners.length === 4) {
-                    let maxMove = 0;
-                    for (let i = 0; i < 4; i++) {
-                        const moveDist = Math.hypot(corners[i].cx - previousAlignedCorners[i].cx, corners[i].cy - previousAlignedCorners[i].cy);
-                        if (moveDist > maxMove) maxMove = moveDist;
-                    }
-                    isSteady = maxMove <= 4.5;
-                } else {
-                    isSteady = true;
-                }
-                previousAlignedCorners = corners.map(c => ({ cx: c.cx, cy: c.cy }));
-            } else {
-                previousAlignedCorners = null;
-            }
+                topW > width * 0.42 &&
+                botW > width * 0.42 &&
+                leftH > height * 0.50 &&
+                rightH > height * 0.50 &&
+                leftH > topW * 1.02 &&
+                Math.abs(topW - botW) / Math.max(topW, botW) < 0.26;
 
             return {
                 isAligned: matchedCount === 4 && geometryValid,
-                isSteady,
                 matchedCount,
                 flags,
                 corners
@@ -2594,59 +2718,12 @@
                 clearInterval(appState.contourCheckInterval);
             }
             consecutiveAlignedFrames = 0;
-            previousAlignedCorners = null;
-            const REQUIRED_STEADY_FRAMES = 8; // ต้องถือค้างให้นิ่งและตรงกรอบต่อเนื่อง ~1.4 วินาที จึงจะล็อกภาพ
 
             appState.contourCheckInterval = setInterval(() => {
                 const video = document.getElementById('scanner-video');
                 if (!appState.cameraStream || !video || video.classList.contains('hidden') || !video.videoWidth) {
                     return;
                 }
-
-                if (!autoAnalysisOffscreenCanvas) {
-                    autoAnalysisOffscreenCanvas = document.createElement('canvas');
-                }
-                // ตัดภาพตามสัดส่วนหน้าจอมือถือจริง (Viewport-Matched) เพื่อให้กรอบเล็งตรงกับพิกเซลที่ตรวจ 100%
-                drawVideoVisibleViewportToCanvas(video, autoAnalysisOffscreenCanvas, 480);
-                const sampleW = autoAnalysisOffscreenCanvas.width;
-                const sampleH = autoAnalysisOffscreenCanvas.height;
-                const sCtx = autoAnalysisOffscreenCanvas.getContext('2d', { willReadFrequently: true });
-
-                const check = evaluateFourCornersAlignmentQuality(sCtx, sampleW, sampleH);
-                const statusEl = document.getElementById('scanner-status-text');
-                const partLabel = appState.currentScanPart === 2 ? 'ตอนที่ 2' : 'ตอนที่ 1';
-
-                if (check.isAligned && check.isSteady) {
-                    consecutiveAlignedFrames++;
-                    const pct = Math.min(100, Math.round((consecutiveAlignedFrames / REQUIRED_STEADY_FRAMES) * 100));
-                    updateViewfinderCornerBoxesUI([true, true, true, true], pct);
-                    if (statusEl) {
-                        statusEl.innerHTML = `<span class="text-emerald-700 font-extrabold">ตำแหน่งตรงแล้ว กรุณาถือค้างให้นิ่งเพื่อตรวจ${partLabel}... (${pct}%)</span>`;
-                    }
-                    // เมื่อกระดาษนิ่งสนิทในตำแหน่งที่เหมาะสมครบ 8 เฟรม (~1.4 วินาที) จึงล็อกภาพและอ่านคำตอบ
-                    if (consecutiveAlignedFrames >= REQUIRED_STEADY_FRAMES) {
-                        consecutiveAlignedFrames = 0;
-                        previousAlignedCorners = null;
-                        captureLiveFrameAndGrade();
-                    }
-                } else if (check.isAligned && !check.isSteady) {
-                    // พบครบ 4 มุมแล้วแต่มือยังขยับอยู่ ให้ชะลอรอจนกว่าจะนิ่ง
-                    consecutiveAlignedFrames = Math.max(1, consecutiveAlignedFrames - 1);
-                    const pct = Math.round((consecutiveAlignedFrames / REQUIRED_STEADY_FRAMES) * 100);
-                    updateViewfinderCornerBoxesUI([true, true, true, true], pct);
-                    if (statusEl) {
-                        statusEl.innerHTML = `<span class="text-amber-700 font-extrabold">พบมุมกระดาษครบแล้ว กรุณาถือมือนิ่งๆ สักครู่... (${pct}%)</span>`;
-                    }
-                } else {
-                    consecutiveAlignedFrames = Math.max(0, consecutiveAlignedFrames - 2);
-                    const pct = Math.round((check.matchedCount / 4) * 35);
-                    updateViewfinderCornerBoxesUI(check.flags || [false, false, false, false], pct);
-                    if (statusEl) {
-                        statusEl.innerHTML = `วางสี่เหลี่ยมดำ 4 มุมให้ตรงกรอบเพื่อสแกน${partLabel}<br><span class="text-[11px] font-bold text-emerald-800">(ตรวจพบมุมกระดาษ ${check.matchedCount}/4 มุม)</span>`;
-                    }
-                }
-            }, 175);
-        }
 
                 if (!autoAnalysisOffscreenCanvas) {
                     autoAnalysisOffscreenCanvas = document.createElement('canvas');
@@ -2749,28 +2826,9 @@
         function startNextAutoScan() {
             lastCapturedSheetImageCanvas = null;
             lastDetectedSheetCorners = null;
-            appState.currentScanPart = 1;
-            appState.scannedPartsStatus = { part1: false, part2: false };
-            appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, appState.currentScanDraft.formCode || '100');
             const resultOverlay = document.getElementById('auto-scan-result-overlay');
             if (resultOverlay) resultOverlay.classList.add('hidden');
-            updateScannerTopSubjectBanner();
             startLiveAutoScanner();
-        }
-
-        async function saveAndRescanNext() {
-            await saveScannedResult();
-            // เลื่อนลำดับนักเรียนใน Dropdown ไปคนถัดไปให้อัตโนมัติ และรีเซ็ตกลับไปเริ่มสแกนตอนที่ 1 สำหรับคนถัดไป
-            const sel = document.getElementById('scan-student-select');
-            const ovSel = document.getElementById('overlay-student-select');
-            if (sel && sel.options.length > 1 && sel.selectedIndex < sel.options.length - 1) {
-                sel.selectedIndex = sel.selectedIndex + 1;
-                if (ovSel) ovSel.selectedIndex = sel.selectedIndex;
-            }
-            appState.currentScanPart = 1;
-            appState.scannedPartsStatus = { part1: false, part2: false };
-            appState.currentScanDraft.answers = createInitialBlankOrKeyAnswers(appState.currentSubject, appState.currentScanDraft.formCode || '100');
-            updateScannerTopSubjectBanner();
         }
 
         async function saveAndRescanNext() {
@@ -3319,27 +3377,7 @@
             const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
             const formCode = document.getElementById('scan-form-code')?.value || '100';
             const key = getActiveSubjectKey(sub, formCode);
-            const activeScanPart = appState.currentScanPart || 1;
-
-            // เก็บคำตอบเดิมของตอนอื่นที่สแกนไว้แล้ว เพื่อไม่ให้ทับหรือล้างค่าของตอนก่อนหน้า
-            const detected = JSON.parse(JSON.stringify(
-                (appState.currentScanDraft.answers && Object.keys(appState.currentScanDraft.answers).length > 0)
-                    ? appState.currentScanDraft.answers
-                    : createInitialBlankOrKeyAnswers(sub, formCode)
-            ));
-
-            // หากเพิ่งสแกนเฉพาะตอนที่ 1 และยังไม่ได้สแกนตอนที่ 2 ให้บังคับล้างค่าตอนที่ 2 เป็นค่าว่างเสมอ เพื่อไม่ให้มีคะแนนตอนที่ 2 ติดมา
-            if (activeScanPart === 1 && !appState.scannedPartsStatus.part2 && !preserveManualAnswers) {
-                if (sub === '65') {
-                    detected['19'] = { '1': 0, '2': 0, '3': 0 };
-                    detected['20'] = { '1': 0, '2': 0, '3': 0 };
-                } else if (sub === '64') {
-                    ['12', '13', '14', '15'].forEach(qNo => { detected[qNo] = ''; });
-                } else if (sub === '61') {
-                    detected['21.1'] = 0;
-                    detected['21.2'] = 0;
-                }
-            }
+            const detected = preserveManualAnswers ? JSON.parse(JSON.stringify(appState.currentScanDraft.answers || {})) : {};
 
             const sourceCtx = customSourceCanvas
                 ? customSourceCanvas.getContext('2d', { willReadFrequently: true })
@@ -3364,76 +3402,154 @@
 
             const confBadge = document.getElementById('scan-confidence-badge');
             if (confBadge) {
-                confBadge.textContent = `สแกนตอนที่ ${activeScanPart} • มุม 4 + ข้าง ${calib.sideFoundCount} + ภายใน ${calib.internalFoundCount}`;
+                confBadge.textContent = `4 มุม + ข้าง ${calib.sideFoundCount} + ภายใน ${calib.internalFoundCount}`;
             }
 
-            // สแกนอ่านค่า ตอนที่ 1 เฉพาะเมื่ออยู่ในโหมดสแกนตอนที่ 1 (หรือวาดแสดงผลตอนที่สแกนไปแล้ว)
-            const shouldReadPart1 = (activeScanPart === 1) && !preserveManualAnswers;
-            if (activeScanPart === 1) {
-                appState.scannedPartsStatus.part1 = true;
+            for (let q = spec.part1.start; q <= spec.part1.end; q++) {
+                const qMeta = canonicalMap.part1Bubbles[q];
+                if (!qMeta) continue;
+
+                let bubbleCoords = {};
+                let choiceDrops = {};
+                let bestChoice = 0;
+                let maxContrastDrop = 0;
+
+                for (let c = 1; c <= 4; c++) {
+                    const uv = qMeta.choices[c];
+                    const basePt = calib.getPart1CalibratedXY(qMeta.colIdx, qMeta.rowIdx, uv.u, uv.v);
+
+                    let bestPt = basePt;
+                    let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
+                    if (!preserveManualAnswers) {
+                        const stepShift = Math.max(2, Math.round(2.5 * dotScale));
+                        const offsets = [
+                            [-stepShift, 0], [stepShift, 0],
+                            [0, -stepShift], [0, stepShift]
+                        ];
+                        for (let k = 0; k < offsets.length; k++) {
+                            const sx = basePt.x + offsets[k][0];
+                            const sy = basePt.y + offsets[k][1];
+                            const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
+                            if (dVal > localBestDrop) {
+                                localBestDrop = dVal;
+                                bestPt = { x: sx, y: sy };
+                            }
+                        }
+                    }
+
+                    bubbleCoords[c] = bestPt;
+                    choiceDrops[c] = localBestDrop;
+
+                    if (!preserveManualAnswers) {
+                        if (localBestDrop > maxContrastDrop) {
+                            maxContrastDrop = localBestDrop;
+                            bestChoice = c;
+                        }
+                    }
+                }
+
+                // คงค่าเกณฑ์ความเข้ม 18 ตามเดิม พร้อมตรวจสอบความโดดเด่นเหนือตัวเลือกอื่นในข้อเดียวกัน
+                if (!preserveManualAnswers) {
+                    const sortedDrops = Object.values(choiceDrops).sort((a, b) => b - a);
+                    const secondBest = sortedDrops[1] || 0;
+                    detected[q] = (maxContrastDrop >= 18 && (maxContrastDrop - secondBest >= 4)) ? bestChoice : 0;
+                }
+
+                const stuChoice = Number(detected[q] || 0);
+                const correctChoice = Number(key[q]);
+
+                // วาดจุดสีเขียวโปร่งเมื่อตอบถูก และจุดสีแดงโปร่งเมื่อตอบผิด
+                for (let c = 1; c <= 4; c++) {
+                    const pt = bubbleCoords[c];
+                    if (!pt) continue;
+
+                    if (stuChoice === c && stuChoice === correctChoice) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                        ctx.fill();
+                        ctx.lineWidth = Math.round(2.5 * dotScale);
+                        ctx.strokeStyle = '#059669';
+                        ctx.stroke();
+                        ctx.restore();
+                    } else if (stuChoice === c && stuChoice !== correctChoice) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                        ctx.fill();
+                        ctx.lineWidth = Math.round(2 * dotScale);
+                        ctx.strokeStyle = '#dc2626';
+                        ctx.stroke();
+                        ctx.restore();
+                    } else if (c === correctChoice && stuChoice !== correctChoice) {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
+                        ctx.arc(pt.x, pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
+                        ctx.lineWidth = Math.round(2 * dotScale);
+                        ctx.strokeStyle = '#f59e0b';
+                        ctx.stroke();
+                        ctx.restore();
+                    } else {
+                        ctx.save();
+                        ctx.beginPath();
+                        ctx.arc(pt.x, pt.y, Math.round(4 * dotScale), 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                        ctx.lineWidth = Math.max(1, Math.round(1.2 * dotScale));
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                }
             }
 
-            if (activeScanPart === 1 || appState.scannedPartsStatus.part1) {
-                for (let q = spec.part1.start; q <= spec.part1.end; q++) {
-                    const qMeta = canonicalMap.part1Bubbles[q];
-                    if (!qMeta) continue;
-
-                    let bubbleCoords = {};
-                    let choiceDrops = {};
-                    let bestChoice = 0;
-                    let maxContrastDrop = 0;
-
-                    for (let c = 1; c <= 4; c++) {
-                        const uv = qMeta.choices[c];
-                        const basePt = calib.getPart1CalibratedXY(qMeta.colIdx, qMeta.rowIdx, uv.u, uv.v);
-
-                        let bestPt = basePt;
-                        let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
-                        if (shouldReadPart1) {
-                            const stepShift = Math.max(2, Math.round(2.5 * dotScale));
-                            const offsets = [
-                                [-stepShift, 0], [stepShift, 0],
-                                [0, -stepShift], [0, stepShift]
-                            ];
-                            for (let k = 0; k < offsets.length; k++) {
-                                const sx = basePt.x + offsets[k][0];
-                                const sy = basePt.y + offsets[k][1];
-                                const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
-                                if (dVal > localBestDrop) {
-                                    localBestDrop = dVal;
-                                    bestPt = { x: sx, y: sy };
+            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาวิทยาศาสตร์ (ข้อ 19.1-19.3 และ 20.1-20.3) โดยใช้พิกัดที่ปรับเทียบกับจุดอ้างอิงด้านข้างและภายในแล้ว
+            if (sub === '65') {
+                ['19', '20'].forEach(qNo => {
+                    if (!detected[qNo] || typeof detected[qNo] !== 'object') {
+                        detected[qNo] = { '1': 0, '2': 0, '3': 0 };
+                    }
+                    const keyObj = key[qNo] || { '1': 1, '2': 2, '3': 1 };
+                    ['1', '2', '3'].forEach(subIdx => {
+                        const subMeta = canonicalMap.part2SciBubbles?.[qNo]?.[subIdx];
+                        if (!subMeta) return;
+                        let bestSubChoice = Number(detected[qNo][subIdx] || 0);
+                        let maxSubDrop = 0;
+                        const subPts = {};
+                        [1, 2].forEach(c => {
+                            const uv = subMeta.choices[c];
+                            const basePt = calib.getPart2CalibratedXY(qNo, subMeta.rowIdx, uv.u, uv.v);
+                            let bestPt = basePt;
+                            let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
+                            if (!preserveManualAnswers) {
+                                const stepShift = Math.max(2, Math.round(2.5 * dotScale));
+                                const offsets = [[-stepShift, 0], [stepShift, 0], [0, -stepShift], [0, stepShift]];
+                                for (let k = 0; k < offsets.length; k++) {
+                                    const sx = basePt.x + offsets[k][0];
+                                    const sy = basePt.y + offsets[k][1];
+                                    const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
+                                    if (dVal > localBestDrop) {
+                                        localBestDrop = dVal;
+                                        bestPt = { x: sx, y: sy };
+                                    }
+                                }
+                                if (localBestDrop > maxSubDrop) {
+                                    maxSubDrop = localBestDrop;
+                                    bestSubChoice = c;
                                 }
                             }
+                            subPts[c] = bestPt;
+                        });
+                        if (!preserveManualAnswers) {
+                            detected[qNo][subIdx] = maxSubDrop >= 16 ? bestSubChoice : 0;
                         }
-
-                        bubbleCoords[c] = bestPt;
-                        choiceDrops[c] = localBestDrop;
-
-                        if (shouldReadPart1) {
-                            if (localBestDrop > maxContrastDrop) {
-                                maxContrastDrop = localBestDrop;
-                                bestChoice = c;
-                            }
-                        }
-                    }
-
-                    // คงค่าเกณฑ์ความเข้ม 18 ตามเดิม พร้อมตรวจสอบความโดดเด่นเหนือตัวเลือกอื่นในข้อเดียวกัน
-                    if (shouldReadPart1) {
-                        const sortedDrops = Object.values(choiceDrops).sort((a, b) => b - a);
-                        const secondBest = sortedDrops[1] || 0;
-                        detected[q] = (maxContrastDrop >= 18 && (maxContrastDrop - secondBest >= 4)) ? bestChoice : 0;
-                    }
-
-                    const stuChoice = Number(detected[q] || 0);
-                    const correctChoice = Number(key[q]);
-
-                    // วาดจุดสีเขียวโปร่งเมื่อตอบถูก และจุดสีแดงโปร่งเมื่อตอบผิด (เฉพาะเมื่อกำลังดู/สแกนตอนที่ 1)
-                    if (activeScanPart === 1) {
-                        for (let c = 1; c <= 4; c++) {
-                            const pt = bubbleCoords[c];
-                            if (!pt) continue;
-
-                            if (stuChoice === c && stuChoice === correctChoice) {
+                        const chosenC = Number(detected[qNo][subIdx] || 0);
+                        const rightC = Number(keyObj[subIdx]);
+                        [1, 2].forEach(c => {
+                            const pt = subPts[c];
+                            if (!pt) return;
+                            if (c === chosenC && chosenC === rightC) {
                                 ctx.save();
                                 ctx.beginPath();
                                 ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
@@ -3443,7 +3559,7 @@
                                 ctx.strokeStyle = '#059669';
                                 ctx.stroke();
                                 ctx.restore();
-                            } else if (stuChoice === c && stuChoice !== correctChoice) {
+                            } else if (c === chosenC && chosenC !== rightC) {
                                 ctx.save();
                                 ctx.beginPath();
                                 ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
@@ -3453,7 +3569,7 @@
                                 ctx.strokeStyle = '#dc2626';
                                 ctx.stroke();
                                 ctx.restore();
-                            } else if (c === correctChoice && stuChoice !== correctChoice) {
+                            } else if (c === rightC && chosenC !== rightC) {
                                 ctx.save();
                                 ctx.beginPath();
                                 ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
@@ -3471,229 +3587,129 @@
                                 ctx.stroke();
                                 ctx.restore();
                             }
-                        }
-                    }
-                }
-            }
-
-            // สแกนและตรวจให้คะแนน ตอนที่ 2 เฉพาะเมื่อผู้ใช้กดปุ่ม "สแกนตอนที่ 2 ต่อ" (activeScanPart === 2) เท่านั้น!
-            const shouldReadPart2 = (activeScanPart === 2) && !preserveManualAnswers;
-            if (activeScanPart === 2) {
-                appState.scannedPartsStatus.part2 = true;
-            }
-
-            if (activeScanPart === 2) {
-                // 1) ตอนที่ 2 วิชาวิทยาศาสตร์ (รหัส 65: ข้อ 19.1-19.3 และ 20.1-20.3)
-                if (sub === '65') {
-                    ['19', '20'].forEach(qNo => {
-                        if (!detected[qNo] || typeof detected[qNo] !== 'object') {
-                            detected[qNo] = { '1': 0, '2': 0, '3': 0 };
-                        }
-                        const keyObj = key[qNo] || { '1': 1, '2': 2, '3': 1 };
-                        ['1', '2', '3'].forEach(subIdx => {
-                            const subMeta = canonicalMap.part2SciBubbles?.[qNo]?.[subIdx];
-                            if (!subMeta) return;
-                            let bestSubChoice = Number(detected[qNo][subIdx] || 0);
-                            let maxSubDrop = 0;
-                            letchoiceDropsSub = {};
-                            const subPts = {};
-                            [1, 2].forEach(c => {
-                                const uv = subMeta.choices[c];
-                                const basePt = calib.getPart2CalibratedXY(qNo, subMeta.rowIdx, uv.u, uv.v);
-                                let bestPt = basePt;
-                                let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
-                                if (shouldReadPart2) {
-                                    const stepShift = Math.max(2, Math.round(2.5 * dotScale));
-                                    const offsets = [[-stepShift, 0], [stepShift, 0], [0, -stepShift], [0, stepShift]];
-                                    for (let k = 0; k < offsets.length; k++) {
-                                        const sx = basePt.x + offsets[k][0];
-                                        const sy = basePt.y + offsets[k][1];
-                                        const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
-                                        if (dVal > localBestDrop) {
-                                            localBestDrop = dVal;
-                                            bestPt = { x: sx, y: sy };
-                                        }
-                                    }
-                                    if (localBestDrop > maxSubDrop) {
-                                        maxSubDrop = localBestDrop;
-                                        bestSubChoice = c;
-                                    }
-                                }
-                                subPts[c] = bestPt;
-                                letchoiceDropsSub[c] = localBestDrop;
-                            });
-                            if (shouldReadPart2) {
-                                const diffSub = Math.abs((letchoiceDropsSub[1] || 0) - (letchoiceDropsSub[2] || 0));
-                                detected[qNo][subIdx] = (maxSubDrop >= 18 && diffSub >= 4) ? bestSubChoice : 0;
-                            }
-                            const chosenC = Number(detected[qNo][subIdx] || 0);
-                            const rightC = Number(keyObj[subIdx]);
-                            [1, 2].forEach(c => {
-                                const pt = subPts[c];
-                                if (!pt) return;
-                                if (c === chosenC && chosenC === rightC) {
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
-                                    ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
-                                    ctx.fill();
-                                    ctx.lineWidth = Math.round(2.5 * dotScale);
-                                    ctx.strokeStyle = '#059669';
-                                    ctx.stroke();
-                                    ctx.restore();
-                                } else if (c === chosenC && chosenC !== rightC) {
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
-                                    ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
-                                    ctx.fill();
-                                    ctx.lineWidth = Math.round(2 * dotScale);
-                                    ctx.strokeStyle = '#dc2626';
-                                    ctx.stroke();
-                                    ctx.restore();
-                                } else if (c === rightC && chosenC !== rightC) {
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
-                                    ctx.arc(pt.x, pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
-                                    ctx.lineWidth = Math.round(2 * dotScale);
-                                    ctx.strokeStyle = '#f59e0b';
-                                    ctx.stroke();
-                                    ctx.restore();
-                                } else {
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, Math.round(4 * dotScale), 0, Math.PI * 2);
-                                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
-                                    ctx.lineWidth = Math.max(1, Math.round(1.2 * dotScale));
-                                    ctx.stroke();
-                                    ctx.restore();
-                                }
-                            });
                         });
                     });
-                }
+                });
+            }
 
-                // 2) ตอนที่ 2 วิชาคณิตศาสตร์ (รหัส 64: ข้อ 12 - 15 ระบายตัวเลข 3 หลัก 000 - 999)
-                if (sub === '64' && canonicalMap.part2MathBubbles) {
-                    ['12', '13', '14', '15'].forEach(qNo => {
-                        const boxMeta = canonicalMap.part2MathBubbles[qNo];
-                        if (!boxMeta) return;
-                        const keyStr = String(key[qNo] || '000').padStart(3, '0');
-                        const prevStr = String(detected[qNo] || '').trim();
-                        let detectedDigits = (prevStr.length === 3) ? prevStr.split('') : ['-', '-', '-'];
+            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาคณิตศาสตร์ (รหัส 64: ข้อ 12 - 15 ระบายตัวเลข 3 หลัก 000 - 999)
+            if (sub === '64' && canonicalMap.part2MathBubbles) {
+                ['12', '13', '14', '15'].forEach(qNo => {
+                    const boxMeta = canonicalMap.part2MathBubbles[qNo];
+                    if (!boxMeta) return;
+                    const keyStr = String(key[qNo] || '000').padStart(3, '0');
+                    let detectedDigits = String(detected[qNo] || '000').padStart(3, '0').split('');
 
-                        for (let placeIdx = 0; placeIdx < 3; placeIdx++) {
-                            let bestDigit = -1;
-                            let maxDigitDrop = 0;
-                            const placePts = {};
+                    for (let placeIdx = 0; placeIdx < 3; placeIdx++) {
+                        let bestDigit = Number(detectedDigits[placeIdx] || 0);
+                        let maxDigitDrop = 0;
+                        const placePts = {};
 
-                            for (let d = 0; d <= 9; d++) {
-                                const uv = boxMeta.digits[d].places[placeIdx];
-                                const pt = calib.getPart2CalibratedXY(qNo, d, uv.u, uv.v);
-                                placePts[d] = pt;
-                                if (shouldReadPart2) {
-                                    const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(5.8 * dotScale)));
-                                    if (dVal > maxDigitDrop) {
-                                        maxDigitDrop = dVal;
-                                        bestDigit = d;
-                                    }
-                                }
-                            }
-
-                            if (shouldReadPart2) {
-                                detectedDigits[placeIdx] = (maxDigitDrop >= 18 && bestDigit >= 0) ? String(bestDigit) : '-';
-                            }
-
-                            const chosenD = detectedDigits[placeIdx] !== '-' ? Number(detectedDigits[placeIdx]) : -1;
-                            const rightD = Number(keyStr[placeIdx]);
-                            for (let d = 0; d <= 9; d++) {
-                                const pt = placePts[d];
-                                if (!pt) continue;
-                                if (d === chosenD && chosenD === rightD) {
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
-                                    ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
-                                    ctx.fill();
-                                    ctx.lineWidth = Math.round(2 * dotScale);
-                                    ctx.strokeStyle = '#059669';
-                                    ctx.stroke();
-                                    ctx.restore();
-                                } else if (d === chosenD && chosenD !== rightD) {
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
-                                    ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
-                                    ctx.fill();
-                                    ctx.restore();
-                                } else {
-                                    ctx.save();
-                                    ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, Math.round(3.5 * dotScale), 0, Math.PI * 2);
-                                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
-                                    ctx.stroke();
-                                    ctx.restore();
+                        for (let d = 0; d <= 9; d++) {
+                            const uv = boxMeta.digits[d].places[placeIdx];
+                            const pt = calib.getPart2CalibratedXY(qNo, d, uv.u, uv.v);
+                            placePts[d] = pt;
+                            if (!preserveManualAnswers) {
+                                const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(5.8 * dotScale)));
+                                if (dVal > maxDigitDrop) {
+                                    maxDigitDrop = dVal;
+                                    bestDigit = d;
                                 }
                             }
                         }
 
-                        if (shouldReadPart2) {
-                            detected[qNo] = detectedDigits.includes('-') ? '' : detectedDigits.join('');
+                        if (!preserveManualAnswers && maxDigitDrop >= 16) {
+                            detectedDigits[placeIdx] = String(bestDigit);
                         }
-                    });
-                }
 
-                // 3) ตอนที่ 2 วิชาภาษาไทย (รหัส 61: ข้อ 21.1 และ 21.2 เรียงลำดับ 1-13 ส่วนข้อ 22 เป็นข้อเขียนครูกรอกคะแนนเอง)
-                if (sub === '61' && canonicalMap.part2ThaiBubbles) {
-                    ['21.1', '21.2'].forEach(subQ => {
-                        const qMap = canonicalMap.part2ThaiBubbles[subQ];
-                        if (!qMap) return;
-                        let bestOrd = Number(detected[subQ] || 0);
-                        let maxOrdDrop = 0;
-                        const ordPts = {};
-
-                        for (let ord = 1; ord <= 13; ord++) {
-                            const uv = qMap[ord];
-                            const pt = calib.getPart2CalibratedXY(subQ, uv.rowIdx, uv.u, uv.v);
-                            ordPts[ord] = pt;
-                            if (shouldReadPart2) {
-                                const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(6 * dotScale)));
-                                if (dVal > maxOrdDrop) {
-                                    maxOrdDrop = dVal;
-                                    bestOrd = ord;
-                                }
-                            }
-                        }
-                        if (shouldReadPart2) {
-                            detected[subQ] = maxOrdDrop >= 18 ? bestOrd : 0;
-                        }
-                        const chosenOrd = Number(detected[subQ] || 0);
-                        const rightOrd = Number(key[subQ]);
-                        for (let ord = 1; ord <= 13; ord++) {
-                            const pt = ordPts[ord];
+                        const chosenD = Number(detectedDigits[placeIdx]);
+                        const rightD = Number(keyStr[placeIdx]);
+                        for (let d = 0; d <= 9; d++) {
+                            const pt = placePts[d];
                             if (!pt) continue;
-                            if (ord === chosenOrd && chosenOrd === rightOrd) {
+                            if (d === chosenD && chosenD === rightD) {
                                 ctx.save();
                                 ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
+                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
                                 ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
                                 ctx.fill();
                                 ctx.lineWidth = Math.round(2 * dotScale);
                                 ctx.strokeStyle = '#059669';
                                 ctx.stroke();
                                 ctx.restore();
-                            } else if (ord === chosenOrd && chosenOrd !== rightOrd) {
+                            } else if (d === chosenD && chosenD !== rightD) {
                                 ctx.save();
                                 ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
+                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
                                 ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
                                 ctx.fill();
                                 ctx.restore();
+                            } else {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(pt.x, pt.y, Math.round(3.5 * dotScale), 0, Math.PI * 2);
+                                ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                                ctx.stroke();
+                                ctx.restore();
                             }
                         }
-                    });
-                }
+                    }
+
+                    if (!preserveManualAnswers) {
+                        detected[qNo] = detectedDigits.join('');
+                    }
+                });
+            }
+
+            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาภาษาไทย (ข้อ 21.1 และ 21.2 เรียงลำดับ 1-13)
+            if (sub === '61' && canonicalMap.part2ThaiBubbles) {
+                ['21.1', '21.2'].forEach(subQ => {
+                    const qMap = canonicalMap.part2ThaiBubbles[subQ];
+                    if (!qMap) return;
+                    let bestOrd = Number(detected[subQ] || 1);
+                    let maxOrdDrop = 0;
+                    const ordPts = {};
+
+                    for (let ord = 1; ord <= 13; ord++) {
+                        const uv = qMap[ord];
+                        const pt = calib.getPart2CalibratedXY(subQ, uv.rowIdx, uv.u, uv.v);
+                        ordPts[ord] = pt;
+                        if (!preserveManualAnswers) {
+                            const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(6 * dotScale)));
+                            if (dVal > maxOrdDrop) {
+                                maxOrdDrop = dVal;
+                                bestOrd = ord;
+                            }
+                        }
+                    }
+                    if (!preserveManualAnswers && maxOrdDrop >= 15) {
+                        detected[subQ] = bestOrd;
+                    }
+                    const chosenOrd = Number(detected[subQ] || 0);
+                    const rightOrd = Number(key[subQ]);
+                    for (let ord = 1; ord <= 13; ord++) {
+                        const pt = ordPts[ord];
+                        if (!pt) continue;
+                        if (ord === chosenOrd && chosenOrd === rightOrd) {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
+                            ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                            ctx.fill();
+                            ctx.lineWidth = Math.round(2 * dotScale);
+                            ctx.strokeStyle = '#059669';
+                            ctx.stroke();
+                            ctx.restore();
+                        } else if (ord === chosenOrd && chosenOrd !== rightOrd) {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
+                            ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                            ctx.fill();
+                            ctx.restore();
+                        }
+                    }
+                });
             }
 
             appState.currentScanDraft.answers = detected;
@@ -3820,96 +3836,40 @@
             const key = getActiveSubjectKey(sub, formCode);
             const evalRes = evaluateStudentSubmission(sub, ans, formCode);
             const maxPts = getSubjectTotalPossiblePoints(sub);
-            const activePart = appState.currentScanPart || 1;
-            const hasPart2Scan = subjectHasScannablePart2(sub);
 
             document.getElementById('scan-live-score').textContent = evalRes.totalScore.toFixed(2);
             const maxEl = document.getElementById('scan-live-max-score');
             if (maxEl) maxEl.textContent = `/ ${maxPts.toFixed(0)} คะแนน`;
+            document.getElementById('scan-live-breakdown').textContent = `ชุดที่ ${formCode} • ตอนที่ 1: ${evalRes.part1Score} คะแนน | ตอนที่ 2/3: ${evalRes.part2Score} คะแนน`;
 
-            const p2StatusText = hasPart2Scan
-                ? (appState.scannedPartsStatus.part2 ? `${evalRes.part2Score} คะแนน` : `${evalRes.part2Score} คะแนน (ยังไม่ได้สแกนตอนที่ 2)`)
-                : 'ไม่มีตอนที่ 2';
-            document.getElementById('scan-live-breakdown').textContent = `ชุดที่ ${formCode} • ตอนที่ 1: ${evalRes.part1Score} คะแนน | ตอนที่ 2/3: ${p2StatusText}`;
-
-            // อัปเดตคะแนนและปุ่มสแกนตอนที่ 2 ต่อ บนแผงลอยที่ค้างอยู่บนหน้าจอกล้องหลังสแกนติด
-            const ovBadge = document.getElementById('overlay-scanned-part-badge');
+            // อัปเดตคะแนนบนแผงลอยที่ค้างอยู่บนหน้าจอกล้องหลังสแกนติด
             const ovSub = document.getElementById('overlay-result-subject');
             const ovBreak = document.getElementById('overlay-result-breakdown');
             const ovScore = document.getElementById('overlay-result-score');
             const ovMax = document.getElementById('overlay-result-max');
-            const part2ActionRow = document.getElementById('overlay-part2-action-row');
-            const btnScanPart2Text = document.getElementById('btn-scan-part2-next-text');
-            const btnScanPart2 = document.getElementById('btn-scan-part2-next');
-            const btnRescanCurrentText = document.getElementById('btn-rescan-current-part-text');
-
-            if (ovBadge) {
-                ovBadge.innerHTML = `<i class="fa-solid fa-circle-check"></i> สแกนตอนที่ ${activePart} สำเร็จ`;
-            }
             if (ovSub) ovSub.textContent = `${spec.name} ป.6 (รหัส ${spec.code} • ชุดที่ ${formCode})`;
-            if (ovBreak) {
-                if (!hasPart2Scan) {
-                    ovBreak.textContent = `ตอนที่ 1: ${evalRes.part1Score} คะแนน`;
-                } else if (sub === '61') {
-                    const essayPts = Number(ans['22'] || 0);
-                    const p2OrderPts = Number((evalRes.part2Score - essayPts).toFixed(2));
-                    ovBreak.textContent = `ตอนที่ 1: ${evalRes.part1Score} | ตอนที่ 2: ${appState.scannedPartsStatus.part2 ? p2OrderPts : 'รอสแกน'} | ข้อเขียน: ${essayPts} คะแนน`;
-                } else {
-                    ovBreak.textContent = `ตอนที่ 1: ${evalRes.part1Score} คะแนน | ตอนที่ 2: ${appState.scannedPartsStatus.part2 ? evalRes.part2Score + ' คะแนน' : '0 คะแนน (รอสแกนตอนที่ 2)'}`;
-                }
-            }
+            if (ovBreak) ovBreak.textContent = `ตอนที่ 1: ${evalRes.part1Score} คะแนน | ตอนที่ 2/3: ${evalRes.part2Score} คะแนน`;
             if (ovScore) ovScore.textContent = evalRes.totalScore.toFixed(2);
             if (ovMax) ovMax.textContent = `/ ${maxPts.toFixed(0)}`;
-            if (btnRescanCurrentText) {
-                btnRescanCurrentText.textContent = `สแกนตอนที่ ${activePart} ใหม่`;
-            }
 
-            if (part2ActionRow && btnScanPart2 && btnScanPart2Text) {
-                if (!hasPart2Scan) {
-                    part2ActionRow.classList.add('hidden');
-                } else {
-                    part2ActionRow.classList.remove('hidden');
-                    if (activePart === 1) {
-                        btnScanPart2.setAttribute('onclick', 'startScanForPart(2)');
-                        if (sub === '65') btnScanPart2Text.textContent = 'สแกนตอนที่ 2 ต่อ (ข้อ 19 - 20 ใช่/ไม่ใช่)';
-                        else if (sub === '64') btnScanPart2Text.textContent = 'สแกนตอนที่ 2 ต่อ (ข้อ 12 - 15 ตัวเลข 3 หลัก)';
-                        else if (sub === '61') btnScanPart2Text.textContent = 'สแกนตอนที่ 2 ต่อ (ข้อ 21.1 - 21.2 เรียงลำดับ)';
-                    } else {
-                        btnScanPart2.setAttribute('onclick', 'startScanForPart(1)');
-                        btnScanPart2Text.textContent = 'กลับไปสแกนตอนที่ 1';
-                    }
-                }
-            }
-
-            // แสดงหรือซ่อนกล่องกรอกคะแนนข้อเขียน ตอนที่ 3 สำหรับวิชาภาษาไทย (รหัส 61) ทั้งบนหน้าจอกล้องและแผงด้านขวา
+            // แสดงหรือซ่อนกล่องกรอกคะแนนอัตนัย ตอนที่ 3 สำหรับวิชาภาษาไทย (รหัส 61)
             const thaiManualBox = document.getElementById('thai-part3-manual-box');
-            const ovThaiEssayBox = document.getElementById('overlay-thai-essay-box');
-            if (sub === '61') {
-                const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
-                const currentEssayVal = ans['22'] !== undefined ? ans['22'] : 0;
-                if (thaiManualBox) {
+            if (thaiManualBox) {
+                if (sub === '61') {
                     thaiManualBox.classList.remove('hidden');
+                    const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
                     const essayInput = document.getElementById('scan-thai-essay-input');
                     const essayMaxEl = document.getElementById('scan-thai-essay-max');
-                    if (essayInput && document.activeElement !== essayInput) {
+                    if (essayInput) {
                         essayInput.max = maxEssayPts;
-                        essayInput.value = currentEssayVal;
+                        essayInput.value = ans['22'] !== undefined ? ans['22'] : 0;
                     }
-                    if (essayMaxEl) essayMaxEl.textContent = `/ ${maxEssayPts} คะแนน`;
-                }
-                if (ovThaiEssayBox) {
-                    ovThaiEssayBox.classList.remove('hidden');
-                    const ovEssayInput = document.getElementById('overlay-thai-essay-input');
-                    const ovEssayMaxEl = document.getElementById('overlay-thai-essay-max');
-                    if (ovEssayInput && document.activeElement !== ovEssayInput) {
-                        ovEssayInput.max = maxEssayPts;
-                        ovEssayInput.value = currentEssayVal;
+                    if (essayMaxEl) {
+                        essayMaxEl.textContent = `/ ${maxEssayPts} คะแนน`;
                     }
-                    if (ovEssayMaxEl) ovEssayMaxEl.textContent = `/ ${maxEssayPts}`;
+                } else {
+                    thaiManualBox.classList.add('hidden');
                 }
-            } else {
-                if (thaiManualBox) thaiManualBox.classList.add('hidden');
-                if (ovThaiEssayBox) ovThaiEssayBox.classList.add('hidden');
             }
 
             const container = document.getElementById('scan-detected-answers');
@@ -3937,32 +3897,23 @@
 
             if (sub === '65') {
                 html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-bold text-slate-800">ตอนที่ 2 : เลือกตอบเชิงซ้อน (1 = ใช่, 2 = ไม่ใช่)</p>
-                        <button type="button" onclick="startScanForPart(2)" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-bold">
-                            <i class="fa-solid fa-camera mr-1"></i> สแกนตอนที่ 2
-                        </button>
-                    </div>`;
+                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 : เลือกตอบเชิงซ้อน (1 = ใช่, 2 = ไม่ใช่)</p>`;
                 ['19', '20'].forEach(qNo => {
-                    const stuObj = ans[qNo] || { 1: 0, 2: 0, 3: 0 };
+                    const stuObj = ans[qNo] || { 1: 1, 2: 2, 3: 1 };
                     const isOk = evalRes.itemCorrectMap[qNo];
                     html += `
                         <div class="p-2.5 rounded-lg border ${isOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} flex flex-wrap items-center justify-between gap-2">
                             <span class="text-xs font-bold">ข้อ ${qNo} ${isOk ? '<i class="fa-solid fa-check text-emerald-600"></i>' : '<i class="fa-solid fa-xmark text-rose-600"></i>'}</span>
                             <div class="flex gap-3">
-                                ${['1', '2', '3'].map(subIdx => {
-                                    const curSubVal = Number(stuObj[subIdx] || 0);
-                                    const nextVal = curSubVal === 1 ? 2 : (curSubVal === 2 ? 0 : 1);
-                                    const lblText = curSubVal === 1 ? '1 (ใช่)' : (curSubVal === 2 ? '2 (ไม่ใช่)' : '- (ว่าง)');
-                                    return `
+                                ${['1', '2', '3'].map(subIdx => `
                                     <div class="flex items-center gap-1 text-xs">
                                         <span class="text-slate-600 font-medium">${qNo}.${subIdx}:</span>
-                                        <button type="button" onclick="updateDraftSciPart2('${qNo}', '${subIdx}', ${nextVal})"
+                                        <button type="button" onclick="updateDraftSciPart2('${qNo}', '${subIdx}', ${Number(stuObj[subIdx]) === 1 ? 2 : 1})"
                                                 class="px-2 py-0.5 rounded bg-white border border-slate-300 font-bold text-[11px]">
-                                            ${lblText}
+                                            ${Number(stuObj[subIdx]) === 1 ? '1 (ใช่)' : '2 (ไม่ใช่)'}
                                         </button>
                                     </div>
-                                `;}).join('')}
+                                `).join('')}
                             </div>
                         </div>
                     `;
@@ -3970,19 +3921,14 @@
                 html += `</div>`;
             } else if (sub === '64') {
                 html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-bold text-slate-800">ตอนที่ 2 : ระบายตัวเลข 3 หลัก (ข้อ 12 - 15)</p>
-                        <button type="button" onclick="startScanForPart(2)" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-bold">
-                            <i class="fa-solid fa-camera mr-1"></i> สแกนตอนที่ 2
-                        </button>
-                    </div>
+                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 : ระบายตัวเลข 3 หลัก (ข้อ 12 - 15)</p>
                     <div class="grid grid-cols-2 gap-2">`;
                 ['12', '13', '14', '15'].forEach(qNo => {
                     const isOk = evalRes.itemCorrectMap[qNo];
                     html += `
                         <div class="p-2 rounded-lg border ${isOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} flex items-center justify-between">
                             <span class="text-xs font-bold">ข้อ ${qNo}</span>
-                            <input type="text" maxlength="3" placeholder="ว่าง" value="${ans[qNo] || ''}"
+                            <input type="text" maxlength="3" value="${ans[qNo] || '000'}"
                                    onchange="updateDraftMathPart2('${qNo}', this.value)"
                                    class="w-16 text-center font-mono text-xs font-bold py-1 px-2 rounded border border-slate-300 bg-white">
                         </div>
@@ -3992,23 +3938,18 @@
             } else if (sub === '61') {
                 const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
                 html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (21.1 - 21.2) & ตอนที่ 3 ข้อเขียน (ข้อ 22 กรอกคะแนนเลย)</p>
-                        <button type="button" onclick="startScanForPart(2)" class="px-2.5 py-1 bg-sky-600 hover:bg-sky-700 text-white rounded-lg text-[11px] font-bold">
-                            <i class="fa-solid fa-camera mr-1"></i> สแกนตอนที่ 2
-                        </button>
-                    </div>
+                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 - 21.2) & ตอนที่ 3 อัตนัย (ข้อ 22 ครูกรอกคะแนนเอง)</p>
                     <div class="grid grid-cols-3 gap-2">
                         <div class="p-2 rounded-lg border bg-white">
                             <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.1 (ลำดับ 1-13)</label>
-                            <input type="number" min="0" max="13" placeholder="ว่าง" value="${ans['21.1'] || 0}" onchange="updateDraftThaiPart2('21.1', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
+                            <input type="number" min="1" max="13" value="${ans['21.1'] || 1}" onchange="updateDraftThaiPart2('21.1', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
                         </div>
                         <div class="p-2 rounded-lg border bg-white">
                             <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.2 (ลำดับ 1-13)</label>
-                            <input type="number" min="0" max="13" placeholder="ว่าง" value="${ans['21.2'] || 0}" onchange="updateDraftThaiPart2('21.2', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
+                            <input type="number" min="1" max="13" value="${ans['21.2'] || 1}" onchange="updateDraftThaiPart2('21.2', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
                         </div>
                         <div class="p-2 rounded-lg border-2 border-amber-400 bg-amber-50">
-                            <label class="block text-[10px] text-amber-900 font-bold">ข้อ 22 ข้อเขียน (เต็ม ${maxEssayPts})</label>
+                            <label class="block text-[10px] text-amber-900 font-bold">ข้อ 22 อัตนัย (เต็ม ${maxEssayPts})</label>
                             <input type="number" min="0" max="${maxEssayPts}" step="0.5" value="${ans['22'] !== undefined ? ans['22'] : 0}" oninput="updateDraftThaiPart2('22', this.value)" class="w-full font-bold text-xs mt-1 border border-amber-400 rounded px-2 py-1 bg-white text-indigo-950">
                         </div>
                     </div>
