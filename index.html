@@ -769,77 +769,79 @@
                 <section id="view-scanner" class="tab-view hidden space-y-6 no-print">
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         
-                        <!-- Left Column: Auto-Scan Camera Viewfinder (ZipGrade Style) -->
-                        <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                        <!-- Left Column: Auto-Scan Camera Viewfinder (Full-Screen Mobile Style) -->
+                        <div id="scanner-fullscreen-wrapper" class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                             <!-- Top Green SCANNING Header Bar (เหมือนตัวอย่างแอปสแกนข้อสอบ) -->
-                            <div class="bg-[#1b6b3a] text-white px-4 py-3 flex items-center justify-between shadow-sm">
-                                <button type="button" onclick="stopMobileCameraStream(); switchTab('dashboard');" class="flex items-center gap-1.5 text-xs sm:text-sm font-semibold hover: opacity-90 transition">
+                            <div class="bg-[#1b6b3a] text-white px-4 py-3 flex items-center justify-between shadow-md z-30 shrink-0">
+                                <button type="button" onclick="exitFullScreenScannerMode()" class="flex items-center gap-1.5 text-sm font-bold hover:opacity-90 transition cursor-pointer">
                                     <i class="fa-solid fa-chevron-left text-base"></i>
-                                    <span>เสร็จสิ้น</span>
+                                    <span>Done Scanning</span>
                                 </button>
                                 <div class="tracking-widest font-extrabold text-sm sm:text-base uppercase flex items-center gap-2">
                                     <span id="auto-scan-header-dot" class="w-2.5 h-2.5 rounded-full bg-emerald-300 animate-ping"></span>
                                     <span id="auto-scan-header-status">SCANNING</span>
                                 </div>
-                                <div class="flex items-center gap-2">
-                                    <button type="button" onclick="togglePerspectiveViewMode()" id="btn-toggle-warp-view" class="text-white/90 hover:text-white p-1.5 rounded-lg bg-white/10 text-[11px] font-semibold" title="สลับมุมมองภาพ">
-                                        <i class="fa-solid fa-sliders"></i>
+                                <div class="flex items-center gap-1.5">
+                                    <button type="button" onclick="toggleScannerFullScreenUI()" id="btn-expand-fullscreen" class="text-white/90 hover:text-white px-2.5 py-1 rounded-lg bg-white/15 text-xs font-bold flex items-center gap-1 cursor-pointer" title="ขยาย/ย่อเต็มหน้าจอมือถือ">
+                                        <i id="icon-expand-fullscreen" class="fa-solid fa-expand"></i>
+                                        <span class="hidden sm:inline">เต็มจอ</span>
+                                    </button>
+                                    <button type="button" onclick="togglePerspectiveViewMode()" id="btn-toggle-warp-view" class="text-white/90 hover:text-white p-1.5 rounded-lg bg-white/10 text-xs font-semibold cursor-pointer" title="สลับมุมมองภาพ">
+                                        <i class="fa-solid fa-gear"></i>
                                     </button>
                                 </div>
                             </div>
 
-                            <!-- Camera & Canvas Preview Container (พร้อมกรอบสี่เหลี่ยม 4 มุม และสแกนอัตโนมัติเมื่อตรงมุม) -->
-                            <div id="scanner-viewport-box" class="relative bg-slate-950 overflow-hidden min-h-[480px] sm:min-h-[560px] max-h-[700px] w-full mx-auto flex items-center justify-center touch-none">
-                                <!-- Live Video Feed -->
-                                <video id="scanner-video" autoplay playsinline muted class="hidden w-full h-full max-h-[680px] object-contain"></video>
+                            <!-- Camera & Canvas Preview Container (สัดส่วน A4 แนวตั้ง ระยะห่างกรอบบน-ล่างกว้างขึ้น) -->
+                            <div id="scanner-viewport-box" class="relative bg-slate-950 overflow-hidden flex-1 min-h-[72vh] sm:min-h-[680px] w-full mx-auto flex items-center justify-center touch-none">
+                                <!-- Live Video Feed (เต็มพื้นที่หน้าจอสแกน) -->
+                                <video id="scanner-video" autoplay playsinline muted class="hidden w-full h-full object-cover"></video>
                                 <!-- Overlay Canvas สำหรับวาดจุดตรวจจับขณะส่องกล้องสด -->
-                                <canvas id="scanner-live-contour-canvas" class="hidden absolute inset-0 w-full h-full object-contain pointer-events-none"></canvas>
+                                <canvas id="scanner-live-contour-canvas" class="hidden absolute inset-0 w-full h-full object-cover pointer-events-none"></canvas>
                                 <!-- Processed / Captured Sheet Canvas (แสดงภาพที่ค้างไว้หลังล็อกอัตโนมัติ) -->
-                                <canvas id="scanner-canvas" class="w-full h-auto max-h-[680px] object-contain cursor-crosshair"></canvas>
+                                <canvas id="scanner-canvas" class="w-full h-full object-contain cursor-crosshair"></canvas>
 
-                                <!-- ส่วนแสดงชื่อวิชาด้านบน + กรอบสี่เหลี่ยมมุมมน 4 มุม (Viewfinders) -->
-                                <div id="scanner-live-overlay-guide" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 sm:p-6">
-                                    <!-- Top Translucent Subject & Form Info Card (เหมือนภาพตัวอย่าง) -->
-                                    <div class="flex justify-center mt-1">
-                                        <div class="bg-white/85 backdrop-blur-md text-slate-900 px-5 py-2.5 rounded-2xl shadow-lg border border-white/60 text-center max-w-xs w-full">
+                                <!-- ส่วนแสดงชื่อวิชาด้านบน + กรอบสี่เหลี่ยมมุมมน 4 มุม (วางห่างบน-ล่างตามสัดส่วนกระดาษ A4) -->
+                                <div id="scanner-live-overlay-guide" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-5">
+                                    
+                                    <!-- Top Translucent Subject & Form Info Card (ลอยตรงกลางด้านบนเหมือนภาพตัวอย่าง) -->
+                                    <div class="relative z-20 flex flex-col items-center mt-1 pointer-events-auto">
+                                        <div class="bg-white/80 backdrop-blur-md text-slate-900 px-4 py-2 rounded-xl shadow-lg border border-white/70 text-center max-w-[270px] w-full">
                                             <div id="scanner-top-subject-title" class="text-sm sm:text-base font-extrabold text-slate-800 leading-tight">
                                                 วิทยาศาสตร์ ป.6
                                             </div>
-                                            <div id="scanner-top-form-subtitle" class="text-xs font-semibold text-slate-600 mt-0.5">
-                                                รหัสวิชา 65 • 20 ข้อ (ชุดที่ 100)
+                                            <div id="scanner-top-form-subtitle" class="text-[11px] font-semibold text-slate-600 mt-0.5">
+                                                20 Question Form (ชุดที่ 100)
                                             </div>
-                                            <div id="scanner-status-text" class="text-xs font-extrabold text-slate-950 mt-1.5 leading-snug">
-                                                วางสี่เหลี่ยมสีดำทั้ง 4 มุมให้ตรงกับกรอบเล็ง<br>ระบบจะตรวจและโชว์คะแนนอัตโนมัติ
+                                            <div id="scanner-status-text" class="text-xs font-extrabold text-slate-950 mt-1 leading-snug">
+                                                Align 4 corner squares with viewfinders<br>
+                                                <span class="text-[11px] font-bold text-emerald-800">(วางสี่เหลี่ยมดำ 4 มุมให้ตรงกรอบเล็ง)</span>
                                             </div>
                                             <!-- แถบความคืบหน้าการล็อกมุมอัตโนมัติ -->
-                                            <div class="w-full bg-slate-300/80 h-1.5 rounded-full overflow-hidden mt-2">
+                                            <div class="w-full bg-slate-300/80 h-1.5 rounded-full overflow-hidden mt-1.5">
                                                 <div id="auto-lock-progress-bar" class="bg-emerald-600 h-full w-0 transition-all duration-150"></div>
                                             </div>
                                         </div>
                                     </div>
 
-                                    <!-- 4 Corner Viewfinder Squares (กรอบสี่เหลี่ยมมุมมนสีดำ-ขาว 4 มุม) -->
-                                    <div id="large-registration-boxes" class="relative flex-1 my-3">
-                                        <!-- มุมบนซ้าย (TL) -->
-                                        <div id="vf-box-tl" class="absolute top-2 left-1 w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-900 ring-2 ring-white/80 rounded-2xl bg-white/15 backdrop-blur-[1px] transition-all duration-150 flex items-center justify-center shadow-md">
-                                            <span class="text-[10px] font-bold text-white/90 bg-slate-900/60 px-1.5 py-0.5 rounded">TL</span>
+                                    <!-- 4 Corner Viewfinder Squares (แยกมุมบนและมุมล่างให้ห่างกันเต็มความสูงกระดาษ A4) -->
+                                    <div id="large-registration-boxes" class="absolute inset-0 pointer-events-none">
+                                        <!-- มุมบนซ้าย (TL) - วางสูงขึ้นเพื่อให้รับกับสัดส่วนความสูง A4 -->
+                                        <div id="vf-box-tl" class="absolute top-[13%] left-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
                                         </div>
                                         <!-- มุมบนขวา (TR) -->
-                                        <div id="vf-box-tr" class="absolute top-2 right-1 w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-900 ring-2 ring-white/80 rounded-2xl bg-white/15 backdrop-blur-[1px] transition-all duration-150 flex items-center justify-center shadow-md">
-                                            <span class="text-[10px] font-bold text-white/90 bg-slate-900/60 px-1.5 py-0.5 rounded">TR</span>
+                                        <div id="vf-box-tr" class="absolute top-[13%] right-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
                                         </div>
-                                        <!-- มุมล่างซ้าย (BL) -->
-                                        <div id="vf-box-bl" class="absolute bottom-2 left-1 w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-900 ring-2 ring-white/80 rounded-2xl bg-white/15 backdrop-blur-[1px] transition-all duration-150 flex items-center justify-center shadow-md">
-                                            <span class="text-[10px] font-bold text-white/90 bg-slate-900/60 px-1.5 py-0.5 rounded">BL</span>
+                                        <!-- มุมล่างซ้าย (BL) - ขยับลงมาด้านล่างสุดเพื่อให้ระยะห่างบน-ล่างไกลกัน ส่อง A4 ทั้งแผ่นได้ง่าย -->
+                                        <div id="vf-box-bl" class="absolute bottom-[5%] left-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
                                         </div>
                                         <!-- มุมล่างขวา (BR) -->
-                                        <div id="vf-box-br" class="absolute bottom-2 right-1 w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-900 ring-2 ring-white/80 rounded-2xl bg-white/15 backdrop-blur-[1px] transition-all duration-150 flex items-center justify-center shadow-md">
-                                            <span class="text-[10px] font-bold text-white/90 bg-slate-900/60 px-1.5 py-0.5 rounded">BR</span>
+                                        <div id="vf-box-br" class="absolute bottom-[5%] right-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
                                         </div>
                                     </div>
                                 </div>
 
-                                <!-- แผงแสดงคะแนนค้างบนหน้าจออัตโนมัติเมื่อสแกนติด + ปุ่มบันทึก & ปุ่มสแกนใหม่ -->
+                                <!-- แผงแสดงคะแนนค้างบนหน้าจออัตโนมัติเมื่อสแกนติด + เลือกนักเรียน + ปุ่มบันทึก & ปุ่มสแกนใหม่ -->
                                 <div id="auto-scan-result-overlay" class="hidden absolute inset-x-3 bottom-3 z-30 bg-slate-900/95 backdrop-blur-md text-white p-4 rounded-2xl border-2 border-emerald-400 shadow-2xl space-y-3">
                                     <div class="flex items-center justify-between gap-2">
                                         <div>
@@ -849,7 +851,7 @@
                                             <h4 id="overlay-result-subject" class="text-sm font-bold text-white mt-1">วิทยาศาสตร์ ป.6 (รหัส 65)</h4>
                                             <p id="overlay-result-breakdown" class="text-xs text-slate-300">ตอนที่ 1: 0 คะแนน | ตอนที่ 2: 0 คะแนน</p>
                                         </div>
-                                        <div class="text-right bg-emerald-500/20 border border-emerald-400/50 px-4 py-2 rounded-xl">
+                                        <div class="text-right bg-emerald-500/20 border border-emerald-400/50 px-4 py-2 rounded-xl shrink-0">
                                             <span class="text-[10px] text-emerald-200 block font-semibold">คะแนนที่ได้</span>
                                             <div class="flex items-baseline justify-end gap-1">
                                                 <span id="overlay-result-score" class="text-3xl font-black text-emerald-400">0.00</span>
@@ -857,6 +859,26 @@
                                             </div>
                                         </div>
                                     </div>
+
+                                    <!-- ตัวเลือกนักเรียนและชุดข้อสอบด่วนบนหน้าจอเต็มจอ -->
+                                    <div class="grid grid-cols-3 gap-2 pt-1 border-t border-slate-700/80">
+                                        <div class="col-span-2">
+                                            <label class="block text-[10px] text-slate-300 font-semibold mb-0.5">นักเรียนเจ้าของกระดาษคำตอบ</label>
+                                            <select id="overlay-student-select" onchange="syncScannerStudentSelect(this.value)" class="w-full bg-slate-800 border border-slate-600 text-white rounded-lg px-2.5 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-400"></select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-slate-300 font-semibold mb-0.5">ชุดข้อสอบ</label>
+                                            <select id="overlay-form-code" onchange="syncScannerFormCode(this.value)" class="w-full bg-slate-800 border border-slate-600 text-emerald-300 rounded-lg px-2 py-1.5 text-xs font-bold focus:outline-none">
+                                                <option value="100">ชุด 100</option>
+                                                <option value="200">ชุด 200</option>
+                                                <option value="300">ชุด 300</option>
+                                                <option value="400">ชุด 400</option>
+                                                <option value="500">ชุด 500</option>
+                                                <option value="600">ชุด 600</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
                                     <div class="grid grid-cols-2 gap-2.5 pt-1">
                                         <button type="button" onclick="saveAndRescanNext()" class="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold py-3 px-4 rounded-xl shadow-lg flex items-center justify-center gap-2 text-sm transition cursor-pointer">
                                             <i class="fa-solid fa-floppy-disk"></i> บันทึกคะแนน
@@ -868,27 +890,11 @@
                                 </div>
                             </div>
 
-                            <!-- Camera & Image Upload Controls -->
-                            <div class="p-4 bg-slate-50 border-t border-slate-200 space-y-2.5">
-                                <div class="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
-                                    <span id="camera-res-badge" class="font-mono font-bold text-slate-700">โหมดสแกนอัตโนมัติ (ไม่ต้องกดถ่าย)</span>
-                                    <span id="contour-lock-badge" class="font-bold text-emerald-700">
-                                        <i class="fa-solid fa-bolt mr-1"></i> ล็อกภาพทันทีเมื่อมุมทั้ง 4 ตรงกรอบ
-                                    </span>
-                                </div>
-                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                    <button type="button" id="btn-primary-mobile-scan" onclick="handleMobileScanButtonClick()" class="sm:col-span-1 bg-[#1b6b3a] hover:bg-emerald-800 text-white font-bold py-3 px-4 rounded-xl shadow-sm flex items-center justify-center gap-2 transition text-xs sm:text-sm cursor-pointer">
-                                        <i class="fa-solid fa-video"></i> <span id="btn-primary-mobile-scan-text">เริ่มสแกนอัตโนมัติ</span>
-                                    </button>
-                                    <button type="button" onclick="triggerGalleryUpload()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-bold py-3 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
-                                        <i class="fa-solid fa-file-image text-indigo-600"></i> เลือกรูปจากเครื่อง
-                                    </button>
-                                    <button type="button" onclick="triggerNativeCameraCapture()" class="bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 font-bold py-3 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer">
-                                        <i class="fa-solid fa-camera text-emerald-600"></i> กล้องระบบมือถือ
-                                    </button>
-                                </div>
-                                <input id="gallery-file-input" type="file" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
-                                <input id="mobile-native-camera-input" type="file" accept="image/*" capture="environment" class="hidden" onchange="handleImageUpload(event)">
+                            <!-- Camera Control Footer (เอาปุ่มเลือกรูปจากมือถือและปุ่มกล้องระบบออก เหลือเฉพาะปุ่มสแกนเต็มจอ) -->
+                            <div id="scanner-bottom-bar" class="p-3.5 bg-slate-50 border-t border-slate-200 shrink-0">
+                                <button type="button" id="btn-primary-mobile-scan" onclick="openFullScreenScannerAndStart()" class="w-full bg-[#1b6b3a] hover:bg-emerald-800 text-white font-bold py-3.5 px-4 rounded-xl shadow-md flex items-center justify-center gap-2 transition text-sm cursor-pointer">
+                                    <i class="fa-solid fa-expand"></i> <span id="btn-primary-mobile-scan-text">เปิดกล้องสแกนเต็มหน้าจอ (Auto-Scan)</span>
+                                </button>
                             </div>
                         </div>
 
@@ -1709,10 +1715,71 @@
 
             refreshCurrentView();
 
-            // เมื่อเข้าหน้าสแกน ให้เปิดกล้องสแกนอัตโนมัติทันทีโดยไม่ต้องกดถ่าย
-            if (tabId === 'scanner' && !lastCapturedSheetImageCanvas && !appState.cameraStream) {
-                startLiveAutoScanner();
+            // เมื่อเข้าหน้าสแกน ให้ขยายเต็มหน้าจอมือถือและเปิดกล้องสแกนอัตโนมัติทันทีเหมือนตัวอย่าง
+            if (tabId === 'scanner') {
+                enterFullScreenScannerMode();
+                if (!lastCapturedSheetImageCanvas && !appState.cameraStream) {
+                    startLiveAutoScanner();
+                }
+            } else {
+                setScannerFullScreenState(false);
             }
+        }
+
+        function setScannerFullScreenState(isFull) {
+            const wrapper = document.getElementById('scanner-fullscreen-wrapper');
+            const viewport = document.getElementById('scanner-viewport-box');
+            const bottomBar = document.getElementById('scanner-bottom-bar');
+            const icon = document.getElementById('icon-expand-fullscreen');
+            if (!wrapper || !viewport) return;
+
+            if (isFull) {
+                wrapper.className = 'fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden';
+                viewport.className = 'relative bg-slate-950 overflow-hidden flex-1 w-full h-full flex items-center justify-center touch-none';
+                if (bottomBar) bottomBar.classList.add('hidden');
+                if (icon) icon.className = 'fa-solid fa-compress';
+            } else {
+                wrapper.className = 'lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col';
+                viewport.className = 'relative bg-slate-950 overflow-hidden flex-1 min-h-[72vh] sm:min-h-[680px] w-full mx-auto flex items-center justify-center touch-none';
+                if (bottomBar) bottomBar.classList.remove('hidden');
+                if (icon) icon.className = 'fa-solid fa-expand';
+            }
+        }
+
+        function enterFullScreenScannerMode() {
+            setScannerFullScreenState(true);
+        }
+
+        function exitFullScreenScannerMode() {
+            stopMobileCameraStream();
+            setScannerFullScreenState(false);
+        }
+
+        function toggleScannerFullScreenUI() {
+            const wrapper = document.getElementById('scanner-fullscreen-wrapper');
+            if (!wrapper) return;
+            const isCurrentlyFull = wrapper.classList.contains('fixed');
+            setScannerFullScreenState(!isCurrentlyFull);
+        }
+
+        async function openFullScreenScannerAndStart() {
+            enterFullScreenScannerMode();
+            await handleMobileScanButtonClick();
+        }
+
+        function syncScannerStudentSelect(studentId) {
+            const mainSel = document.getElementById('scan-student-select');
+            const ovSel = document.getElementById('overlay-student-select');
+            if (mainSel && mainSel.value !== studentId) mainSel.value = studentId;
+            if (ovSel && ovSel.value !== studentId) ovSel.value = studentId;
+        }
+
+        function syncScannerFormCode(formCode) {
+            const mainFc = document.getElementById('scan-form-code');
+            const ovFc = document.getElementById('overlay-form-code');
+            if (mainFc && mainFc.value !== formCode) mainFc.value = formCode;
+            if (ovFc && ovFc.value !== formCode) ovFc.value = formCode;
+            handleScannerFormCodeChange(formCode);
         }
 
         function handleSessionChange(sessionId) {
@@ -1744,7 +1811,7 @@
                 titleEl.textContent = `${spec.name} ป.6`;
             }
             if (subEl) {
-                subEl.textContent = `รหัสวิชา ${spec.code} • ${spec.totalItems} ข้อ (ชุดที่ ${formCode})`;
+                subEl.textContent = `${spec.totalItems} Question Form (ชุดที่ ${formCode})`;
             }
         }
 
@@ -1794,22 +1861,30 @@
 
         function populateScannerStudentSelect() {
             const sel = document.getElementById('scan-student-select');
+            const ovSel = document.getElementById('overlay-student-select');
             if (!sel) return;
             const prev = sel.value;
             if (appState.students.length === 0) {
-                sel.innerHTML = `<option value="">-- กรุณาเพิ่มรายชื่อนักเรียนก่อน --</option>`;
+                const emptyHtml = `<option value="">-- กรุณาเพิ่มรายชื่อนักเรียนก่อน --</option>`;
+                sel.innerHTML = emptyHtml;
+                if (ovSel) ovSel.innerHTML = emptyHtml;
                 return;
             }
-            sel.innerHTML = appState.students.map(s =>
+            const optionsHtml = appState.students.map(s =>
                 `<option value="${s.id}">${s.seatCode} - ${s.fullName} (${s.room})</option>`
             ).join('');
+            sel.innerHTML = optionsHtml;
+            if (ovSel) ovSel.innerHTML = optionsHtml;
             if (prev && appState.students.some(s => s.id === prev)) {
                 sel.value = prev;
+                if (ovSel) ovSel.value = prev;
             }
         }
 
         function handleScannerFormCodeChange(formCode) {
             appState.currentScanDraft.formCode = formCode;
+            const ovFc = document.getElementById('overlay-form-code');
+            if (ovFc && ovFc.value !== formCode) ovFc.value = formCode;
             updateScannerTopSubjectBanner();
             if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
                 reprocessLastCapturedSheet(true);
@@ -2408,32 +2483,34 @@
             if (!corners || corners.length < 4) return { isAligned: false, matchedCount: 0, corners: null };
 
             const [tl, tr, bl, br] = corners;
-            const imgData = ctx.getImageData(0, 0, width, height).data;
             const checkCornerContrast = (pt) => {
                 const r = Math.max(4, Math.round(Math.min(width, height) * 0.012));
                 const drop = sampleBubbleDarknessContrast(ctx, pt.x || pt.cx, pt.y || pt.cy, r);
-                return drop >= 26;
+                return drop >= 24;
             };
 
-            const cTL = checkCornerContrast(tl) && tl.cx < width * 0.36 && tl.cy < height * 0.36;
-            const cTR = checkCornerContrast(tr) && tr.cx > width * 0.64 && tr.cy < height * 0.36;
-            const cBL = checkCornerContrast(bl) && bl.cx < width * 0.36 && bl.cy > height * 0.64;
-            const cBR = checkCornerContrast(br) && br.cx > width * 0.64 && br.cy > height * 0.64;
+            // ปรับโซนตรวจจับมุมบนและมุมล่างให้ห่างกันตามสัดส่วนความสูงของกระดาษ A4
+            // มุมบน (TL, TR) อยู่โซนบน (y < 0.36) และมุมล่าง (BL, BR) อยู่โซนล่าง (y > 0.64)
+            const cTL = checkCornerContrast(tl) && tl.cx < width * 0.38 && tl.cy < height * 0.36;
+            const cTR = checkCornerContrast(tr) && tr.cx > width * 0.62 && tr.cy < height * 0.36;
+            const cBL = checkCornerContrast(bl) && bl.cx < width * 0.38 && bl.cy > height * 0.64;
+            const cBR = checkCornerContrast(br) && br.cx > width * 0.62 && br.cy > height * 0.64;
 
             const flags = [cTL, cTR, cBL, cBR];
             const matchedCount = flags.filter(Boolean).length;
 
-            // ตรวจสอบรูปทรงสี่เหลี่ยมว่ามีความกว้างและความสูงสมเหตุสมผล
+            // ตรวจสอบสัดส่วนกระดาษ A4 แนวตั้ง (ความสูงต้องมากกว่าความกว้าง เพื่อให้กรอบบน-ล่างห่างกันอย่างแม่นยำ)
             const topW = Math.hypot(tr.cx - tl.cx, tr.cy - tl.cy);
             const botW = Math.hypot(br.cx - bl.cx, br.cy - bl.cy);
             const leftH = Math.hypot(bl.cx - tl.cx, bl.cy - tl.cy);
             const rightH = Math.hypot(br.cx - tr.cx, br.cy - tr.cy);
 
             const geometryValid =
-                topW > width * 0.42 &&
-                botW > width * 0.42 &&
-                leftH > height * 0.42 &&
-                rightH > height * 0.42 &&
+                topW > width * 0.40 &&
+                botW > width * 0.40 &&
+                leftH > height * 0.52 &&
+                rightH > height * 0.52 &&
+                leftH > topW * 1.05 &&
                 Math.abs(topW - botW) / Math.max(topW, botW) < 0.28;
 
             return {
@@ -2445,14 +2522,20 @@
         }
 
         function updateViewfinderCornerBoxesUI(flags = [false, false, false, false], lockProgressPct = 0) {
+            const posClasses = [
+                'top-[13%] left-[5%]',
+                'top-[13%] right-[5%]',
+                'bottom-[5%] left-[5%]',
+                'bottom-[5%] right-[5%]'
+            ];
             const ids = ['vf-box-tl', 'vf-box-tr', 'vf-box-bl', 'vf-box-br'];
             ids.forEach((id, idx) => {
                 const el = document.getElementById(id);
                 if (!el) return;
                 if (flags[idx]) {
-                    el.className = `absolute ${idx < 2 ? 'top-2' : 'bottom-2'} ${idx % 2 === 0 ? 'left-1' : 'right-1'} w-20 h-20 sm:w-24 sm:h-24 border-[4px] border-emerald-400 ring-4 ring-emerald-500/40 rounded-2xl bg-emerald-500/25 transition-all duration-150 flex items-center justify-center shadow-lg`;
+                    el.className = `absolute ${posClasses[idx]} w-20 h-20 sm:w-24 sm:h-24 border-[4px] border-emerald-400 ring-4 ring-emerald-500/40 rounded-2xl bg-emerald-500/25 transition-all duration-150 flex items-center justify-center shadow-lg`;
                 } else {
-                    el.className = `absolute ${idx < 2 ? 'top-2' : 'bottom-2'} ${idx % 2 === 0 ? 'left-1' : 'right-1'} w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-900 ring-2 ring-white/80 rounded-2xl bg-white/15 backdrop-blur-[1px] transition-all duration-150 flex items-center justify-center shadow-md`;
+                    el.className = `absolute ${posClasses[idx]} w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md`;
                 }
             });
             const bar = document.getElementById('auto-lock-progress-bar');
@@ -2503,7 +2586,7 @@
                     const pct = Math.round((check.matchedCount / 4) * 60);
                     updateViewfinderCornerBoxesUI(check.flags || [false, false, false, false], pct);
                     if (statusEl) {
-                        statusEl.innerHTML = `วางสี่เหลี่ยมสีดำทั้ง 4 มุมให้ตรงกับกรอบเล็ง (พบ ${check.matchedCount}/4 มุม)`;
+                        statusEl.innerHTML = `Align 4 corner squares with viewfinders<br><span class="text-[11px] font-bold text-emerald-800">(ตรวจพบมุมกระดาษ ${check.matchedCount}/4 มุม)</span>`;
                     }
                 }
             }, 160);
@@ -2584,8 +2667,10 @@
             await saveScannedResult();
             // เลื่อนลำดับนักเรียนใน Dropdown ไปคนถัดไปให้อัตโนมัติเพื่อความรวดเร็วในการสแกนต่อเนื่อง
             const sel = document.getElementById('scan-student-select');
+            const ovSel = document.getElementById('overlay-student-select');
             if (sel && sel.options.length > 1 && sel.selectedIndex < sel.options.length - 1) {
                 sel.selectedIndex = sel.selectedIndex + 1;
+                if (ovSel) ovSel.selectedIndex = sel.selectedIndex;
             }
         }
 
