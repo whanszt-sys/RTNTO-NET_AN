@@ -2834,7 +2834,8 @@
         /* --------------------------------------------------------------------------
            ตารางพิกัดมาตรฐานชุดเดียวกัน (Unified Canonical UV Coordinate System)
            ใช้กำหนดตำแหน่งวงกลมทั้งบน "กระดาษคำตอบ A4 ตอนพิมพ์" และ "ตอนสแกนด้วยมือถือ" ให้ตรงกัน 100%
-           โดยวัดสัดส่วน (u, v ระหว่าง 0.000 - 1.000) อ้างอิงจากจุดศูนย์กลางสี่เหลี่ยมดำ 4 มุม (TL, TR, BL, BR)
+           โดยวัดสัดส่วน (u, v ระหว่าง 0.000 - 1.000) อ้างอิงจากจุดศูนย์กลางสี่เหลี่ยมดำ 4 มุมหลักของกระดาษ (TL, TR, BL, BR)
+           (ไม่มีสี่เหลี่ยมสีดำในตารางตอนที่ 1 เพื่อป้องกันระบบสแกนไปตรวจโดนสี่เหลี่ยมในตาราง)
         -------------------------------------------------------------------------- */
         function getCanonicalSubjectBubbleUVMap(subjectCode) {
             const sub = String(subjectCode || '65');
@@ -2842,12 +2843,8 @@
             const cols = sub === '63' ? 4 : 3;
             const rowsPerCol = Math.ceil(spec.part1.count / cols);
 
-            // สัดส่วนแนวตั้ง (v) และแนวนอน (u) ภายในกรอบจุดมาร์ก 4 มุมหลักของกระดาษ A4
-            // จุดศูนย์กลางมาร์กทั้ง 4 มุมบน A4 (210x297mm):
-            // X: ซ้าย = 11.17mm, ขวา = 198.83mm (ระยะห่าง W = 187.66mm)
-            // Y: บน = 11.17mm, ล่าง = 285.83mm (ระยะห่าง H = 274.66mm)
             const gridBoxTopV = 0.275;
-            const gridBoxBottomV = sub === '65' ? 0.545 : (sub === '64' ? 0.465 : (sub === '61' ? 0.575 : 0.625));
+            const gridBoxBottomV = sub === '65' ? 0.545 : (sub === '64' ? 0.465 : (sub === '61' ? 0.555 : 0.625));
             const firstRowV = gridBoxTopV + 0.052;
             const lastRowV = gridBoxBottomV - 0.032;
             const rowStepV = rowsPerCol > 1 ? (lastRowV - firstRowV) / (rowsPerCol - 1) : 0;
@@ -2887,19 +2884,40 @@
             const part2SciBubbles = {};
             if (sub === '65') {
                 ['19', '20'].forEach((qNo, boxIdx) => {
-                    const baseU = boxIdx === 0 ? 0.055 : 0.535;
+                    const baseU = boxIdx === 0 ? 0.045 : 0.525;
                     part2SciBubbles[qNo] = {};
                     ['1', '2', '3'].forEach((subIdx, rIdx) => {
-                        const rowV = Number((0.680 + rIdx * 0.042).toFixed(4));
+                        const rowV = Number((0.680 + rIdx * 0.044).toFixed(4));
                         part2SciBubbles[qNo][subIdx] = {
-                            labelU: Number((baseU + 0.025).toFixed(4)),
+                            labelU: Number((baseU + 0.030).toFixed(4)),
                             v: rowV,
                             choices: {
-                                1: { u: Number((baseU + 0.255).toFixed(4)), v: rowV },
-                                2: { u: Number((baseU + 0.365).toFixed(4)), v: rowV }
+                                1: { u: Number((baseU + 0.260).toFixed(4)), v: rowV },
+                                2: { u: Number((baseU + 0.370).toFixed(4)), v: rowV }
                             }
                         };
                     });
+                });
+            }
+
+            // พิกัดตอนที่ 2 สำหรับภาษาไทย (ข้อ 21.1 และ 21.2 เรียงลำดับ 1 - 13)
+            const part2ThaiBubbles = {};
+            if (sub === '61') {
+                ['21.1', '21.2'].forEach((subQ, boxIdx) => {
+                    const boxBaseU = boxIdx === 0 ? 0.045 : 0.525;
+                    part2ThaiBubbles[subQ] = {};
+                    for (let ord = 1; ord <= 13; ord++) {
+                        const subCol = ord <= 7 ? 0 : 1;
+                        const subRow = ord <= 7 ? (ord - 1) : (ord - 8);
+                        const uBubble = Number((boxBaseU + (subCol === 0 ? 0.175 : 0.385)).toFixed(4));
+                        const uLabel = Number((boxBaseU + (subCol === 0 ? 0.022 : 0.232)).toFixed(4));
+                        const vRow = Number((0.665 + subRow * 0.033).toFixed(4));
+                        part2ThaiBubbles[subQ][ord] = {
+                            labelU: uLabel,
+                            u: uBubble,
+                            v: vRow
+                        };
+                    }
                 });
             }
 
@@ -2911,7 +2929,8 @@
                 firstRowV,
                 lastRowV,
                 part1Bubbles,
-                part2SciBubbles
+                part2SciBubbles,
+                part2ThaiBubbles
             };
         }
 
@@ -2961,7 +2980,6 @@
                     const uv = qMeta.choices[c];
                     const basePt = mapNormalizedUVToSheetXY(safeCorners, uv.u, uv.v);
 
-                    // ค้นหาจุดศูนย์กลางรอยฝนในรัศมีใกล้เคียง (Local Center Search)
                     let bestPt = basePt;
                     let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
                     if (!preserveManualAnswers) {
@@ -2991,7 +3009,7 @@
                     }
                 }
 
-                // คงค่าเกณฑ์ความเข้ม 18 ตามเดิมโดยไม่เปลี่ยนแปลง
+                // คงค่าเกณฑ์ความเข้ม 18 ตามเดิม
                 if (!preserveManualAnswers) {
                     detected[q] = maxContrastDrop >= 18 ? bestChoice : 0;
                 }
@@ -2999,7 +3017,7 @@
                 const stuChoice = Number(detected[q] || 0);
                 const correctChoice = Number(key[q]);
 
-                // วาดจุดสีเขียวโปร่งเมื่อตอบถูก และจุดสีแดงโปร่งเมื่อตอบผิด บนตำแหน่งพิกัดเดียวกันกับกระดาษคำตอบ
+                // วาดจุดสีเขียวโปร่งเมื่อตอบถูก และจุดสีแดงโปร่งเมื่อตอบผิด
                 for (let c = 1; c <= 4; c++) {
                     const pt = bubbleCoords[c];
                     if (!pt) continue;
@@ -3045,47 +3063,142 @@
                 }
             }
 
-            // อ่านค่าตอนที่ 2 ของวิชาวิทยาศาสตร์ (ข้อ 19.1-19.3 และ 20.1-20.3) จากพิกัดเดียวกัน
+            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาวิทยาศาสตร์ (ข้อ 19.1-19.3 และ 20.1-20.3) พร้อมค้นหาจุดศูนย์กลางรอยฝน
             if (sub === '65') {
                 ['19', '20'].forEach(qNo => {
-                    if (!detected[qNo]) detected[qNo] = { '1': 1, '2': 2, '3': 1 };
+                    if (!detected[qNo] || typeof detected[qNo] !== 'object') {
+                        detected[qNo] = { '1': 0, '2': 0, '3': 0 };
+                    }
                     const keyObj = key[qNo] || { '1': 1, '2': 2, '3': 1 };
                     ['1', '2', '3'].forEach(subIdx => {
                         const subMeta = canonicalMap.part2SciBubbles?.[qNo]?.[subIdx];
                         if (!subMeta) return;
-                        let bestSubChoice = Number(detected[qNo][subIdx] || 1);
+                        let bestSubChoice = Number(detected[qNo][subIdx] || 0);
                         let maxSubDrop = 0;
                         const subPts = {};
                         [1, 2].forEach(c => {
                             const uv = subMeta.choices[c];
-                            const pt = mapNormalizedUVToSheetXY(safeCorners, uv.u, uv.v);
-                            subPts[c] = pt;
+                            const basePt = mapNormalizedUVToSheetXY(safeCorners, uv.u, uv.v);
+                            let bestPt = basePt;
+                            let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
                             if (!preserveManualAnswers) {
-                                const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, adaptiveRadius);
-                                if (dVal > maxSubDrop) {
-                                    maxSubDrop = dVal;
+                                const stepShift = Math.max(2, Math.round(3 * dotScale));
+                                const offsets = [[-stepShift, 0], [stepShift, 0], [0, -stepShift], [0, stepShift]];
+                                for (let k = 0; k < offsets.length; k++) {
+                                    const sx = basePt.x + offsets[k][0];
+                                    const sy = basePt.y + offsets[k][1];
+                                    const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, adaptiveRadius);
+                                    if (dVal > localBestDrop) {
+                                        localBestDrop = dVal;
+                                        bestPt = { x: sx, y: sy };
+                                    }
+                                }
+                                if (localBestDrop > maxSubDrop) {
+                                    maxSubDrop = localBestDrop;
                                     bestSubChoice = c;
                                 }
                             }
+                            subPts[c] = bestPt;
                         });
-                        if (!preserveManualAnswers && maxSubDrop >= 18) {
-                            detected[qNo][subIdx] = bestSubChoice;
+                        if (!preserveManualAnswers) {
+                            detected[qNo][subIdx] = maxSubDrop >= 15 ? bestSubChoice : 0;
                         }
-                        const chosenC = Number(detected[qNo][subIdx]);
+                        const chosenC = Number(detected[qNo][subIdx] || 0);
                         const rightC = Number(keyObj[subIdx]);
                         [1, 2].forEach(c => {
                             const pt = subPts[c];
                             if (!pt) return;
-                            if (c === chosenC) {
+                            if (c === chosenC && chosenC === rightC) {
                                 ctx.save();
                                 ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
-                                ctx.fillStyle = (chosenC === rightC) ? 'rgba(16, 185, 129, 0.55)' : 'rgba(239, 68, 68, 0.50)';
+                                ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
+                                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
                                 ctx.fill();
+                                ctx.lineWidth = Math.round(2.5 * dotScale);
+                                ctx.strokeStyle = '#059669';
+                                ctx.stroke();
+                                ctx.restore();
+                            } else if (c === chosenC && chosenC !== rightC) {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(pt.x, pt.y, Math.round(10 * dotScale), 0, Math.PI * 2);
+                                ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                                ctx.fill();
+                                ctx.lineWidth = Math.round(2 * dotScale);
+                                ctx.strokeStyle = '#dc2626';
+                                ctx.stroke();
+                                ctx.restore();
+                            } else if (c === rightC && chosenC !== rightC) {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
+                                ctx.arc(pt.x, pt.y, Math.round(9 * dotScale), 0, Math.PI * 2);
+                                ctx.lineWidth = Math.round(2 * dotScale);
+                                ctx.strokeStyle = '#f59e0b';
+                                ctx.stroke();
+                                ctx.restore();
+                            } else {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(pt.x, pt.y, Math.round(4 * dotScale), 0, Math.PI * 2);
+                                ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                                ctx.lineWidth = Math.max(1, Math.round(1.2 * dotScale));
+                                ctx.stroke();
                                 ctx.restore();
                             }
                         });
                     });
+                });
+            }
+
+            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาภาษาไทย (ข้อ 21.1 และ 21.2 เรียงลำดับ 1-13)
+            if (sub === '61' && canonicalMap.part2ThaiBubbles) {
+                ['21.1', '21.2'].forEach(subQ => {
+                    const qMap = canonicalMap.part2ThaiBubbles[subQ];
+                    if (!qMap) return;
+                    let bestOrd = Number(detected[subQ] || 1);
+                    let maxOrdDrop = 0;
+                    const ordPts = {};
+
+                    for (let ord = 1; ord <= 13; ord++) {
+                        const uv = qMap[ord];
+                        const pt = mapNormalizedUVToSheetXY(safeCorners, uv.u, uv.v);
+                        ordPts[ord] = pt;
+                        if (!preserveManualAnswers) {
+                            const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(6 * dotScale)));
+                            if (dVal > maxOrdDrop) {
+                                maxOrdDrop = dVal;
+                                bestOrd = ord;
+                            }
+                        }
+                    }
+                    if (!preserveManualAnswers && maxOrdDrop >= 15) {
+                        detected[subQ] = bestOrd;
+                    }
+                    const chosenOrd = Number(detected[subQ] || 0);
+                    const rightOrd = Number(key[subQ]);
+                    for (let ord = 1; ord <= 13; ord++) {
+                        const pt = ordPts[ord];
+                        if (!pt) continue;
+                        if (ord === chosenOrd && chosenOrd === rightOrd) {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
+                            ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                            ctx.fill();
+                            ctx.lineWidth = Math.round(2 * dotScale);
+                            ctx.strokeStyle = '#059669';
+                            ctx.stroke();
+                            ctx.restore();
+                        } else if (ord === chosenOrd && chosenOrd !== rightOrd) {
+                            ctx.save();
+                            ctx.beginPath();
+                            ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
+                            ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                            ctx.fill();
+                            ctx.restore();
+                        }
+                    }
                 });
             }
 
@@ -3111,7 +3224,7 @@
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(px, py, pw, ph);
 
-            // 4 Black Fiducial Corner Markers + 2 Mid-Sheet Timing Markers + Bottom-Right Orientation Barcode
+            // วาดเฉพาะสี่เหลี่ยมสีดำที่มุมกระดาษทั้ง 4 มุมเท่านั้น (ไม่มีสี่เหลี่ยมสีดำในตารางตอนที่ 1)
             const mSize = 24;
             ctx.fillStyle = '#000000';
             ctx.fillRect(px + 16, py + 16, mSize, mSize);
@@ -3119,25 +3232,12 @@
             ctx.fillRect(px + 16, py + ph - 16 - mSize, mSize, mSize);
             ctx.fillRect(px + pw - 16 - mSize, py + ph - 16 - mSize, mSize, mSize);
 
-            // Mid-Left & Mid-Right Timing Markers (เหมือนตัวอย่างกระดาษคำตอบมาตรฐาน)
-            ctx.fillRect(px + 16, py + Math.floor(ph * 0.48), 16, 16);
-            ctx.fillRect(px + pw - 32, py + Math.floor(ph * 0.48), 16, 16);
-
-            // Bottom-Right Orientation Stepped Barcode
-            const bxBar = px + pw - 34;
-            const byBar = py + ph - 115;
-            ctx.fillRect(bxBar, byBar, 18, 8);
-            ctx.fillRect(bxBar, byBar + 11, 10, 8);
-            ctx.fillRect(bxBar + 8, byBar + 22, 10, 8);
-            ctx.fillRect(bxBar, byBar + 33, 10, 8);
-            ctx.fillRect(bxBar + 8, byBar + 44, 10, 8);
-
             ctx.fillStyle = '#0f172a';
             ctx.font = 'bold 14px Prompt, Sarabun, sans-serif';
             ctx.fillText(`พ.ป.น. (PPN) ร.ร.บ้านโพนก้างปลาฯ • รหัส ${spec.code} (${spec.name})`, px + 52, py + 36);
             ctx.font = '12px Prompt, Sarabun, sans-serif';
             ctx.fillStyle = '#475569';
-            ctx.fillText(`ชุดข้อสอบที่ ${formCode} • กดปุ่ม "ถ่ายสแกนด้วยมือถือ" ด้านล่างเพื่อถ่ายกระดาษคำตอบ`, px + 52, py + 56);
+            ctx.fillText(`ชุดข้อสอบที่ ${formCode} • ส่องให้สี่เหลี่ยมดำ 4 มุมตรงกรอบเล็ง`, px + 52, py + 56);
 
             ctx.strokeStyle = '#cbd5e1';
             ctx.lineWidth = 1;
@@ -3152,25 +3252,11 @@
             const startX = px + 32;
             const startY = py + 100;
 
-            // วาดจุดมาร์กสีดำประจำหัวและท้ายแต่ละคอลัมน์ (Column Alignment Markers)
-            for (let cIdx = 0; cIdx < cols; cIdx++) {
-                const cxCol = startX + cIdx * colWidth;
-                ctx.fillStyle = '#000000';
-                ctx.fillRect(cxCol, startY - 22, 10, 10);
-                ctx.fillRect(cxCol, startY + rowsPerCol * 34 - 12, 10, 10);
-            }
-
             for (let q = 1; q <= spec.part1.count; q++) {
                 const colIdx = Math.floor((q - 1) / rowsPerCol);
                 const rowIdx = (q - 1) % rowsPerCol;
                 const x = startX + colIdx * colWidth;
                 const y = startY + rowIdx * 34;
-
-                // วาดขีด Timing Tick ด้านซ้ายของทุกบรรทัด
-                if (colIdx === 0) {
-                    ctx.fillStyle = '#000000';
-                    ctx.fillRect(px + 18, y - 2, 7, 4);
-                }
 
                 ctx.fillStyle = '#0f172a';
                 ctx.font = 'bold 12px Prompt, sans-serif';
@@ -3200,7 +3286,6 @@
                         ctx.beginPath();
                         ctx.arc(bx, by, 12, 0, Math.PI * 2);
                         if (stuChoice === correctChoice) {
-                            // วาดจุดสีเขียวโปร่งทับวงกลมที่ตอบถูกบนหน้าจอจำลองด้วย
                             ctx.fillStyle = 'rgba(16, 185, 129, 0.50)';
                             ctx.fill();
                             ctx.strokeStyle = '#059669';
@@ -3370,35 +3455,42 @@
             appState.currentScanDraft.answers[q] = (currentVal === choice) ? 0 : choice;
 
             if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
-                const canvas = document.getElementById('scanner-canvas');
-                const ctx = canvas.getContext('2d', { willReadFrequently: true });
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(lastCapturedSheetImageCanvas, 0, 0);
-                drawDetectedContourPolygon(ctx, lastDetectedSheetCorners);
-                analyzeUploadedPaperPixels(ctx, canvas.width, canvas.height, lastDetectedSheetCorners, true);
+                reprocessLastCapturedSheet(true);
             } else {
                 drawSimulatedSheetOnCanvas();
+                renderScannerDetectedAnswers();
             }
-            renderScannerDetectedAnswers();
         }
 
         function updateDraftSciPart2(qNo, subIdx, val) {
             if (!appState.currentScanDraft.answers[qNo]) appState.currentScanDraft.answers[qNo] = { 1: 1, 2: 2, 3: 1 };
             appState.currentScanDraft.answers[qNo][subIdx] = val;
-            drawSimulatedSheetOnCanvas();
-            renderScannerDetectedAnswers();
+            if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                reprocessLastCapturedSheet(true);
+            } else {
+                drawSimulatedSheetOnCanvas();
+                renderScannerDetectedAnswers();
+            }
         }
 
         function updateDraftMathPart2(qNo, val) {
             appState.currentScanDraft.answers[qNo] = String(val).padStart(3, '0');
-            drawSimulatedSheetOnCanvas();
-            renderScannerDetectedAnswers();
+            if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                reprocessLastCapturedSheet(true);
+            } else {
+                drawSimulatedSheetOnCanvas();
+                renderScannerDetectedAnswers();
+            }
         }
 
         function updateDraftThaiPart2(qNo, val) {
             appState.currentScanDraft.answers[qNo] = Number(val);
-            drawSimulatedSheetOnCanvas();
-            renderScannerDetectedAnswers();
+            if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                reprocessLastCapturedSheet(true);
+            } else {
+                drawSimulatedSheetOnCanvas();
+                renderScannerDetectedAnswers();
+            }
         }
 
         async function saveScannedResult() {
@@ -3537,20 +3629,11 @@
             const examDateDisplay = currentSes ? formatThaiDate(currentSes.examDate) : '.........................';
 
             return `
-                <!-- 4 FIDUCIAL CORNER MARKERS + MID-SHEET TIMING MARKS + ORIENTATION BARCODE FOR MOBILE OMR -->
+                <!-- เฉพาะจุดสี่เหลี่ยมสีดำที่มุมทั้ง 4 ด้านของกระดาษ A4 เท่านั้น (ไม่มีจุดดำอื่นในตารางเพื่อป้องกันการตรวจจับผิดพลาด) -->
                 <div class="fiducial-marker marker-tl"></div>
                 <div class="fiducial-marker marker-tr"></div>
                 <div class="fiducial-marker marker-bl"></div>
                 <div class="fiducial-marker marker-br"></div>
-                <div class="fiducial-mid-left"></div>
-                <div class="fiducial-mid-right"></div>
-                <div class="omr-orientation-barcode">
-                    <div style="width:18px;height:7px;background:#000;"></div>
-                    <div style="width:9px;height:7px;background:#000;"></div>
-                    <div style="width:9px;height:7px;background:#000;margin-left:9px;"></div>
-                    <div style="width:9px;height:7px;background:#000;"></div>
-                    <div style="width:9px;height:7px;background:#000;margin-left:9px;"></div>
-                </div>
 
                 <!-- Top Header Banner: พ.ป.น. PPN โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์ -->
                 <div class="flex items-start justify-between border-b-2 border-black pb-2 mb-2 pr-4">
@@ -3653,11 +3736,12 @@
         function buildA4SheetPage1(spec, stu) {
             // ใช้ตารางพิกัดมาตรฐานชุดเดียวกับตัวสแกนมือถือ (getCanonicalSubjectBubbleUVMap)
             // โดยวางตำแหน่งวงกลมทุกข้ออ้างอิงจากจุดศูนย์กลางของมาร์ก 4 มุม (11.17mm จากขอบกระดาษ A4)
+            // เอาสี่เหลี่ยมสีดำและขีดดำในตารางตอนที่ 1 ออกทั้งหมด
             const canonicalMap = getCanonicalSubjectBubbleUVMap(spec.code);
             const totalMcq = spec.part1.count;
             const cols = canonicalMap.cols;
 
-            // วาดวงกลม ตอนที่ 1 ด้วยพิกัด (u, v) เดียวกับที่กล้องมือถือใช้ตรวจจับ 100%
+            // วาดวงกลม ตอนที่ 1 ด้วยพิกัด (u, v) เดียวกับที่กล้องมือถือใช้ตรวจจับ 100% (ไม่มีขีดดำหน้าเลขข้อ)
             let absoluteBubblesHtml = '';
             for (let q = 1; q <= totalMcq; q++) {
                 const qMeta = canonicalMap.part1Bubbles[q];
@@ -3666,8 +3750,8 @@
                 const labelLeftPct = (qMeta.labelU * 100).toFixed(3);
 
                 absoluteBubblesHtml += `
-                    <div style="position:absolute; left:${labelLeftPct}%; top:${topPct}%; transform:translateY(-50%); font-size:11px; font-weight:700; display:inline-flex; align-items:center; gap:3px;">
-                        <span class="omr-row-tick"></span><span>${q}.</span>
+                    <div style="position:absolute; left:${labelLeftPct}%; top:${topPct}%; transform:translateY(-50%); font-size:11px; font-weight:700;">
+                        <span>${q}.</span>
                     </div>
                 `;
                 for (let c = 1; c <= 4; c++) {
@@ -3679,7 +3763,7 @@
                 }
             }
 
-            // วาดกรอบเส้นแบ่งคอลัมน์ ตอนที่ 1 ให้ตรงกับสัดส่วน u, v
+            // วาดกรอบเส้นแบ่งคอลัมน์ ตอนที่ 1 (เอาสี่เหลี่ยมสีดำมุมหัวคอลัมน์ออกทั้งหมด)
             const boxTopPct = (canonicalMap.gridBoxTopV * 100).toFixed(2);
             const boxHeightPct = ((canonicalMap.gridBoxBottomV - canonicalMap.gridBoxTopV) * 100).toFixed(2);
             let colHeadersHtml = '';
@@ -3688,8 +3772,8 @@
                 const colWidthU = cols === 3 ? 0.302 : 0.232;
                 colHeadersHtml += `
                     <div style="position:absolute; left:${(colLeftU * 100).toFixed(2)}%; top:${boxTopPct}%; width:${(colWidthU * 100).toFixed(2)}%; height:${boxHeightPct}%; border:1.5px solid #000; box-sizing:border-box;">
-                        <div class="flex items-center justify-between text-[10px] font-bold border-b border-black px-2 py-1 bg-slate-50">
-                            <span class="inline-flex items-center gap-1"><span class="omr-col-marker"></span> ข้อที่</span>
+                        <div class="flex items-center justify-between text-[10px] font-bold border-b border-black px-2.5 py-1 bg-slate-50">
+                            <span>ข้อที่</span>
                             <span>ตัวเลือกคำตอบ</span>
                         </div>
                     </div>
@@ -3730,26 +3814,31 @@
                     ${sciPart2Bubbles}
                 `;
             } else if (spec.code === '61') {
-                extraPartHtml = `
-                    <div style="position:absolute; left:3.5%; top:60.5%; right:3.5%;" class="border-2 border-black p-2 bg-white">
-                        <div class="text-xs font-bold">ตอนที่ 2 : แบบเรียงลำดับ จำนวน 1 ข้อ (ข้อ 21.1 และ 21.2)</div>
-                        <div class="text-[10px] mb-1">วิธีการตอบ: ระบาย 1 คำตอบที่เป็นคำตอบที่ถูกที่สุดในแต่ละลำดับ (คำลำดับที่ 1 ถึง 13)</div>
-                        <div class="grid grid-cols-2 gap-3">
-                            ${['21.1', '21.2'].map(subQ => `
-                                <div class="border border-black p-1.5">
-                                    <div class="text-xs font-bold text-center border-b border-black pb-0.5 mb-1">ข้อ ${subQ}</div>
-                                    <div class="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[10px]">
-                                        ${Array.from({ length: 13 }, (_, idx) => idx + 1).map(orderNum => `
-                                            <div class="flex items-center justify-between">
-                                                <span>คำลำดับที่ ${orderNum}</span>
-                                                <span class="omr-bubble" style="width:15px;height:15px;font-size:9px;">${orderNum}</span>
-                                            </div>
-                                        `).join('')}
-                                    </div>
-                                </div>
-                            `).join('')}
+                // วาด ตอนที่ 2 ของภาษาไทย (ข้อ 21.1 และ 21.2) ด้วยพิกัด (u, v) เดียวกับตัวสแกนมือถือ
+                let thaiPart2Bubbles = '';
+                ['21.1', '21.2'].forEach((subQ, boxIdx) => {
+                    const boxLeftPct = boxIdx === 0 ? '4.5%' : '52.5%';
+                    thaiPart2Bubbles += `
+                        <div style="position:absolute; left:${boxLeftPct}; top:61.5%; width:43%; height:28.5%; border:1.5px solid #000; padding:6px;">
+                            <div class="text-xs font-bold text-center border-b border-black pb-0.5">ข้อ ${subQ} (ระบายคำลำดับที่ 1 - 13)</div>
                         </div>
+                    `;
+                    for (let ord = 1; ord <= 13; ord++) {
+                        const ordMeta = canonicalMap.part2ThaiBubbles[subQ][ord];
+                        const topPct = (ordMeta.v * 100).toFixed(3);
+                        const lblPct = (ordMeta.labelU * 100).toFixed(3);
+                        const uPct = (ordMeta.u * 100).toFixed(3);
+                        thaiPart2Bubbles += `
+                            <div style="position:absolute; left:${lblPct}%; top:${topPct}%; transform:translateY(-50%); font-size:10px; font-weight:600;">ลำดับที่ ${ord}</div>
+                            <span class="omr-bubble" style="position:absolute; left:${uPct}%; top:${topPct}%; transform:translate(-50%, -50%); width:16px; height:16px; font-size:9px;">${ord}</span>
+                        `;
+                    }
+                });
+                extraPartHtml = `
+                    <div style="position:absolute; left:3.5%; top:57.5%; right:3.5%; font-size:11px; font-weight:700;">
+                        ตอนที่ 2 : แบบเรียงลำดับ จำนวน 1 ข้อ (ข้อ 21.1 และ 21.2) — ระบาย 1 คำตอบที่ถูกที่สุดในแต่ละลำดับ
                     </div>
+                    ${thaiPart2Bubbles}
                 `;
             }
 
