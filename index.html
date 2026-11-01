@@ -155,7 +155,7 @@
             min-height: 297mm;
             background: white;
             margin: 0 auto;
-            padding: 14mm;
+            padding: 15mm 16mm;
             position: relative;
             box-sizing: border-box;
             box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.12), 0 0 1px 1px rgba(15, 23, 42, 0.05);
@@ -163,20 +163,44 @@
             color: #000;
         }
 
-        /* 4 Corner Fiducial Markers */
+        /* 4 Corner Fiducial Markers (วางชิดขอบนอกกระดาษ A4 ไม่ให้ทับเนื้อหาด้านใน) */
         .fiducial-marker {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             background-color: #000000 !important;
             position: absolute;
+            z-index: 30;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .marker-tl { top: 6mm; left: 6mm; }
+        .marker-tr { top: 6mm; right: 6mm; }
+        .marker-bl { bottom: 6mm; left: 6mm; }
+        .marker-br { bottom: 6mm; right: 6mm; }
+
+        /* 2. จุดอ้างอิงด้านข้าง (Side Timing Marks) กำกับแนวบรรทัดซ้าย-ขวา นอกกรอบตาราง */
+        .side-timing-mark {
+            width: 12px;
+            height: 5px;
+            background-color: #000000 !important;
+            position: absolute;
+            transform: translate(-50%, -50%);
             z-index: 20;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
         }
-        .marker-tl { top: 8mm; left: 8mm; }
-        .marker-tr { top: 8mm; right: 8mm; }
-        .marker-bl { bottom: 8mm; left: 8mm; }
-        .marker-br { bottom: 8mm; right: 8mm; }
+
+        /* 3. จุดอ้างอิงภายใน (Internal Reference Marks) วางในช่องว่างนอกกรอบตาราง ไม่ทับข้อความ */
+        .internal-ref-mark {
+            width: 7px;
+            height: 7px;
+            background-color: #000000 !important;
+            position: absolute;
+            transform: translate(-50%, -50%);
+            z-index: 20;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
 
         /* Mid-Sheet & Column Timing / Alignment Markers (ตามแบบมาตรฐาน OMR) */
         .fiducial-mid-left {
@@ -2204,17 +2228,110 @@
         /* --------------------------------------------------------------------------
            6. OMR CAMERA, 4-CORNER REGISTRATION, PERSPECTIVE WARP & PIN DRAGGING
         -------------------------------------------------------------------------- */
-        function mapNormalizedUVToSheetXY(corners, u, v) {
-            const tl = corners[0];
-            const tr = corners[1];
-            const bl = corners[2];
-            const br = corners[3];
+        // แปลงภาพจาก <video> ที่ใช้ object-cover ให้ตรงกับสัดส่วนที่แสดงผลจริงบนหน้าจอมือถือ 1:1
+        function drawVideoVisibleViewportToCanvas(video, outCanvas, targetWidth = 1000) {
+            const vw = video.videoWidth || 1280;
+            const vh = video.videoHeight || 960;
+            const rect = video.getBoundingClientRect();
+            const boxW = rect.width || 360;
+            const boxH = rect.height || 510;
 
+            const videoRatio = vw / vh;
+            const boxRatio = boxW / boxH;
+
+            let sx = 0, sy = 0, sw = vw, sh = vh;
+            if (videoRatio > boxRatio) {
+                sw = Math.round(vh * boxRatio);
+                sx = Math.round((vw - sw) / 2);
+            } else {
+                sh = Math.round(vw / boxRatio);
+                sy = Math.round((vh - sh) / 2);
+            }
+
+            const targetHeight = Math.round(targetWidth / boxRatio);
+            outCanvas.width = targetWidth;
+            outCanvas.height = targetHeight;
+            const ctx = outCanvas.getContext('2d', { willReadFrequently: true });
+            ctx.drawImage(video, sx, sy, sw, sh, 0, 0, targetWidth, targetHeight);
+            return outCanvas;
+        }
+
+        // คำนวณเมทริกซ์ Projective Homography 3x3 (8-DOF) สำหรับแปลงพิกัด (u, v) ใน [0,1]x[0,1] ไปยังพิกัดภาพจริง (x, y)
+        function computeHomographyFromUnitSquare(corners) {
+            const [tl, tr, bl, br] = corners;
+            const src = [
+                [0, 0],
+                [1, 0],
+                [0, 1],
+                [1, 1]
+            ];
+            const dst = [
+                [tl.cx, tl.cy],
+                [tr.cx, tr.cy],
+                [bl.cx, bl.cy],
+                [br.cx, br.cy]
+            ];
+
+            const A = [];
+            const B = [];
+            for (let i = 0; i < 4; i++) {
+                const [u, v] = src[i];
+                const [x, y] = dst[i];
+                A.push([u, v, 1, 0, 0, 0, -u * x, -v * x]);
+                B.push(x);
+                A.push([0, 0, 0, u, v, 1, -u * y, -v * y]);
+                B.push(y);
+            }
+
+            // แก้ระบบสมการเชิงเส้น 8 ตัวแปรด้วย Gaussian Elimination
+            const n = 8;
+            for (let i = 0; i < n; i++) {
+                let maxRow = i;
+                for (let k = i + 1; k < n; k++) {
+                    if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+                }
+                [A[i], A[maxRow]] = [A[maxRow], A[i]];
+                [B[i], B[maxRow]] = [B[maxRow], B[i]];
+
+                const pivot = A[i][i];
+                if (Math.abs(pivot) < 1e-10) return null;
+
+                for (let j = i; j < n; j++) A[i][j] /= pivot;
+                B[i] /= pivot;
+
+                for (let k = 0; k < n; k++) {
+                    if (k === i) continue;
+                    const factor = A[k][i];
+                    for (let j = i; j < n; j++) A[k][j] -= factor * A[i][j];
+                    B[k] -= factor * B[i];
+                }
+            }
+
+            return [
+                B[0], B[1], B[2],
+                B[3], B[4], B[5],
+                B[6], B[7], 1
+            ];
+        }
+
+        function mapNormalizedUVToSheetXY(corners, u, v) {
+            if (!corners || corners.length < 4) return { x: 0, y: 0 };
+            const H = corners._homography || computeHomographyFromUnitSquare(corners);
+            if (H) {
+                corners._homography = H;
+                const denom = H[6] * u + H[7] * v + H[8];
+                if (Math.abs(denom) > 1e-7) {
+                    return {
+                        x: Math.round((H[0] * u + H[1] * v + H[2]) / denom),
+                        y: Math.round((H[3] * u + H[4] * v + H[5]) / denom)
+                    };
+                }
+            }
+            const [tl, tr, bl, br] = corners;
             const topX = tl.cx + (tr.cx - tl.cx) * u;
             const topY = tl.cy + (tr.cy - tl.cy) * u;
             const botX = bl.cx + (br.cx - bl.cx) * u;
             const botY = bl.cy + (br.cy - bl.cy) * u;
-
             return {
                 x: Math.round(topX + (botX - topX) * v),
                 y: Math.round(topY + (botY - topY) * v)
@@ -2266,7 +2383,8 @@
             return Math.max(0, outerAvg - innerAvg);
         }
 
-        function detectFourFiducialCorners(ctx, width, height) {
+        // 1. ตรวจจับจุดมุม 4 จุด (4 Corner Registration Marks) ภายในกรอบเล็งของหน้าจอโดยตรง + หาจุดศูนย์กลางมวลของสี่เหลี่ยมดำ
+        function detectFourFiducialCorners(ctx, width, height, strictViewfinderROI = true) {
             const imgData = ctx.getImageData(0, 0, width, height).data;
             const getLum = (x, y) => {
                 const ix = Math.min(width - 1, Math.max(0, Math.round(x)));
@@ -2275,17 +2393,17 @@
                 return 0.299 * imgData[i] + 0.587 * imgData[i + 1] + 0.114 * imgData[i + 2];
             };
 
-            const searchQuadrant = (xStart, xEnd, yStart, yEnd, targetCornerX, targetCornerY) => {
-                const step = Math.max(2, Math.floor(Math.min(width, height) / 180));
-                const patchR = Math.max(4, Math.floor(Math.min(width, height) * 0.012));
-                const ringR = Math.round(patchR * 2.2);
+            const searchCornerROI = (xStart, xEnd, yStart, yEnd, expectedX, expectedY, inwardDirX, inwardDirY) => {
+                const step = Math.max(2, Math.floor(Math.min(width, height) / 220));
+                const patchR = Math.max(4, Math.floor(Math.min(width, height) * 0.011));
+                const ringR = Math.round(patchR * 2.3);
                 let bestCandidate = null;
                 let bestScore = -1e9;
 
                 for (let y = yStart; y <= yEnd; y += step) {
                     for (let x = xStart; x <= xEnd; x += step) {
                         const centerLum = getLum(x, y);
-                        if (centerLum > 125) continue;
+                        if (centerLum > 120) continue;
 
                         let innerSum = 0, innerCnt = 0;
                         for (let dy = -patchR; dy <= patchR; dy += step) {
@@ -2295,42 +2413,86 @@
                             }
                         }
                         const innerAvg = innerSum / Math.max(1, innerCnt);
-                        if (innerAvg > 115) continue;
+                        if (innerAvg > 110) continue;
 
-                        // ตรวจสอบว่าล้อมรอบด้วยพื้นกระดาษสีขาว
+                        // ตรวจสอบพื้นกระดาษสีขาวล้อมรอบทั้ง 4 ทิศ และฝั่งด้านในกระดาษต้องสว่างเป็นสีขาวชัดเจน
                         const surroundPts = [
                             [x - ringR, y], [x + ringR, y],
-                            [x, y - ringR], [x, y + ringR]
+                            [x, y - ringR], [x, y + ringR],
+                            [x + inwardDirX * ringR * 1.4, y + inwardDirY * ringR * 1.4]
                         ];
                         let whiteCnt = 0;
                         let outerSum = 0;
                         surroundPts.forEach(([sx, sy]) => {
                             const l = getLum(sx, sy);
                             outerSum += l;
-                            if (l > innerAvg + 35) whiteCnt++;
+                            if (l > innerAvg + 38 && l > 130) whiteCnt++;
                         });
-                        if (whiteCnt < 3) continue;
+                        if (whiteCnt < 4) continue;
 
-                        const contrast = (outerSum / 4) - innerAvg;
-                        const distToCorner = Math.hypot(x - targetCornerX, y - targetCornerY);
-                        const score = contrast * 2.2 - (distToCorner * 0.15);
+                        const inwardPaperLum = getLum(x + inwardDirX * ringR * 1.8, y + inwardDirY * ringR * 1.8);
+                        if (inwardPaperLum < 135) continue;
+
+                        const contrast = (outerSum / surroundPts.length) - innerAvg;
+                        // อ้างอิงระยะห่างจากกึ่งกลางกรอบเล็งบนหน้าจอ (ไม่ใช่ขอบภาพ 0,0) เพื่อป้องกันหมุดลอยออกนอกกระดาษ
+                        const distToExpected = Math.hypot(x - expectedX, y - expectedY);
+                        const score = contrast * 2.6 - (distToExpected * 0.35);
                         if (score > bestScore) {
                             bestScore = score;
-                            bestCandidate = { cx: x, cy: y };
+                            bestCandidate = { cx: x, cy: y, contrast };
                         }
+                    }
+                }
+
+                // ปรับจุดศูนย์กลางให้ตรงกึ่งกลางสี่เหลี่ยมสีดำ (Centroid Refinement)
+                if (bestCandidate) {
+                    const refineR = Math.round(patchR * 1.8);
+                    let sumWX = 0, sumWY = 0, sumW = 0;
+                    for (let dy = -refineR; dy <= refineR; dy++) {
+                        for (let dx = -refineR; dx <= refineR; dx++) {
+                            const px = bestCandidate.cx + dx;
+                            const py = bestCandidate.cy + dy;
+                            const l = getLum(px, py);
+                            if (l < 115) {
+                                const w = 130 - l;
+                                sumWX += px * w;
+                                sumWY += py * w;
+                                sumW += w;
+                            }
+                        }
+                    }
+                    if (sumW > 0) {
+                        bestCandidate.cx = Math.round(sumWX / sumW);
+                        bestCandidate.cy = Math.round(sumWY / sumW);
                     }
                 }
                 return bestCandidate;
             };
 
-            const tl = searchQuadrant(Math.round(width * 0.02), Math.round(width * 0.38), Math.round(height * 0.02), Math.round(height * 0.38), 0, 0)
-                || { cx: Math.round(width * 0.06), cy: Math.round(height * 0.05) };
-            const tr = searchQuadrant(Math.round(width * 0.62), Math.round(width * 0.98), Math.round(height * 0.02), Math.round(height * 0.38), width, 0)
-                || { cx: Math.round(width * 0.94), cy: Math.round(height * 0.05) };
-            const bl = searchQuadrant(Math.round(width * 0.02), Math.round(width * 0.38), Math.round(height * 0.62), Math.round(height * 0.98), 0, height)
-                || { cx: Math.round(width * 0.06), cy: Math.round(height * 0.95) };
-            const br = searchQuadrant(Math.round(width * 0.62), Math.round(width * 0.98), Math.round(height * 0.62), Math.round(height * 0.98), width, height)
-                || { cx: Math.round(width * 0.94), cy: Math.round(height * 0.95) };
+            // พิกัดกรอบเล็งทั้ง 4 มุมบนหน้าจอ: top-[13%] left-[5%], top-[13%] right-[5%], bottom-[5%] left-[5%], bottom-[5%] right-[5%]
+            const tl = searchCornerROI(
+                Math.round(width * 0.02), Math.round(width * 0.34),
+                Math.round(height * (strictViewfinderROI ? 0.09 : 0.02)), Math.round(height * 0.34),
+                Math.round(width * 0.14), Math.round(height * 0.18), 1, 1
+            ) || { cx: Math.round(width * 0.14), cy: Math.round(height * 0.18) };
+
+            const tr = searchCornerROI(
+                Math.round(width * 0.66), Math.round(width * 0.98),
+                Math.round(height * (strictViewfinderROI ? 0.09 : 0.02)), Math.round(height * 0.34),
+                Math.round(width * 0.86), Math.round(height * 0.18), -1, 1
+            ) || { cx: Math.round(width * 0.86), cy: Math.round(height * 0.18) };
+
+            const bl = searchCornerROI(
+                Math.round(width * 0.02), Math.round(width * 0.34),
+                Math.round(height * 0.68), Math.round(height * 0.98),
+                Math.round(width * 0.14), Math.round(height * 0.89), 1, -1
+            ) || { cx: Math.round(width * 0.14), cy: Math.round(height * 0.89) };
+
+            const br = searchCornerROI(
+                Math.round(width * 0.66), Math.round(width * 0.98),
+                Math.round(height * 0.68), Math.round(height * 0.98),
+                Math.round(width * 0.86), Math.round(height * 0.89), -1, -1
+            ) || { cx: Math.round(width * 0.86), cy: Math.round(height * 0.89) };
 
             return [tl, tr, bl, br];
         }
@@ -2346,6 +2508,7 @@
             return { angleDeg, skewRatio, isTilted: Math.abs(angleDeg) > 1.5 || Math.abs(1 - skewRatio) > 0.06 };
         }
 
+        // แปลงภาพด้วย Projective Homography จากจุดมุม 4 จุด (TL, TR, BL, BR) ให้เป็นสี่เหลี่ยมผืนผ้ามองจากด้านบน (Top-Down)
         function warpPerspectiveToTopDownCanvas(sourceCanvas, corners, targetW = 1000, targetH = 1414) {
             const outCanvas = document.createElement('canvas');
             outCanvas.width = targetW;
@@ -2364,19 +2527,26 @@
             const spanU = 1 - 2 * marginU;
             const spanV = 1 - 2 * marginV;
 
+            const H = computeHomographyFromUnitSquare(corners);
             const [tl, tr, bl, br] = corners;
 
             for (let y = 0; y < targetH; y++) {
                 const v = ((y / targetH) - marginV) / spanV;
                 for (let x = 0; x < targetW; x++) {
                     const u = ((x / targetW) - marginU) / spanU;
-                    const topX = tl.cx + (tr.cx - tl.cx) * u;
-                    const topY = tl.cy + (tr.cy - tl.cy) * u;
-                    const botX = bl.cx + (br.cx - bl.cx) * u;
-                    const botY = bl.cy + (br.cy - bl.cy) * u;
-
-                    const sx = Math.min(sw - 1, Math.max(0, Math.round(topX + (botX - topX) * v)));
-                    const sy = Math.min(sh - 1, Math.max(0, Math.round(topY + (botY - topY) * v)));
+                    let sx, sy;
+                    if (H) {
+                        const denom = H[6] * u + H[7] * v + H[8];
+                        sx = Math.min(sw - 1, Math.max(0, Math.round((H[0] * u + H[1] * v + H[2]) / denom)));
+                        sy = Math.min(sh - 1, Math.max(0, Math.round((H[3] * u + H[4] * v + H[5]) / denom)));
+                    } else {
+                        const topX = tl.cx + (tr.cx - tl.cx) * u;
+                        const topY = tl.cy + (tr.cy - tl.cy) * u;
+                        const botX = bl.cx + (br.cx - bl.cx) * u;
+                        const botY = bl.cy + (br.cy - bl.cy) * u;
+                        sx = Math.min(sw - 1, Math.max(0, Math.round(topX + (botX - topX) * v)));
+                        sy = Math.min(sh - 1, Math.max(0, Math.round(topY + (botY - topY) * v)));
+                    }
 
                     const srcIdx = (sy * sw + sx) * 4;
                     const dstIdx = (y * targetW + x) * 4;
@@ -2479,7 +2649,7 @@
         let autoAnalysisOffscreenCanvas = null;
 
         function evaluateFourCornersAlignmentQuality(ctx, width, height) {
-            const corners = detectFourFiducialCorners(ctx, width, height);
+            const corners = detectFourFiducialCorners(ctx, width, height, true);
             if (!corners || corners.length < 4) return { isAligned: false, matchedCount: 0, corners: null };
 
             const [tl, tr, bl, br] = corners;
@@ -2489,12 +2659,11 @@
                 return drop >= 24;
             };
 
-            // ปรับโซนตรวจจับมุมบนและมุมล่างให้ห่างกันตามสัดส่วนความสูงของกระดาษ A4
-            // มุมบน (TL, TR) อยู่โซนบน (y < 0.36) และมุมล่าง (BL, BR) อยู่โซนล่าง (y > 0.64)
-            const cTL = checkCornerContrast(tl) && tl.cx < width * 0.38 && tl.cy < height * 0.36;
-            const cTR = checkCornerContrast(tr) && tr.cx > width * 0.62 && tr.cy < height * 0.36;
-            const cBL = checkCornerContrast(bl) && bl.cx < width * 0.38 && bl.cy > height * 0.64;
-            const cBR = checkCornerContrast(br) && br.cx > width * 0.62 && br.cy > height * 0.64;
+            // ตรวจสอบว่าจุดสี่เหลี่ยมดำทั้ง 4 มุมอยู่ในกรอบเล็งทั้ง 4 มุมบนหน้าจอมือถือจริง (ป้องกันการจับขอบโต๊ะด้านบนสุดของจอ)
+            const cTL = checkCornerContrast(tl) && tl.cx >= width * 0.02 && tl.cx <= width * 0.34 && tl.cy >= height * 0.09 && tl.cy <= height * 0.34;
+            const cTR = checkCornerContrast(tr) && tr.cx >= width * 0.66 && tr.cx <= width * 0.98 && tr.cy >= height * 0.09 && tr.cy <= height * 0.34;
+            const cBL = checkCornerContrast(bl) && bl.cx >= width * 0.02 && bl.cx <= width * 0.34 && bl.cy >= height * 0.68 && bl.cy <= height * 0.98;
+            const cBR = checkCornerContrast(br) && br.cx >= width * 0.66 && br.cx <= width * 0.98 && br.cy >= height * 0.68 && br.cy <= height * 0.98;
 
             const flags = [cTL, cTR, cBL, cBR];
             const matchedCount = flags.filter(Boolean).length;
@@ -2506,12 +2675,12 @@
             const rightH = Math.hypot(br.cx - tr.cx, br.cy - tr.cy);
 
             const geometryValid =
-                topW > width * 0.40 &&
-                botW > width * 0.40 &&
-                leftH > height * 0.52 &&
-                rightH > height * 0.52 &&
-                leftH > topW * 1.05 &&
-                Math.abs(topW - botW) / Math.max(topW, botW) < 0.28;
+                topW > width * 0.42 &&
+                botW > width * 0.42 &&
+                leftH > height * 0.50 &&
+                rightH > height * 0.50 &&
+                leftH > topW * 1.02 &&
+                Math.abs(topW - botW) / Math.max(topW, botW) < 0.26;
 
             return {
                 isAligned: matchedCount === 4 && geometryValid,
@@ -2559,12 +2728,11 @@
                 if (!autoAnalysisOffscreenCanvas) {
                     autoAnalysisOffscreenCanvas = document.createElement('canvas');
                 }
-                const sampleW = 480;
-                const sampleH = Math.round((video.videoHeight / video.videoWidth) * sampleW) || 640;
-                autoAnalysisOffscreenCanvas.width = sampleW;
-                autoAnalysisOffscreenCanvas.height = sampleH;
+                // ตัดภาพตามสัดส่วนหน้าจอมือถือจริง (Viewport-Matched) เพื่อให้กรอบเล็งตรงกับพิกเซลที่ตรวจ 100%
+                drawVideoVisibleViewportToCanvas(video, autoAnalysisOffscreenCanvas, 480);
+                const sampleW = autoAnalysisOffscreenCanvas.width;
+                const sampleH = autoAnalysisOffscreenCanvas.height;
                 const sCtx = autoAnalysisOffscreenCanvas.getContext('2d', { willReadFrequently: true });
-                sCtx.drawImage(video, 0, 0, sampleW, sampleH);
 
                 const check = evaluateFourCornersAlignmentQuality(sCtx, sampleW, sampleH);
                 const statusEl = document.getElementById('scanner-status-text');
@@ -2677,14 +2845,10 @@
         function captureLiveFrameAndGrade() {
             const video = document.getElementById('scanner-video');
             if (!video || !video.videoWidth) return;
-            const rawW = video.videoWidth;
-            const rawH = video.videoHeight;
 
             const offCanvas = document.createElement('canvas');
-            offCanvas.width = rawW;
-            offCanvas.height = rawH;
-            const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-            offCtx.drawImage(video, 0, 0, rawW, rawH);
+            // ดึงภาพจากกล้องตามกรอบหน้าจอจริงที่ตาเห็น (Viewport-Matched Resolution)
+            drawVideoVisibleViewportToCanvas(video, offCanvas, 1200);
 
             stopMobileCameraStream();
             processCapturedSheetCanvas(offCanvas);
@@ -2832,10 +2996,12 @@
         }
 
         /* --------------------------------------------------------------------------
-           ตารางพิกัดมาตรฐานชุดเดียวกัน (Unified Canonical UV Coordinate System)
-           ใช้กำหนดตำแหน่งวงกลมทั้งบน "กระดาษคำตอบ A4 ตอนพิมพ์" และ "ตอนสแกนด้วยมือถือ" ให้ตรงกัน 100%
-           โดยวัดสัดส่วน (u, v ระหว่าง 0.000 - 1.000) อ้างอิงจากจุดศูนย์กลางสี่เหลี่ยมดำ 4 มุมหลักของกระดาษ (TL, TR, BL, BR)
-           (ไม่มีสี่เหลี่ยมสีดำในตารางตอนที่ 1 เพื่อป้องกันระบบสแกนไปตรวจโดนสี่เหลี่ยมในตาราง)
+           ตารางพิกัดมาตรฐาน 4 ระดับ (4-Tier OMR Registration & Coordinate System)
+           ออกแบบเฉพาะสำหรับแต่ละรายวิชา (65 วิทย์, 64 คณิต, 63 อังกฤษ, 61 ไทย) และแต่ละตอน:
+           1. จุดมุม 4 จุด (cornerMarks): ใช้คำนวณ Perspective Transformation (Homography)
+           2. จุดอ้างอิงด้านข้าง (sideMarks): วางขนาบซ้าย-ขวาของทุกบรรทัดในตอนที่ 1 และตอนที่ 2 เพื่อล็อกแกน Y รายแถวและตรวจความครบถ้วนของฟอร์ม
+           3. จุดอ้างอิงภายใน (internalMarks): วางกำกับมุมกรอบแต่ละคอลัมน์ในตอนที่ 1 และแต่ละกล่องของตอนที่ 2 เพื่อปรับเทียบแกน X, Y ภายในฟอร์ม
+           4. วงกลม (bubbles): พิกัดวงกลมคำตอบที่อ้างอิงจากจุดตัดของจุดอ้างอิงด้านข้างและจุดอ้างอิงภายใน
         -------------------------------------------------------------------------- */
         function getCanonicalSubjectBubbleUVMap(subjectCode) {
             const sub = String(subjectCode || '65');
@@ -2843,8 +3009,16 @@
             const cols = sub === '63' ? 4 : 3;
             const rowsPerCol = Math.ceil(spec.part1.count / cols);
 
-            const gridBoxTopV = 0.275;
-            const gridBoxBottomV = sub === '65' ? 0.545 : (sub === '64' ? 0.465 : (sub === '61' ? 0.555 : 0.625));
+            // 1. จุดมุม 4 จุดหลักของกระดาษ (Corner Marks)
+            const cornerMarks = [
+                { id: 'TL', u: 0.000, v: 0.000 },
+                { id: 'TR', u: 1.000, v: 0.000 },
+                { id: 'BL', u: 0.000, v: 1.000 },
+                { id: 'BR', u: 1.000, v: 1.000 }
+            ];
+
+            const gridBoxTopV = 0.285;
+            const gridBoxBottomV = sub === '65' ? 0.545 : (sub === '64' ? 0.455 : (sub === '61' ? 0.555 : 0.640));
             const firstRowV = gridBoxTopV + 0.052;
             const lastRowV = gridBoxBottomV - 0.032;
             const rowStepV = rowsPerCol > 1 ? (lastRowV - firstRowV) / (rowsPerCol - 1) : 0;
@@ -2862,6 +3036,38 @@
                 choiceStepU = 0.036;
             }
 
+            // 2. จุดอ้างอิงด้านข้าง (Side Timing Marks) กำกับทุกแถวของ ตอนที่ 1 และ ตอนที่ 2 (วางชิดขอบนอกซ้าย-ขวา ไม่ทับตาราง)
+            const sideMarks = [];
+            for (let r = 0; r < rowsPerCol; r++) {
+                const vRow = Number((firstRowV + r * rowStepV).toFixed(4));
+                sideMarks.push({ id: `P1_R${r + 1}_L`, section: 'part1', rowIdx: r, side: 'L', u: -0.008, v: vRow });
+                sideMarks.push({ id: `P1_R${r + 1}_R`, section: 'part1', rowIdx: r, side: 'R', u: 1.008, v: vRow });
+            }
+
+            // 3. จุดอ้างอิงภายใน (Internal Reference Marks) กำกับแต่ละคอลัมน์ใน ตอนที่ 1 (วางในพื้นที่ว่างเหนือและใต้กรอบตาราง ไม่ทับเส้นหรือตัวหนังสือ)
+            const internalMarks = [];
+            for (let c = 0; c < cols; c++) {
+                const colLeftU = Number((colStartU + c * (colWidthU + 0.012)).toFixed(4));
+                const colRightU = Number((colLeftU + colWidthU).toFixed(4));
+                internalMarks.push({
+                    id: `P1_C${c + 1}_TL`,
+                    section: 'part1',
+                    colIdx: c,
+                    pos: 'top',
+                    u: Number((colLeftU + 0.008).toFixed(4)),
+                    v: Number((gridBoxTopV - 0.008).toFixed(4))
+                });
+                internalMarks.push({
+                    id: `P1_C${c + 1}_BR`,
+                    section: 'part1',
+                    colIdx: c,
+                    pos: 'bottom',
+                    u: Number((colRightU - 0.008).toFixed(4)),
+                    v: Number((gridBoxBottomV + 0.008).toFixed(4))
+                });
+            }
+
+            // 4. วงกลมคำตอบ ตอนที่ 1 (Part 1 Bubbles)
             const part1Bubbles = {};
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
                 const colIdx = Math.floor((q - 1) / rowsPerCol);
@@ -2880,15 +3086,40 @@
                 part1Bubbles[q] = { q, colIdx, rowIdx, labelU, v, choices };
             }
 
-            // พิกัดตอนที่ 2 สำหรับวิทยาศาสตร์ (ข้อ 19.1-19.3 และ 20.1-20.3)
+            // พิกัด ตอนที่ 2 พร้อมจุดอ้างอิงด้านข้าง (Side Marks) และจุดอ้างอิงภายใน (Internal Marks) แยกตามรายวิชา
             const part2SciBubbles = {};
             if (sub === '65') {
+                // วิทยาศาสตร์ (รหัส 65): ตอนที่ 2 ข้อ 19.1-19.3 และ 20.1-20.3
+                ['1', '2', '3'].forEach((subIdx, rIdx) => {
+                    const rowV = Number((0.680 + rIdx * 0.044).toFixed(4));
+                    sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_L`, section: 'part2', rowIdx: rIdx, side: 'L', u: -0.008, v: rowV });
+                    sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_R`, section: 'part2', rowIdx: rIdx, side: 'R', u: 1.008, v: rowV });
+                });
+
                 ['19', '20'].forEach((qNo, boxIdx) => {
                     const baseU = boxIdx === 0 ? 0.045 : 0.525;
+                    internalMarks.push({
+                        id: `P2_SCI_${qNo}_TL`,
+                        section: 'part2',
+                        boxKey: qNo,
+                        pos: 'top',
+                        u: Number((baseU + 0.008).toFixed(4)),
+                        v: 0.607
+                    });
+                    internalMarks.push({
+                        id: `P2_SCI_${qNo}_BR`,
+                        section: 'part2',
+                        boxKey: qNo,
+                        pos: 'bottom',
+                        u: Number((baseU + 0.422).toFixed(4)),
+                        v: 0.798
+                    });
+
                     part2SciBubbles[qNo] = {};
                     ['1', '2', '3'].forEach((subIdx, rIdx) => {
                         const rowV = Number((0.680 + rIdx * 0.044).toFixed(4));
                         part2SciBubbles[qNo][subIdx] = {
+                            rowIdx: rIdx,
                             labelU: Number((baseU + 0.030).toFixed(4)),
                             v: rowV,
                             choices: {
@@ -2900,11 +3131,83 @@
                 });
             }
 
-            // พิกัดตอนที่ 2 สำหรับภาษาไทย (ข้อ 21.1 และ 21.2 เรียงลำดับ 1 - 13)
+            // คณิตศาสตร์ (รหัส 64): ตอนที่ 2 ระบายตัวเลข 3 หลัก (ข้อ 12 - 15) วางในครึ่งล่างของแผ่นที่ 1 พร้อมจุดอ้างอิงด้านข้างและภายใน
+            const part2MathBubbles = {};
+            if (sub === '64') {
+                for (let digit = 0; digit <= 9; digit++) {
+                    const vDigit = Number((0.605 + digit * 0.032).toFixed(4));
+                    sideMarks.push({ id: `P2_MATH_D${digit}_L`, section: 'part2', rowIdx: digit, side: 'L', u: -0.008, v: vDigit });
+                    sideMarks.push({ id: `P2_MATH_D${digit}_R`, section: 'part2', rowIdx: digit, side: 'R', u: 1.008, v: vDigit });
+                }
+
+                ['12', '13', '14', '15'].forEach((qNo, boxIdx) => {
+                    const boxLeftU = Number((0.035 + boxIdx * 0.238).toFixed(4));
+                    const boxWidthU = 0.222;
+                    internalMarks.push({
+                        id: `P2_MATH_${qNo}_TL`,
+                        section: 'part2',
+                        boxKey: qNo,
+                        pos: 'top',
+                        u: Number((boxLeftU + 0.008).toFixed(4)),
+                        v: 0.517
+                    });
+                    internalMarks.push({
+                        id: `P2_MATH_${qNo}_BR`,
+                        section: 'part2',
+                        boxKey: qNo,
+                        pos: 'bottom',
+                        u: Number((boxLeftU + boxWidthU - 0.008).toFixed(4)),
+                        v: 0.928
+                    });
+
+                    part2MathBubbles[qNo] = {
+                        boxLeftU,
+                        boxWidthU,
+                        digits: {}
+                    };
+                    for (let digit = 0; digit <= 9; digit++) {
+                        const vDigit = Number((0.605 + digit * 0.032).toFixed(4));
+                        part2MathBubbles[qNo].digits[digit] = {
+                            rowIdx: digit,
+                            v: vDigit,
+                            places: {
+                                0: { u: Number((boxLeftU + 0.065).toFixed(4)), v: vDigit }, // หลักร้อย
+                                1: { u: Number((boxLeftU + 0.125).toFixed(4)), v: vDigit }, // หลักสิบ
+                                2: { u: Number((boxLeftU + 0.185).toFixed(4)), v: vDigit }  // หลักหน่วย
+                            }
+                        };
+                    }
+                });
+            }
+
+            // ภาษาไทย (รหัส 61): ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 และ 21.2 ลำดับที่ 1 - 13)
             const part2ThaiBubbles = {};
             if (sub === '61') {
+                for (let rIdx = 0; rIdx < 7; rIdx++) {
+                    const vRow = Number((0.665 + rIdx * 0.033).toFixed(4));
+                    sideMarks.push({ id: `P2_THAI_R${rIdx + 1}_L`, section: 'part2', rowIdx: rIdx, side: 'L', u: -0.008, v: vRow });
+                    sideMarks.push({ id: `P2_THAI_R${rIdx + 1}_R`, section: 'part2', rowIdx: rIdx, side: 'R', u: 1.008, v: vRow });
+                }
+
                 ['21.1', '21.2'].forEach((subQ, boxIdx) => {
                     const boxBaseU = boxIdx === 0 ? 0.045 : 0.525;
+                    internalMarks.push({
+                        id: `P2_THAI_${subQ}_TL`,
+                        section: 'part2',
+                        boxKey: subQ,
+                        pos: 'top',
+                        u: Number((boxBaseU + 0.008).toFixed(4)),
+                        v: 0.607
+                    });
+                    internalMarks.push({
+                        id: `P2_THAI_${subQ}_BR`,
+                        section: 'part2',
+                        boxKey: subQ,
+                        pos: 'bottom',
+                        u: Number((boxBaseU + 0.422).toFixed(4)),
+                        v: 0.908
+                    });
+
                     part2ThaiBubbles[subQ] = {};
                     for (let ord = 1; ord <= 13; ord++) {
                         const subCol = ord <= 7 ? 0 : 1;
@@ -2913,6 +3216,7 @@
                         const uLabel = Number((boxBaseU + (subCol === 0 ? 0.022 : 0.232)).toFixed(4));
                         const vRow = Number((0.665 + subRow * 0.033).toFixed(4));
                         part2ThaiBubbles[subQ][ord] = {
+                            rowIdx: subRow,
                             labelU: uLabel,
                             u: uBubble,
                             v: vRow
@@ -2928,9 +3232,136 @@
                 gridBoxBottomV,
                 firstRowV,
                 lastRowV,
+                cornerMarks,
+                sideMarks,
+                internalMarks,
                 part1Bubbles,
                 part2SciBubbles,
+                part2MathBubbles,
                 part2ThaiBubbles
+            };
+        }
+
+        // ฟังก์ชันตรวจจับจุดอ้างอิงด้านข้าง (Side Marks) และจุดอ้างอิงภายใน (Internal Marks) เพื่อล็อกพิกัดแถวและคอลัมน์
+        function calibrateWithSideAndInternalMarks(sourceCtx, displayCtx, safeCorners, canonicalMap, dotScale) {
+            const searchLocalDarkMark = (expectedPt, searchRadiusPx, markRadiusPx) => {
+                let bestPt = expectedPt;
+                let bestDrop = sampleBubbleDarknessContrast(sourceCtx, expectedPt.x, expectedPt.y, markRadiusPx);
+                const step = Math.max(1, Math.round(dotScale * 1.5));
+
+                for (let dy = -searchRadiusPx; dy <= searchRadiusPx; dy += step) {
+                    for (let dx = -searchRadiusPx; dx <= searchRadiusPx; dx += step) {
+                        const d = sampleBubbleDarknessContrast(sourceCtx, expectedPt.x + dx, expectedPt.y + dy, markRadiusPx);
+                        if (d > bestDrop) {
+                            bestDrop = d;
+                            bestPt = { x: expectedPt.x + dx, y: expectedPt.y + dy };
+                        }
+                    }
+                }
+                return {
+                    found: bestDrop >= 18,
+                    x: bestPt.x,
+                    y: bestPt.y,
+                    dx: bestPt.x - expectedPt.x,
+                    dy: bestPt.y - expectedPt.y,
+                    contrast: bestDrop
+                };
+            };
+
+            const searchR = Math.max(6, Math.round(9 * dotScale));
+            const markR = Math.max(3, Math.round(4.5 * dotScale));
+
+            // 1. ตรวจจับจุดอ้างอิงด้านข้าง (Side Timing Marks) รายบรรทัด
+            const part1RowShiftY = {};
+            const part2RowShiftY = {};
+            let sideFoundCount = 0;
+
+            (canonicalMap.sideMarks || []).forEach(sm => {
+                const expPt = mapNormalizedUVToSheetXY(safeCorners, sm.u, sm.v);
+                const res = searchLocalDarkMark(expPt, searchR, markR);
+                if (res.found) {
+                    sideFoundCount++;
+                    const targetMap = sm.section === 'part1' ? part1RowShiftY : part2RowShiftY;
+                    if (!targetMap[sm.rowIdx]) targetMap[sm.rowIdx] = [];
+                    targetMap[sm.rowIdx].push(res.dy);
+                }
+                // วาดสัญลักษณ์แสดงจุดอ้างอิงด้านข้างบนหน้าจอสแกน (สีม่วงอมน้ำเงิน)
+                if (displayCtx) {
+                    displayCtx.save();
+                    displayCtx.strokeStyle = res.found ? '#6366f1' : 'rgba(148, 163, 184, 0.5)';
+                    displayCtx.fillStyle = res.found ? 'rgba(99, 102, 241, 0.35)' : 'transparent';
+                    displayCtx.lineWidth = Math.max(1, Math.round(1.5 * dotScale));
+                    const wRect = Math.round(10 * dotScale);
+                    const hRect = Math.round(5 * dotScale);
+                    displayCtx.fillRect(res.x - wRect / 2, res.y - hRect / 2, wRect, hRect);
+                    displayCtx.strokeRect(res.x - wRect / 2, res.y - hRect / 2, wRect, hRect);
+                    displayCtx.restore();
+                }
+            });
+
+            // 2. ตรวจจับจุดอ้างอิงภายใน (Internal Reference Marks) กำกับแต่ละคอลัมน์และแต่ละตอน
+            const part1ColShift = {};
+            const part2BoxShift = {};
+            let internalFoundCount = 0;
+
+            (canonicalMap.internalMarks || []).forEach(im => {
+                const expPt = mapNormalizedUVToSheetXY(safeCorners, im.u, im.v);
+                const res = searchLocalDarkMark(expPt, searchR, markR);
+                if (res.found) {
+                    internalFoundCount++;
+                    if (im.section === 'part1' && im.colIdx !== undefined) {
+                        if (!part1ColShift[im.colIdx]) part1ColShift[im.colIdx] = { dx: [], dy: [] };
+                        part1ColShift[im.colIdx].dx.push(res.dx);
+                        part1ColShift[im.colIdx].dy.push(res.dy);
+                    } else if (im.section === 'part2' && im.boxKey) {
+                        if (!part2BoxShift[im.boxKey]) part2BoxShift[im.boxKey] = { dx: [], dy: [] };
+                        part2BoxShift[im.boxKey].dx.push(res.dx);
+                        part2BoxShift[im.boxKey].dy.push(res.dy);
+                    }
+                }
+                // วาดสัญลักษณ์กากบาทสีฟ้าแสดงจุดอ้างอิงภายในบนหน้าจอสแกน
+                if (displayCtx) {
+                    displayCtx.save();
+                    displayCtx.strokeStyle = res.found ? '#0ea5e9' : 'rgba(148, 163, 184, 0.5)';
+                    displayCtx.lineWidth = Math.max(1.5, Math.round(1.8 * dotScale));
+                    const s = Math.round(5 * dotScale);
+                    displayCtx.beginPath();
+                    displayCtx.moveTo(res.x - s, res.y);
+                    displayCtx.lineTo(res.x + s, res.y);
+                    displayCtx.moveTo(res.x, res.y - s);
+                    displayCtx.lineTo(res.x, res.y + s);
+                    displayCtx.stroke();
+                    displayCtx.restore();
+                }
+            });
+
+            const avgArr = (arr) => (arr && arr.length > 0) ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+
+            return {
+                sideFoundCount,
+                internalFoundCount,
+                getPart1CalibratedXY: (colIdx, rowIdx, u, v) => {
+                    const base = mapNormalizedUVToSheetXY(safeCorners, u, v);
+                    const dySide = avgArr(part1RowShiftY[rowIdx]);
+                    const dxCol = avgArr(part1ColShift[colIdx]?.dx);
+                    const dyCol = avgArr(part1ColShift[colIdx]?.dy);
+                    const finalDy = part1RowShiftY[rowIdx]?.length ? dySide : ( dyCol * 0.5 );
+                    return {
+                        x: Math.round(base.x + dxCol * 0.65),
+                        y: Math.round(base.y + finalDy * 0.75)
+                    };
+                },
+                getPart2CalibratedXY: (boxKey, rowIdx, u, v) => {
+                    const base = mapNormalizedUVToSheetXY(safeCorners, u, v);
+                    const dySide = avgArr(part2RowShiftY[rowIdx]);
+                    const dxBox = avgArr(part2BoxShift[boxKey]?.dx);
+                    const dyBox = avgArr(part2BoxShift[boxKey]?.dy);
+                    const finalDy = part2RowShiftY[rowIdx]?.length ? dySide : ( dyBox * 0.5 );
+                    return {
+                        x: Math.round(base.x + dxBox * 0.65),
+                        y: Math.round(base.y + finalDy * 0.75)
+                    };
+                }
             };
         }
 
@@ -2965,25 +3396,32 @@
             const dotScale = Math.max(1, boxWidthPx / 480);
             const adaptiveRadius = Math.max(6, Math.round(7.5 * dotScale));
 
-            // ดึงตารางพิกัดมาตรฐานชุดเดียวกับที่ใช้สร้างกระดาษคำตอบ A4 ตอนสั่งพิมพ์
+            // ดึงตารางพิกัดมาตรฐาน 4 ระดับ (1. มุม 4 จุด, 2. จุดด้านข้าง, 3. จุดภายใน, 4. วงกลมคำตอบ)
             const canonicalMap = getCanonicalSubjectBubbleUVMap(sub);
+            const calib = calibrateWithSideAndInternalMarks(sourceCtx, ctx, safeCorners, canonicalMap, dotScale);
+
+            const confBadge = document.getElementById('scan-confidence-badge');
+            if (confBadge) {
+                confBadge.textContent = `4 มุม + ข้าง ${calib.sideFoundCount} + ภายใน ${calib.internalFoundCount}`;
+            }
 
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
                 const qMeta = canonicalMap.part1Bubbles[q];
                 if (!qMeta) continue;
 
                 let bubbleCoords = {};
+                let choiceDrops = {};
                 let bestChoice = 0;
                 let maxContrastDrop = 0;
 
                 for (let c = 1; c <= 4; c++) {
                     const uv = qMeta.choices[c];
-                    const basePt = mapNormalizedUVToSheetXY(safeCorners, uv.u, uv.v);
+                    const basePt = calib.getPart1CalibratedXY(qMeta.colIdx, qMeta.rowIdx, uv.u, uv.v);
 
                     let bestPt = basePt;
                     let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
                     if (!preserveManualAnswers) {
-                        const stepShift = Math.max(2, Math.round(3 * dotScale));
+                        const stepShift = Math.max(2, Math.round(2.5 * dotScale));
                         const offsets = [
                             [-stepShift, 0], [stepShift, 0],
                             [0, -stepShift], [0, stepShift]
@@ -3000,6 +3438,7 @@
                     }
 
                     bubbleCoords[c] = bestPt;
+                    choiceDrops[c] = localBestDrop;
 
                     if (!preserveManualAnswers) {
                         if (localBestDrop > maxContrastDrop) {
@@ -3009,9 +3448,11 @@
                     }
                 }
 
-                // คงค่าเกณฑ์ความเข้ม 18 ตามเดิม
+                // คงค่าเกณฑ์ความเข้ม 18 ตามเดิม พร้อมตรวจสอบความโดดเด่นเหนือตัวเลือกอื่นในข้อเดียวกัน
                 if (!preserveManualAnswers) {
-                    detected[q] = maxContrastDrop >= 18 ? bestChoice : 0;
+                    const sortedDrops = Object.values(choiceDrops).sort((a, b) => b - a);
+                    const secondBest = sortedDrops[1] || 0;
+                    detected[q] = (maxContrastDrop >= 18 && (maxContrastDrop - secondBest >= 4)) ? bestChoice : 0;
                 }
 
                 const stuChoice = Number(detected[q] || 0);
@@ -3063,7 +3504,7 @@
                 }
             }
 
-            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาวิทยาศาสตร์ (ข้อ 19.1-19.3 และ 20.1-20.3) พร้อมค้นหาจุดศูนย์กลางรอยฝน
+            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาวิทยาศาสตร์ (ข้อ 19.1-19.3 และ 20.1-20.3) โดยใช้พิกัดที่ปรับเทียบกับจุดอ้างอิงด้านข้างและภายในแล้ว
             if (sub === '65') {
                 ['19', '20'].forEach(qNo => {
                     if (!detected[qNo] || typeof detected[qNo] !== 'object') {
@@ -3078,11 +3519,11 @@
                         const subPts = {};
                         [1, 2].forEach(c => {
                             const uv = subMeta.choices[c];
-                            const basePt = mapNormalizedUVToSheetXY(safeCorners, uv.u, uv.v);
+                            const basePt = calib.getPart2CalibratedXY(qNo, subMeta.rowIdx, uv.u, uv.v);
                             let bestPt = basePt;
                             let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, adaptiveRadius);
                             if (!preserveManualAnswers) {
-                                const stepShift = Math.max(2, Math.round(3 * dotScale));
+                                const stepShift = Math.max(2, Math.round(2.5 * dotScale));
                                 const offsets = [[-stepShift, 0], [stepShift, 0], [0, -stepShift], [0, stepShift]];
                                 for (let k = 0; k < offsets.length; k++) {
                                     const sx = basePt.x + offsets[k][0];
@@ -3101,7 +3542,7 @@
                             subPts[c] = bestPt;
                         });
                         if (!preserveManualAnswers) {
-                            detected[qNo][subIdx] = maxSubDrop >= 15 ? bestSubChoice : 0;
+                            detected[qNo][subIdx] = maxSubDrop >= 16 ? bestSubChoice : 0;
                         }
                         const chosenC = Number(detected[qNo][subIdx] || 0);
                         const rightC = Number(keyObj[subIdx]);
@@ -3151,6 +3592,75 @@
                 });
             }
 
+            // ตรวจให้คะแนน ตอนที่ 2 ของวิชาคณิตศาสตร์ (รหัส 64: ข้อ 12 - 15 ระบายตัวเลข 3 หลัก 000 - 999)
+            if (sub === '64' && canonicalMap.part2MathBubbles) {
+                ['12', '13', '14', '15'].forEach(qNo => {
+                    const boxMeta = canonicalMap.part2MathBubbles[qNo];
+                    if (!boxMeta) return;
+                    const keyStr = String(key[qNo] || '000').padStart(3, '0');
+                    let detectedDigits = String(detected[qNo] || '000').padStart(3, '0').split('');
+
+                    for (let placeIdx = 0; placeIdx < 3; placeIdx++) {
+                        let bestDigit = Number(detectedDigits[placeIdx] || 0);
+                        let maxDigitDrop = 0;
+                        const placePts = {};
+
+                        for (let d = 0; d <= 9; d++) {
+                            const uv = boxMeta.digits[d].places[placeIdx];
+                            const pt = calib.getPart2CalibratedXY(qNo, d, uv.u, uv.v);
+                            placePts[d] = pt;
+                            if (!preserveManualAnswers) {
+                                const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(5.8 * dotScale)));
+                                if (dVal > maxDigitDrop) {
+                                    maxDigitDrop = dVal;
+                                    bestDigit = d;
+                                }
+                            }
+                        }
+
+                        if (!preserveManualAnswers && maxDigitDrop >= 16) {
+                            detectedDigits[placeIdx] = String(bestDigit);
+                        }
+
+                        const chosenD = Number(detectedDigits[placeIdx]);
+                        const rightD = Number(keyStr[placeIdx]);
+                        for (let d = 0; d <= 9; d++) {
+                            const pt = placePts[d];
+                            if (!pt) continue;
+                            if (d === chosenD && chosenD === rightD) {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                                ctx.fill();
+                                ctx.lineWidth = Math.round(2 * dotScale);
+                                ctx.strokeStyle = '#059669';
+                                ctx.stroke();
+                                ctx.restore();
+                            } else if (d === chosenD && chosenD !== rightD) {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                                ctx.fill();
+                                ctx.restore();
+                            } else {
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.arc(pt.x, pt.y, Math.round(3.5 * dotScale), 0, Math.PI * 2);
+                                ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                                ctx.stroke();
+                                ctx.restore();
+                            }
+                        }
+                    }
+
+                    if (!preserveManualAnswers) {
+                        detected[qNo] = detectedDigits.join('');
+                    }
+                });
+            }
+
             // ตรวจให้คะแนน ตอนที่ 2 ของวิชาภาษาไทย (ข้อ 21.1 และ 21.2 เรียงลำดับ 1-13)
             if (sub === '61' && canonicalMap.part2ThaiBubbles) {
                 ['21.1', '21.2'].forEach(subQ => {
@@ -3162,7 +3672,7 @@
 
                     for (let ord = 1; ord <= 13; ord++) {
                         const uv = qMap[ord];
-                        const pt = mapNormalizedUVToSheetXY(safeCorners, uv.u, uv.v);
+                        const pt = calib.getPart2CalibratedXY(subQ, uv.rowIdx, uv.u, uv.v);
                         ordPts[ord] = pt;
                         if (!preserveManualAnswers) {
                             const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(6 * dotScale)));
@@ -3629,19 +4139,13 @@
             const examDateDisplay = currentSes ? formatThaiDate(currentSes.examDate) : '.........................';
 
             return `
-                <!-- เฉพาะจุดสี่เหลี่ยมสีดำที่มุมทั้ง 4 ด้านของกระดาษ A4 เท่านั้น (ไม่มีจุดดำอื่นในตารางเพื่อป้องกันการตรวจจับผิดพลาด) -->
-                <div class="fiducial-marker marker-tl"></div>
-                <div class="fiducial-marker marker-tr"></div>
-                <div class="fiducial-marker marker-bl"></div>
-                <div class="fiducial-marker marker-br"></div>
-
                 <!-- Top Header Banner: พ.ป.น. PPN โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์ -->
-                <div class="flex items-start justify-between border-b-2 border-black pb-2 mb-2 pr-4">
+                <div class="flex items-start justify-between border-b-2 border-black pb-2 mb-2">
                     <div class="flex items-center gap-3">
                         <img src="https://drive.google.com/thumbnail?id=1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB&sz=w200"
                              onerror="this.onerror=null;this.src='https://lh3.googleusercontent.com/d/1NbU2c5uZWIZaAxtrjRVa53LL_U7LnTeB';"
                              alt="ตราโรงเรียน"
-                             class="w-12 h-12 object-contain">
+                             class="w-11 h-11 object-contain">
                         <div class="text-center pr-1">
                             <div class="text-xs font-bold leading-tight">พ.ป.น.</div>
                             <div class="text-[10px] font-bold tracking-wider">PPN</div>
@@ -3652,7 +4156,7 @@
                             <div class="text-xs font-bold leading-snug">ชั้นประถมศึกษาปีที่ 6</div>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 mr-6">
+                    <div class="flex items-center gap-2">
                         <div class="border-2 border-black px-3 py-1 text-center bg-slate-100">
                             <div class="text-[10px] font-semibold">รหัสวิชา</div>
                             <div class="text-xl font-black leading-none">${spec.code}</div>
@@ -3734,14 +4238,29 @@
         }
 
         function buildA4SheetPage1(spec, stu) {
-            // ใช้ตารางพิกัดมาตรฐานชุดเดียวกับตัวสแกนมือถือ (getCanonicalSubjectBubbleUVMap)
-            // โดยวางตำแหน่งวงกลมทุกข้ออ้างอิงจากจุดศูนย์กลางของมาร์ก 4 มุม (11.17mm จากขอบกระดาษ A4)
-            // เอาสี่เหลี่ยมสีดำและขีดดำในตารางตอนที่ 1 ออกทั้งหมด
+            // ใช้ตารางพิกัดมาตรฐาน 4 ระดับ (1. มุม 4 จุด, 2. จุดอ้างอิงด้านข้าง, 3. จุดอ้างอิงภายใน, 4. วงกลมคำตอบ)
+            // โดยวางตำแหน่งทุกองค์ประกอบอ้างอิงจากจุดศูนย์กลางของมาร์ก 4 มุม (11.17mm จากขอบกระดาษ A4)
             const canonicalMap = getCanonicalSubjectBubbleUVMap(spec.code);
             const totalMcq = spec.part1.count;
             const cols = canonicalMap.cols;
 
-            // วาดวงกลม ตอนที่ 1 ด้วยพิกัด (u, v) เดียวกับที่กล้องมือถือใช้ตรวจจับ 100% (ไม่มีขีดดำหน้าเลขข้อ)
+            // วาดจุดอ้างอิงด้านข้าง (Side Timing Marks) ซ้าย-ขวา ของทุกบรรทัดทั้งตอนที่ 1 และตอนที่ 2
+            let sideMarksHtml = '';
+            (canonicalMap.sideMarks || []).forEach(sm => {
+                const leftPct = (sm.u * 100).toFixed(3);
+                const topPct = (sm.v * 100).toFixed(3);
+                sideMarksHtml += `<div class="side-timing-mark" style="left:${leftPct}%; top:${topPct}%;"></div>`;
+            });
+
+            // วาดจุดอ้างอิงภายใน (Internal Reference Marks) กำกับมุมบน-ล่างของแต่ละคอลัมน์ในตอนที่ 1 และแต่ละกล่องในตอนที่ 2
+            let internalMarksHtml = '';
+            (canonicalMap.internalMarks || []).forEach(im => {
+                const leftPct = (im.u * 100).toFixed(3);
+                const topPct = (im.v * 100).toFixed(3);
+                internalMarksHtml += `<div class="internal-ref-mark" style="left:${leftPct}%; top:${topPct}%;"></div>`;
+            });
+
+            // วาดวงกลม ตอนที่ 1 ด้วยพิกัด (u, v) เดียวกับที่กล้องมือถือใช้ตรวจจับ 100%
             let absoluteBubblesHtml = '';
             for (let q = 1; q <= totalMcq; q++) {
                 const qMeta = canonicalMap.part1Bubbles[q];
@@ -3763,7 +4282,7 @@
                 }
             }
 
-            // วาดกรอบเส้นแบ่งคอลัมน์ ตอนที่ 1 (เอาสี่เหลี่ยมสีดำมุมหัวคอลัมน์ออกทั้งหมด)
+            // วาดกรอบเส้นแบ่งคอลัมน์ ตอนที่ 1
             const boxTopPct = (canonicalMap.gridBoxTopV * 100).toFixed(2);
             const boxHeightPct = ((canonicalMap.gridBoxBottomV - canonicalMap.gridBoxTopV) * 100).toFixed(2);
             let colHeadersHtml = '';
@@ -3813,6 +4332,40 @@
                     </div>
                     ${sciPart2Bubbles}
                 `;
+            } else if (spec.code === '64' && canonicalMap.part2MathBubbles) {
+                // วาด ตอนที่ 2 ของคณิตศาสตร์ (ข้อ 12 - 15 ระบายตัวเลข 3 หลัก) ลงในครึ่งล่างของแผ่นที่ 1 พร้อมจุดอ้างอิงด้านข้างและภายใน
+                let mathPart2Html = '';
+                ['12', '13', '14', '15'].forEach(qNo => {
+                    const boxMeta = canonicalMap.part2MathBubbles[qNo];
+                    const leftPct = (boxMeta.boxLeftU * 100).toFixed(2);
+                    const widthPct = (boxMeta.boxWidthU * 100).toFixed(2);
+                    mathPart2Html += `
+                        <div style="position:absolute; left:${leftPct}%; top:52.5%; width:${widthPct}%; height:39.5%; border:1.5px solid #000; box-sizing:border-box;">
+                            <div class="text-[10px] font-bold text-center border-b border-black py-0.5 bg-slate-50">ข้อ ${qNo} (3 หลัก)</div>
+                            <div class="flex justify-around text-[8px] font-bold border-b border-slate-300 py-0.5 pl-4">
+                                <span>ร้อย</span><span>สิบ</span><span>หน่วย</span>
+                            </div>
+                        </div>
+                    `;
+                    for (let d = 0; d <= 9; d++) {
+                        const dMeta = boxMeta.digits[d];
+                        const topPct = (dMeta.v * 100).toFixed(3);
+                        const lblPct = ((boxMeta.boxLeftU + 0.018) * 100).toFixed(3);
+                        mathPart2Html += `<div style="position:absolute; left:${lblPct}%; top:${topPct}%; transform:translateY(-50%); font-size:9px; font-weight:700;">${d}</div>`;
+                        [0, 1, 2].forEach(pIdx => {
+                            const uPct = (dMeta.places[pIdx].u * 100).toFixed(3);
+                            mathPart2Html += `
+                                <span class="omr-bubble" style="position:absolute; left:${uPct}%; top:${topPct}%; transform:translate(-50%, -50%); width:15px; height:15px; font-size:8px;">${d}</span>
+                            `;
+                        });
+                    }
+                });
+                extraPartHtml = `
+                    <div style="position:absolute; left:3.5%; top:48.8%; right:3.5%; font-size:11px; font-weight:700;">
+                        ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ 3 หลัก จำนวน 4 ข้อ (ข้อ 12 - 15) — ระบายให้ครบทั้งหลักร้อย หลักสิบ และหลักหน่วย
+                    </div>
+                    ${mathPart2Html}
+                `;
             } else if (spec.code === '61') {
                 // วาด ตอนที่ 2 ของภาษาไทย (ข้อ 21.1 และ 21.2) ด้วยพิกัด (u, v) เดียวกับตัวสแกนมือถือ
                 let thaiPart2Bubbles = '';
@@ -3844,22 +4397,30 @@
 
             return `
                 <div class="a4-sheet flex flex-col justify-between" style="height:297mm;">
-                    <!-- พื้นที่พิกัดสัมบูรณ์ (Canonical Coordinate Frame) ที่มีมุมทั้ง 4 อยู่ตรงกับจุดศูนย์กลางของ Fiducial Markers (11.17mm จากขอบ A4) -->
-                    <div style="position:absolute; left:11.17mm; right:11.17mm; top:11.17mm; bottom:11.17mm; pointer-events:none; z-index:10;">
-                        <div style="position:absolute; left:3.5%; top:${(canonicalMap.gridBoxTopV * 100 - 3.0).toFixed(2)}%; right:3.5%;" class="flex items-center justify-between">
+                    <!-- 1. จุดสี่เหลี่ยมสีดำที่มุมทั้ง 4 ด้านของกระดาษ A4 (วางติดกับขอบกระดาษ .a4-sheet โดยตรง ไม่ให้ทับส่วนหัวกระดาษ) -->
+                    <div class="fiducial-marker marker-tl"></div>
+                    <div class="fiducial-marker marker-tr"></div>
+                    <div class="fiducial-marker marker-bl"></div>
+                    <div class="fiducial-marker marker-br"></div>
+
+                    <!-- พื้นที่พิกัดสัมบูรณ์ 4 ระดับ (Canonical Coordinate Frame) ที่มีมุมทั้ง 4 อยู่ตรงกับจุดศูนย์กลางของ Fiducial Markers (8.9mm จากขอบ A4) -->
+                    <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:8.9mm; pointer-events:none; z-index:10;">
+                        <div style="position:absolute; left:3.5%; top:${(canonicalMap.gridBoxTopV * 100 - 3.2).toFixed(2)}%; right:3.5%;" class="flex items-center justify-between">
                             <span class="text-xs font-bold">${spec.part1.title}</span>
                             <span class="text-[10px] font-semibold">วิธีการตอบ: ระบาย 1 คำตอบที่ถูกที่สุดในแต่ละข้อ</span>
                         </div>
+                        ${sideMarksHtml}
+                        ${internalMarksHtml}
                         ${colHeadersHtml}
                         ${absoluteBubblesHtml}
                         ${extraPartHtml}
                     </div>
 
-                    <div class="relative z-20">
+                    <div class="z-20">
                         ${buildCommonA4Header(spec, stu, 1)}
                     </div>
-                    <div class="relative z-20 flex items-center justify-between text-[10px] font-bold pt-2 border-t border-black">
-                        <span>พิกัดวงกลมทุกข้อล็อกตรงกับกรอบจุดมาร์ก 4 มุมสำหรับสแกนด้วยมือถือ</span>
+                    <div class="z-20 flex items-center justify-between text-[10px] font-bold pt-2 border-t border-black">
+                        <span>ระบบพิกัดอ้างอิง 4 ระดับ: จุดมุม 4 จุด + จุดอ้างอิงด้านข้าง + จุดอ้างอิงภายใน + วงกลมคำตอบ</span>
                         <span>กระดาษคำตอบวิชา${spec.name} (รหัส ${spec.code}) - หน้าที่ 1</span>
                     </div>
                 </div>
@@ -3938,6 +4499,12 @@
 
             return `
                 <div class="a4-sheet flex flex-col justify-between">
+                    <!-- 1. จุดสี่เหลี่ยมสีดำที่มุมทั้ง 4 ด้านของกระดาษ A4 (วางติดกับขอบกระดาษ .a4-sheet โดยตรง) -->
+                    <div class="fiducial-marker marker-tl"></div>
+                    <div class="fiducial-marker marker-tr"></div>
+                    <div class="fiducial-marker marker-bl"></div>
+                    <div class="fiducial-marker marker-br"></div>
+
                     <div>
                         ${buildCommonA4Header(spec, stu, 2)}
                         ${page2Body}
