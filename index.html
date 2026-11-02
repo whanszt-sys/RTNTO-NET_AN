@@ -1086,10 +1086,6 @@
                             <button type="button" onclick="handlePrintAnswerSheet()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm flex items-center gap-2 transition cursor-pointer">
                                 <i class="fa-solid fa-print"></i> พิมพ์กระดาษคำตอบ
                             </button>
-
-                            <button type="button" id="btn-download-sheet-pdf" onclick="downloadAnswerSheetPDF()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-xl text-xs shadow-sm flex items-center gap-2 transition cursor-pointer">
-                                <i class="fa-solid fa-download"></i> ดาวน์โหลดกระดาษคำตอบ
-                            </button>
                         </div>
                     </div>
 
@@ -1317,9 +1313,30 @@
             '61': {
                 1: 2, 2: 1, 3: 4, 4: 3, 5: 2, 6: 4, 7: 1, 8: 3, 9: 2, 10: 1,
                 11: 3, 12: 4, 13: 2, 14: 1, 15: 3, 16: 4, 17: 1, 18: 2, 19: 3, 20: 4,
-                '21.1': 4, '21.2': 9, '22': 20
+                '21.1': { '1': 3, '2': 1, '3': 4, '4': 2, '5': 5 },
+                '21.2': { '1': 2, '2': 4, '3': 1, '4': 5, '5': 3 },
+                '22': 20
             }
         };
+
+        function normalizeThaiOrderMap(rawVal, maxOrder = 13) {
+            const res = {};
+            if (rawVal && typeof rawVal === 'object') {
+                for (let r = 1; r <= maxOrder; r++) {
+                    const v = Number(rawVal[r] !== undefined ? rawVal[r] : rawVal[String(r)]);
+                    res[String(r)] = (!isNaN(v) && v >= 1 && v <= maxOrder) ? v : 0;
+                }
+            } else if (typeof rawVal === 'number' && rawVal >= 1 && rawVal <= maxOrder) {
+                for (let r = 1; r <= maxOrder; r++) {
+                    res[String(r)] = (r === 1) ? rawVal : 0;
+                }
+            } else {
+                for (let r = 1; r <= maxOrder; r++) {
+                    res[String(r)] = 0;
+                }
+            }
+            return res;
+        }
 
         function createMultiFormAnswerKeys() {
             const formCodes = ['100', '200', '300', '400', '500', '600'];
@@ -1624,8 +1641,8 @@
             } else if (subjectCode === '64') {
                 ['12', '13', '14', '15'].forEach(qNo => { answers[qNo] = '---'; });
             } else if (subjectCode === '61') {
-                answers['21.1'] = 0;
-                answers['21.2'] = 0;
+                answers['21.1'] = normalizeThaiOrderMap({}, 10);
+                answers['21.2'] = normalizeThaiOrderMap({}, 13);
                 answers['22'] = 0;
             }
             return answers;
@@ -1709,9 +1726,20 @@
                 });
             } else if (subjectCode === '61') {
                 ['21.1', '21.2'].forEach(qNo => {
-                    const stuVal = Number(normalizeAnswerLookup(ans, qNo) || 0);
-                    const isCorrect = stuVal > 0 && stuVal === Number(normalizeAnswerLookup(key, qNo));
+                    const maxOrd = qNo === '21.1' ? 10 : 13;
+                    const rawKey = normalizeAnswerLookup(key, qNo);
+                    const rawStu = normalizeAnswerLookup(ans, qNo);
+                    const keyMap = normalizeThaiOrderMap(rawKey, maxOrd);
+                    const activeRows = Object.keys(keyMap).filter(r => Number(keyMap[r]) > 0);
                     const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
+
+                    let isCorrect = false;
+                    if (typeof rawStu === 'number' && activeRows.length === 1) {
+                        isCorrect = rawStu > 0 && rawStu === Number(keyMap[activeRows[0]]);
+                    } else {
+                        const stuMap = normalizeThaiOrderMap(rawStu, maxOrd);
+                        isCorrect = activeRows.length > 0 && activeRows.every(r => Number(stuMap[r]) === Number(keyMap[r]));
+                    }
                     itemCorrectMap[qNo] = isCorrect;
                     itemPointsEarnedMap[qNo] = isCorrect ? itemPts : 0;
                     if (isCorrect) part2Score += itemPts;
@@ -3210,9 +3238,9 @@
                 { id: 'BR', u: 1.000, v: 1.000 }
             ];
 
-            // เว้นระยะห่างด้านบน (gridBoxTopV = 0.305) เพื่อแยกส่วนกรอกข้อมูลนักเรียนและส่วนฝนข้อสอบไม่ให้ซ้อนทับกันเด็ดขาด
-            const gridBoxTopV = sub === '61' ? 0.300 : 0.308;
-            const gridBoxBottomV = sub === '65' ? 0.562 : (sub === '64' ? 0.485 : (sub === '61' ? 0.465 : 0.665));
+            // ขยับส่วนที่ฝนคำตอบขึ้นไปให้พอดีกับใต้กล่องกรอกข้อมูลนักเรียน (ไม่เว้นช่องว่างห่างเกินไป)
+            const gridBoxTopV = sub === '61' ? 0.258 : 0.264;
+            const gridBoxBottomV = sub === '65' ? 0.518 : (sub === '64' ? 0.442 : (sub === '61' ? 0.425 : 0.622));
             const firstRowV = gridBoxTopV + (sub === '61' ? 0.044 : 0.052);
             const lastRowV = gridBoxBottomV - (sub === '61' ? 0.024 : 0.030);
             const rowStepV = rowsPerCol > 1 ? (lastRowV - firstRowV) / (rowsPerCol - 1) : 0;
@@ -3294,9 +3322,9 @@
             // พิกัด ตอนที่ 2 พร้อมจุดอ้างอิงด้านข้าง (Side Marks) และจุดอ้างอิงภายใน (Internal Marks) แยกตามรายวิชา
             const part2SciBubbles = {};
             if (sub === '65') {
-                // วิทยาศาสตร์ (รหัส 65): ตอนที่ 2 ข้อ 19.1-19.3 และ 20.1-20.3
+                // วิทยาศาสตร์ (รหัส 65): ตอนที่ 2 ข้อ 19.1-19.3 และ 20.1-20.3 (ขยับขึ้นให้สมดุลกับตอนที่ 1)
                 ['1', '2', '3'].forEach((subIdx, rIdx) => {
-                    const rowV = Number((0.695 + rIdx * 0.044).toFixed(4));
+                    const rowV = Number((0.648 + rIdx * 0.044).toFixed(4));
                     sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_L`, page: 1, section: 'part2', rowIdx: rIdx, side: 'L', u: -0.008, v: rowV });
                     sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_R`, page: 1, section: 'part2', rowIdx: rIdx, side: 'R', u: 1.008, v: rowV });
                 });
@@ -3310,7 +3338,7 @@
                         boxKey: qNo,
                         pos: 'top',
                         u: Number((baseU + 0.008).toFixed(4)),
-                        v: 0.622
+                        v: 0.575
                     });
                     internalMarks.push({
                         id: `P2_SCI_${qNo}_BR`,
@@ -3319,12 +3347,12 @@
                         boxKey: qNo,
                         pos: 'bottom',
                         u: Number((baseU + 0.422).toFixed(4)),
-                        v: 0.812
+                        v: 0.765
                     });
 
                     part2SciBubbles[qNo] = {};
                     ['1', '2', '3'].forEach((subIdx, rIdx) => {
-                        const rowV = Number((0.695 + rIdx * 0.044).toFixed(4));
+                        const rowV = Number((0.648 + rIdx * 0.044).toFixed(4));
                         part2SciBubbles[qNo][subIdx] = {
                             rowIdx: rIdx,
                             labelU: Number((baseU + 0.030).toFixed(4)),
@@ -3338,11 +3366,11 @@
                 });
             }
 
-            // คณิตศาสตร์ (รหัส 64): ตอนที่ 2 ระบายตัวเลข 3 หลัก (ข้อ 12 - 15) แยกไปอยู่หน้าที่ 2
+            // คณิตศาสตร์ (รหัส 64): ตอนที่ 2 ระบายตัวเลข 3 หลัก (ข้อ 12 - 15) แยกไปอยู่หน้าที่ 2 (ไม่มีช่องเขียนตัวเลข มีเฉพาะแถบหลักร้อย หลักสิบ หลักหน่วย และวงกลม 0-9)
             const part2MathBubbles = {};
             if (sub === '64') {
                 for (let digit = 0; digit <= 9; digit++) {
-                    const vDigit = Number((0.435 + digit * 0.042).toFixed(4));
+                    const vDigit = Number((0.345 + digit * 0.043).toFixed(4));
                     sideMarks.push({ id: `P2_MATH_D${digit}_L`, page: 2, section: 'part2', rowIdx: digit, side: 'L', u: -0.008, v: vDigit });
                     sideMarks.push({ id: `P2_MATH_D${digit}_R`, page: 2, section: 'part2', rowIdx: digit, side: 'R', u: 1.008, v: vDigit });
                 }
@@ -3357,7 +3385,7 @@
                         boxKey: qNo,
                         pos: 'top',
                         u: Number((boxLeftU + 0.008).toFixed(4)),
-                        v: 0.320
+                        v: 0.262
                     });
                     internalMarks.push({
                         id: `P2_MATH_${qNo}_BR`,
@@ -3366,7 +3394,7 @@
                         boxKey: qNo,
                         pos: 'bottom',
                         u: Number((boxLeftU + boxWidthU - 0.008).toFixed(4)),
-                        v: 0.865
+                        v: 0.785
                     });
 
                     part2MathBubbles[qNo] = {
@@ -3375,7 +3403,7 @@
                         digits: {}
                     };
                     for (let digit = 0; digit <= 9; digit++) {
-                        const vDigit = Number((0.435 + digit * 0.042).toFixed(4));
+                        const vDigit = Number((0.345 + digit * 0.043).toFixed(4));
                         part2MathBubbles[qNo].digits[digit] = {
                             rowIdx: digit,
                             v: vDigit,
@@ -3389,13 +3417,13 @@
                 });
             }
 
-            // ภาษาไทย (รหัส 61): ตอนที่ 2 แบบเรียงลำดับ
+            // ภาษาไทย (รหัส 61): ตอนที่ 2 แบบเรียงลำดับ (ขยับขึ้นให้ต่อเนื่องกับตอนที่ 1)
             // ข้อ 21.1 มี คำลำดับที่ 1 - 10 และวงกลม 1 - 10 ในแต่ละแถว
             // ข้อ 21.2 มี คำลำดับที่ 1 - 13 และวงกลม 1 - 13 ในแต่ละแถว
             const part2ThaiBubbles = {};
             if (sub === '61') {
-                const firstOrderRowV = 0.556;
-                const orderRowStepV = 0.0295;
+                const firstOrderRowV = 0.514;
+                const orderRowStepV = 0.0305;
 
                 for (let rIdx = 0; rIdx < 13; rIdx++) {
                     const vRow = Number((firstOrderRowV + rIdx * orderRowStepV).toFixed(4));
@@ -3416,7 +3444,7 @@
                         boxKey: subQ,
                         pos: 'top',
                         u: Number((boxBaseU + 0.008).toFixed(4)),
-                        v: 0.506
+                        v: 0.464
                     });
                     internalMarks.push({
                         id: `P2_THAI_${subQ}_BR`,
@@ -3425,7 +3453,7 @@
                         boxKey: subQ,
                         pos: 'bottom',
                         u: Number((boxBaseU + boxWidthU - 0.008).toFixed(4)),
-                        v: 0.935
+                        v: 0.908
                     });
 
                     part2ThaiBubbles[subQ] = {
@@ -3934,63 +3962,75 @@
                         const qMap = canonicalMap.part2ThaiBubbles[subQ];
                         if (!qMap || !qMap.rows) return;
                         const maxOrder = qMap.maxOrder || (subQ === '21.1' ? 10 : 13);
-                        let bestChoice = 0;
-                        let bestRowOrder = 1;
-                        let maxOrdDrop = 0;
-                        let secondOrdDrop = 0;
-                        const gridPts = {};
+                        const keyMap = normalizeThaiOrderMap(key[subQ], maxOrder);
+                        const detectedRowMap = normalizeThaiOrderMap(detected[subQ], maxOrder);
 
                         for (let rowOrder = 1; rowOrder <= maxOrder; rowOrder++) {
                             const rMeta = qMap.rows[rowOrder];
                             if (!rMeta) continue;
-                            gridPts[rowOrder] = {};
+                            let bestChoiceInRow = 0;
+                            let maxRowDrop = 0;
+                            let secondRowDrop = 0;
+                            const rowPts = {};
+
                             for (let c = 1; c <= maxOrder; c++) {
                                 const uv = rMeta.choices[c];
                                 if (!uv) continue;
                                 const pt = calib.getPart2CalibratedXY(subQ, rMeta.rowIdx, uv.u, uv.v);
-                                gridPts[rowOrder][c] = pt;
+                                rowPts[c] = pt;
                                 if (!preserveManualAnswers) {
                                     const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(4, Math.round(4.8 * dotScale)));
-                                    if (dVal > maxOrdDrop) {
-                                        secondOrdDrop = maxOrdDrop;
-                                        maxOrdDrop = dVal;
-                                        bestChoice = c;
-                                        bestRowOrder = rowOrder;
-                                    } else if (dVal > secondOrdDrop) {
-                                        secondOrdDrop = dVal;
+                                    if (dVal > maxRowDrop) {
+                                        secondRowDrop = maxRowDrop;
+                                        maxRowDrop = dVal;
+                                        bestChoiceInRow = c;
+                                    } else if (dVal > secondRowDrop) {
+                                        secondRowDrop = dVal;
                                     }
+                                }
+                            }
+
+                            if (!preserveManualAnswers) {
+                                detectedRowMap[String(rowOrder)] = (maxRowDrop >= 28 && (maxRowDrop - secondRowDrop >= 7)) ? bestChoiceInRow : 0;
+                            }
+
+                            const chosenC = Number(detectedRowMap[String(rowOrder)] || 0);
+                            const rightC = Number(keyMap[String(rowOrder)] || 0);
+
+                            for (let c = 1; c <= maxOrder; c++) {
+                                const pt = rowPts[c];
+                                if (!pt) continue;
+                                if (c === chosenC && chosenC > 0 && chosenC === rightC) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, Math.round(7.0 * dotScale), 0, Math.PI * 2);
+                                    ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
+                                    ctx.fill();
+                                    ctx.lineWidth = Math.round(2 * dotScale);
+                                    ctx.strokeStyle = '#059669';
+                                    ctx.stroke();
+                                    ctx.restore();
+                                } else if (c === chosenC && chosenC > 0 && chosenC !== rightC) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.arc(pt.x, pt.y, Math.round(7.0 * dotScale), 0, Math.PI * 2);
+                                    ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
+                                    ctx.fill();
+                                    ctx.restore();
+                                } else if (c === rightC && rightC > 0 && chosenC !== rightC) {
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.setLineDash([Math.round(2 * dotScale), Math.round(2 * dotScale)]);
+                                    ctx.arc(pt.x, pt.y, Math.round(6.5 * dotScale), 0, Math.PI * 2);
+                                    ctx.strokeStyle = '#f59e0b';
+                                    ctx.lineWidth = Math.round(1.5 * dotScale);
+                                    ctx.stroke();
+                                    ctx.restore();
                                 }
                             }
                         }
 
-                        if (!preserveManualAnswers) {
-                            detected[subQ] = (maxOrdDrop >= 28 && (maxOrdDrop - secondOrdDrop >= 7)) ? bestChoice : 0;
-                        }
-
-                        const chosenOrd = Number(detected[subQ] || 0);
-                        const rightOrd = Number(key[subQ]);
-                        const targetRow = bestRowOrder || 1;
-                        if (chosenOrd > 0 && gridPts[targetRow] && gridPts[targetRow][chosenOrd]) {
-                            const pt = gridPts[targetRow][chosenOrd];
-                            if (chosenOrd === rightOrd) {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
-                                ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
-                                ctx.fill();
-                                ctx.lineWidth = Math.round(2 * dotScale);
-                                ctx.strokeStyle = '#059669';
-                                ctx.stroke();
-                                ctx.restore();
-                            } else {
-                                ctx.save();
-                                ctx.beginPath();
-                                ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
-                                ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
-                                ctx.fill();
-                                ctx.restore();
-                            }
-                        }
+                        detected[subQ] = detectedRowMap;
                     });
                 }
             }
@@ -4241,37 +4281,85 @@
                 html += `</div>`;
             } else if (sub === '64') {
                 html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2">
-                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 : ระบายตัวเลข 3 หลัก (ข้อ 12 - 15)</p>
-                    <div class="grid grid-cols-2 gap-2">`;
+                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 : ระบายตัวเลข 3 หลัก (คลิกเลือกหลักร้อย / หลักสิบ / หลักหน่วย)</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">`;
                 ['12', '13', '14', '15'].forEach(qNo => {
                     const isOk = evalRes.itemCorrectMap[qNo];
+                    const rawStr = String(ans[qNo] || '---').padStart(3, '-');
+                    const pLabels = ['หลักร้อย', 'หลักสิบ', 'หลักหน่วย'];
                     html += `
-                        <div class="p-2 rounded-lg border ${isOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} flex items-center justify-between">
-                            <span class="text-xs font-bold">ข้อ ${qNo}</span>
-                            <input type="text" maxlength="3" value="${ans[qNo] || '000'}"
-                                   onchange="updateDraftMathPart2('${qNo}', this.value)"
-                                   class="w-16 text-center font-mono text-xs font-bold py-1 px-2 rounded border border-slate-300 bg-white">
+                        <div class="p-2.5 rounded-xl border ${isOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} space-y-1.5">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-slate-900">ข้อ ${qNo}</span>
+                                <span class="font-mono text-xs font-extrabold px-2 py-0.5 rounded bg-white border">${rawStr}</span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-1 text-center">
+                                ${[0, 1, 2].map(pIdx => `
+                                    <div class="bg-white/90 border border-slate-200 rounded-lg p-1">
+                                        <div class="text-[9.5px] font-bold text-slate-600 mb-1">${pLabels[pIdx]}</div>
+                                        <div class="grid grid-cols-2 gap-0.5 justify-items-center">
+                                            ${[0,1,2,3,4,5,6,7,8,9].map(d => {
+                                                const isSel = rawStr[pIdx] === String(d);
+                                                return `
+                                                    <button type="button" onclick="updateDraftMathPart2Digit('${qNo}', ${pIdx}, '${d}')"
+                                                            class="w-4 h-4 rounded-full text-[9px] font-bold flex items-center justify-center ${isSel ? 'bg-indigo-600 text-white' : 'border border-slate-300 text-slate-700 hover:bg-slate-100'}">
+                                                        ${d}
+                                                    </button>
+                                                `;
+                                            }).join('')}
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
                         </div>
                     `;
                 });
                 html += `</div></div>`;
             } else if (sub === '61') {
                 const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
-                html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2">
-                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 - 21.2) & ตอนที่ 3 อัตนัย (ข้อ 22 ครูกรอกคะแนนเอง)</p>
-                    <div class="grid grid-cols-3 gap-2">
-                        <div class="p-2 rounded-lg border bg-white">
-                            <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.1 (ลำดับ 1-10)</label>
-                            <input type="number" min="1" max="10" value="${ans['21.1'] || 1}" onchange="updateDraftThaiPart2('21.1', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
-                        </div>
-                        <div class="p-2 rounded-lg border bg-white">
-                            <label class="block text-[10px] text-slate-600 font-semibold">ข้อ 21.2 (ลำดับ 1-13)</label>
-                            <input type="number" min="1" max="13" value="${ans['21.2'] || 1}" onchange="updateDraftThaiPart2('21.2', this.value)" class="w-full font-bold text-xs mt-1 border rounded px-2 py-1">
-                        </div>
-                        <div class="p-2 rounded-lg border-2 border-amber-400 bg-amber-50">
-                            <label class="block text-[10px] text-amber-900 font-bold">ข้อ 22 อัตนัย (เต็ม ${maxEssayPts})</label>
-                            <input type="number" min="0" max="${maxEssayPts}" step="0.5" value="${ans['22'] !== undefined ? ans['22'] : 0}" oninput="updateDraftThaiPart2('22', this.value)" class="w-full font-bold text-xs mt-1 border border-amber-400 rounded px-2 py-1 bg-white text-indigo-950">
-                        </div>
+                html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2.5">
+                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 - 21.2) & ตอนที่ 3 อัตนัย (ข้อ 22)</p>
+                    ${['21.1', '21.2'].map(subQ => {
+                        const maxOrd = subQ === '21.1' ? 10 : 13;
+                        const stuMap = normalizeThaiOrderMap(ans[subQ], maxOrd);
+                        const keyMap = normalizeThaiOrderMap(key[subQ], maxOrd);
+                        const isOk = evalRes.itemCorrectMap[subQ];
+                        return `
+                            <div class="p-2.5 rounded-xl border ${isOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-slate-900">ข้อ ${subQ} (คำลำดับที่ 1 - ${maxOrd})</span>
+                                    <span class="text-[10px] font-bold ${isOk ? 'text-emerald-700' : 'text-rose-600'}">${isOk ? 'ถูกต้องครบ' : 'คลิกวงกลมเพื่อแก้ไข'}</span>
+                                </div>
+                                <div class="space-y-1 max-h-36 overflow-y-auto pr-1">
+                                    ${Array.from({ length: maxOrd }, (_, idx) => {
+                                        const r = idx + 1;
+                                        const curV = Number(stuMap[r] || 0);
+                                        const kV = Number(keyMap[r] || 0);
+                                        return `
+                                            <div class="flex items-center justify-between gap-1 bg-white/80 px-2 py-1 rounded border border-slate-200">
+                                                <span class="text-[10px] font-bold text-slate-700 shrink-0">คำลำดับที่ ${r} ${kV > 0 ? `<span class="text-emerald-700">(เฉลย ${kV})</span>` : ''}</span>
+                                                <div class="flex flex-wrap gap-0.5 justify-end">
+                                                    ${Array.from({ length: maxOrd }, (__, cIdx) => {
+                                                        const c = cIdx + 1;
+                                                        const active = curV === c;
+                                                        return `
+                                                            <button type="button" onclick="updateDraftThaiOrderRow('${subQ}', ${r}, ${c})"
+                                                                    class="w-4 h-4 rounded-full text-[8.5px] font-bold flex items-center justify-center ${active ? (c === kV ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white') : 'bg-white border border-slate-300 text-slate-700'}">
+                                                                ${c}
+                                                            </button>
+                                                        `;
+                                                    }).join('')}
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                    <div class="p-2.5 rounded-xl border-2 border-amber-400 bg-amber-50 flex items-center justify-between">
+                        <label class="text-xs text-amber-950 font-bold">ข้อ 22 อัตนัย (เต็ม ${maxEssayPts} คะแนน)</label>
+                        <input type="number" min="0" max="${maxEssayPts}" step="0.5" value="${ans['22'] !== undefined ? ans['22'] : 0}" oninput="updateDraftThaiPart2('22', this.value)" class="w-24 text-center font-bold text-xs border border-amber-400 rounded-lg px-2 py-1 bg-white text-indigo-950">
                     </div>
                 </div>`;
             }
@@ -4305,6 +4393,32 @@
 
         function updateDraftMathPart2(qNo, val) {
             appState.currentScanDraft.answers[qNo] = String(val).padStart(3, '0');
+            if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                reprocessLastCapturedSheet(true);
+            } else {
+                drawSimulatedSheetOnCanvas();
+                renderScannerDetectedAnswers();
+            }
+        }
+
+        function updateDraftMathPart2Digit(qNo, placeIdx, digitChar) {
+            const cur = String(appState.currentScanDraft.answers[qNo] || '---').padStart(3, '-').split('');
+            cur[placeIdx] = (cur[placeIdx] === String(digitChar)) ? '-' : String(digitChar);
+            appState.currentScanDraft.answers[qNo] = cur.join('');
+            if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
+                reprocessLastCapturedSheet(true);
+            } else {
+                drawSimulatedSheetOnCanvas();
+                renderScannerDetectedAnswers();
+            }
+        }
+
+        function updateDraftThaiOrderRow(subQ, rowOrder, choiceVal) {
+            const maxOrd = subQ === '21.1' ? 10 : 13;
+            const map = normalizeThaiOrderMap(appState.currentScanDraft.answers[subQ], maxOrd);
+            const cur = Number(map[String(rowOrder)] || 0);
+            map[String(rowOrder)] = (cur === Number(choiceVal)) ? 0 : Number(choiceVal);
+            appState.currentScanDraft.answers[subQ] = map;
             if (lastCapturedSheetImageCanvas && lastDetectedSheetCorners) {
                 reprocessLastCapturedSheet(true);
             } else {
@@ -4663,12 +4777,12 @@
 
             let extraPartHtml = '';
             if (spec.code === '65') {
-                // วาด ตอนที่ 2 ของวิทยาศาสตร์ ด้วยพิกัด (u, v) เดียวกับกล้องมือถือ
+                // วาด ตอนที่ 2 ของวิทยาศาสตร์ ด้วยพิกัด (u, v) เดียวกับกล้องมือถือ (ขยับขึ้นให้สมดุลกับตอนที่ 1)
                 let sciPart2Bubbles = '';
                 ['19', '20'].forEach((qNo, boxIdx) => {
                     const boxLeftPct = boxIdx === 0 ? '4.5%' : '52.5%';
                     sciPart2Bubbles += `
-                        <div style="position:absolute; left:${boxLeftPct}; top:63.0%; width:43%; height:17.5%; border:1.5px solid #000; padding:6px;">
+                        <div style="position:absolute; left:${boxLeftPct}; top:58.3%; width:43%; height:17.5%; border:1.5px solid #000; padding:6px;">
                             <div class="flex justify-between text-xs font-bold border-b border-black pb-1">
                                 <span>ข้อ ${qNo} คำถามย่อย</span>
                                 <div class="flex gap-5 pr-3"><span>ใช่ (1)</span><span>ไม่ใช่ (2)</span></div>
@@ -4689,7 +4803,7 @@
                     });
                 });
                 extraPartHtml = `
-                    <div style="position:absolute; left:3.5%; top:59.0%; right:3.5%; font-size:11px; font-weight:700;">
+                    <div style="position:absolute; left:3.5%; top:54.5%; right:3.5%; font-size:11px; font-weight:700;">
                         ตอนที่ 2 : แบบปรนัยเลือกตอบเชิงซ้อน จำนวน 2 ข้อ (ข้อ 19 - 20) — หากเลือก "ใช่" ระบาย 1 หากเลือก "ไม่ใช่" ระบาย 2
                     </div>
                     ${sciPart2Bubbles}
@@ -4697,7 +4811,7 @@
             } else if (spec.code === '64') {
                 // วิชาคณิตศาสตร์ (รหัส 64): หน้าแรกแสดงเฉพาะ ตอนที่ 1 (ข้อ 1 - 11) เท่านั้น ส่วน ตอนที่ 2 (ข้อ 12 - 15) ย้ายไปอยู่หน้าที่ 2
                 extraPartHtml = `
-                    <div style="position:absolute; left:3.5%; top:53.0%; right:3.5%; border:1.5px dashed #475569; padding:10px 14px; background:#f8fafc;" class="text-center">
+                    <div style="position:absolute; left:3.5%; top:48.5%; right:3.5%; border:1.5px dashed #475569; padding:10px 14px; background:#f8fafc;" class="text-center">
                         <div class="text-xs font-bold text-slate-900">ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ จำนวน 4 ข้อ (ข้อ 12 - 15) อยู่ในกระดาษคำตอบหน้าที่ 2</div>
                         <div class="text-[10px] text-slate-600 mt-0.5">กรุณาพลิกไปทำหรือพิมพ์กระดาษคำตอบ หน้าที่ 2 สำหรับระบายคำตอบข้อ 12 - 15</div>
                     </div>
@@ -4713,7 +4827,7 @@
                     const boxLeftPct = (boxMeta.boxBaseU * 100).toFixed(2) + '%';
                     const boxWidthPct = (boxMeta.boxWidthU * 100).toFixed(2) + '%';
                     thaiPart2Bubbles += `
-                        <div style="position:absolute; left:${boxLeftPct}; top:51.4%; width:${boxWidthPct}; height:41.8%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
+                        <div style="position:absolute; left:${boxLeftPct}; top:47.2%; width:${boxWidthPct}; height:43.2%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
                             <div class="text-[11px] font-bold px-2.5 py-0.5 border-b border-black bg-slate-100 flex items-center justify-between">
                                 <span>ข้อ ${subQ}</span>
                                 <span class="text-[9px] font-semibold text-slate-700">ระบายวงกลม 1 - ${maxOrder} เพียง 1 วงในแต่ละลำดับ</span>
@@ -4737,7 +4851,7 @@
                     }
                 });
                 extraPartHtml = `
-                    <div style="position:absolute; left:2.5%; top:48.4%; right:2.5%; font-size:11px; font-weight:700;" class="flex items-center justify-between">
+                    <div style="position:absolute; left:2.5%; top:44.4%; right:2.5%; font-size:11px; font-weight:700;" class="flex items-center justify-between">
                         <span>ตอนที่ 2 : แบบเรียงลำดับ จำนวน 1 ข้อ (ข้อ 21.1 และ ข้อ 21.2)</span>
                         <span class="text-[10px] font-semibold">วิธีการตอบ : ระบาย 1 คำตอบที่เป็นคำตอบที่ถูกที่สุดในแต่ละลำดับ</span>
                     </div>
@@ -4755,9 +4869,9 @@
 
                     <!-- พื้นที่พิกัดสัมบูรณ์ 4 ระดับ (Canonical Coordinate Frame) ที่มีมุมทั้ง 4 อยู่ตรงกับจุดศูนย์กลางของ Fiducial Markers (8.9mm จากขอบ A4) -->
                     <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:8.9mm; pointer-events:none; z-index:10;">
-                        <!-- เส้นคั่นแยกส่วนกรอกข้อมูลนักเรียนด้านบน กับ ส่วนฝนข้อสอบด้านล่างอย่างชัดเจน -->
-                        <div style="position:absolute; left:2.5%; right:2.5%; top:${(canonicalMap.gridBoxTopV * 100 - 4.2).toFixed(2)}%; border-top:2px solid #0f172a;"></div>
-                        <div style="position:absolute; left:3.5%; top:${(canonicalMap.gridBoxTopV * 100 - 3.0).toFixed(2)}%; right:3.5%;" class="flex items-center justify-between">
+                        <!-- เส้นคั่นแยกส่วนกรอกข้อมูลนักเรียนด้านบน กับ ส่วนฝนข้อสอบด้านล่างอย่างพอดีสวยงาม -->
+                        <div style="position:absolute; left:2.5%; right:2.5%; top:${(canonicalMap.gridBoxTopV * 100 - 3.4).toFixed(2)}%; border-top:2px solid #0f172a;"></div>
+                        <div style="position:absolute; left:3.5%; top:${(canonicalMap.gridBoxTopV * 100 - 2.5).toFixed(2)}%; right:3.5%;" class="flex items-center justify-between">
                             <span class="text-xs font-bold">${spec.part1.title}</span>
                             <span class="text-[10px] font-semibold">วิธีการตอบ: ระบาย 1 คำตอบที่ถูกที่สุดในแต่ละข้อ</span>
                         </div>
@@ -4781,7 +4895,7 @@
 
         function buildA4SheetPage2(spec, stu) {
             if (spec.code === '64') {
-                // วิชาคณิตศาสตร์ (รหัส 64) หน้าที่ 2: แสดง ตอนที่ 2 (ข้อ 12 - 15 แบบระบายตัวเลข 3 หลัก) พร้อมจุดอ้างอิง 4 ระดับครบถ้วน
+                // วิชาคณิตศาสตร์ (รหัส 64) หน้าที่ 2: แสดง ตอนที่ 2 (ข้อ 12 - 15) มีเฉพาะแถบ หลักร้อย หลักสิบ หลักหน่วย และวงกลมแนวตั้ง 0-9 (ไม่มีช่องเขียนตัวเลข)
                 const canonicalMap = getCanonicalSubjectBubbleUVMap('64');
                 let sideMarksP2Html = '';
                 (canonicalMap.sideMarks || []).filter(sm => sm.page === 2).forEach(sm => {
@@ -4799,15 +4913,10 @@
                     const leftPct = (boxMeta.boxLeftU * 100).toFixed(2);
                     const widthPct = (boxMeta.boxWidthU * 100).toFixed(2);
                     mathPage2Html += `
-                        <div style="position:absolute; left:${leftPct}%; top:33.0%; width:${widthPct}%; height:52.5%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
+                        <div style="position:absolute; left:${leftPct}%; top:27.0%; width:${widthPct}; height:50.8%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
                             <div class="text-xs font-bold text-center border-b border-black py-1 bg-slate-100">ข้อ ${qNo}</div>
-                            <div class="flex justify-around text-[9px] font-bold border-b border-black py-1 pl-5 bg-slate-50">
+                            <div class="flex justify-around text-[9.5px] font-bold border-b border-black py-1.5 pl-5 bg-slate-50">
                                 <span>หลักร้อย</span><span>หลักสิบ</span><span>หลักหน่วย</span>
-                            </div>
-                            <div class="grid grid-cols-3 gap-1.5 px-3 py-1.5 pl-7 border-b border-slate-300">
-                                <div class="border border-black h-5"></div>
-                                <div class="border border-black h-5"></div>
-                                <div class="border border-black h-5"></div>
                             </div>
                         </div>
                     `;
@@ -4833,9 +4942,10 @@
                         <div class="fiducial-marker marker-br"></div>
 
                         <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:8.9mm; pointer-events:none; z-index:10;">
-                            <div style="position:absolute; left:3.5%; top:28.5%; right:3.5%;">
-                                <div class="text-xs font-bold">ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ 3 หลัก จำนวน 4 ข้อ (ข้อ 12 - 15)</div>
-                                <div class="text-[10px] font-medium">คำชี้แจง: เขียนตัวเลขลงในช่องว่างและระบายวงกลมให้ครบทั้งหลักร้อย หลักสิบ และหลักหน่วย (เช่น คำตอบคือ 52 ต้องระบาย 052)</div>
+                            <div style="position:absolute; left:2.5%; right:2.5%; top:23.0%; border-top:2px solid #0f172a;"></div>
+                            <div style="position:absolute; left:3.5%; top:23.8%; right:3.5%;" class="flex items-center justify-between">
+                                <span class="text-xs font-bold">ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ 3 หลัก จำนวน 4 ข้อ (ข้อ 12 - 15)</span>
+                                <span class="text-[10px] font-semibold">ระบายวงกลม 0 - 9 ให้ครบทั้งหลักร้อย หลักสิบ และหลักหน่วย (เช่น 52 ให้ระบาย 052)</span>
                             </div>
                             ${sideMarksP2Html}
                             ${internalMarksP2Html}
@@ -5028,19 +5138,27 @@
             } else if (sub === '64') {
                 html += `
                     <div class="pt-4 border-t border-slate-200">
-                        <h4 class="font-bold text-sm text-slate-900 mb-3">${spec.part2.title} — ชุด ${formCode}</h4>
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                            <h4 class="font-bold text-sm text-slate-900">${spec.part2.title} — ชุด ${formCode}</h4>
+                            <span class="text-xs font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full">คลิกเลือกวงกลมเลข 0 - 9 ในแถบหลักร้อย หลักสิบ และหลักหน่วย</span>
+                        </div>
                         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                             ${['12', '13', '14', '15'].map(qNo => {
                                 const meta = getItemMeta(sub, qNo);
+                                const keyStr = String(key[qNo] || '000').padStart(3, '0');
+                                const placeDigits = [Number(keyStr[0]) || 0, Number(keyStr[1]) || 0, Number(keyStr[2]) || 0];
                                 return `
-                                <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-xs font-bold text-indigo-950">ข้อที่ ${qNo} (3 หลัก)</span>
+                                <div class="p-3.5 rounded-2xl border-2 border-slate-200 bg-slate-50 space-y-2.5 shadow-sm">
+                                    <div class="flex items-center justify-between border-b border-slate-200 pb-2">
+                                        <div>
+                                            <span class="text-xs font-extrabold text-indigo-950 bg-indigo-100 px-2.5 py-0.5 rounded-lg">ข้อที่ ${qNo}</span>
+                                            <span class="ml-1.5 text-xs font-mono font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-lg">เฉลย: ${keyStr}</span>
+                                        </div>
                                         <div class="flex items-center gap-1">
                                             <span class="text-[11px] text-slate-600 font-bold">คะแนน:</span>
                                             <input type="number" step="0.125" min="0" value="${meta.points}"
                                                    onchange="setItemPoints('${qNo}', this.value)"
-                                                   class="w-16 text-center font-mono text-xs font-bold py-1 px-1 rounded border border-slate-300 bg-white text-emerald-700">
+                                                   class="w-14 text-center font-mono text-xs font-bold py-1 px-1 rounded border border-slate-300 bg-white text-emerald-700">
                                         </div>
                                     </div>
                                     <div>
@@ -5049,11 +5167,28 @@
                                                onchange="setItemIndicator('${qNo}', this.value)"
                                                class="w-full text-xs font-medium py-1 px-2 rounded-lg border border-slate-300 bg-white">
                                     </div>
-                                    <div>
-                                        <label class="block text-[10px] font-bold text-slate-600 mb-0.5">เฉลยตัวเลข 3 หลัก:</label>
-                                        <input type="text" maxlength="3" value="${key[qNo] || '000'}"
-                                               onchange="setMathGridKey('${qNo}', this.value)"
-                                               class="w-full text-center font-mono text-base font-extrabold py-1.5 rounded-lg border border-indigo-300 bg-white text-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <!-- ตารางวงกลมแนวตั้ง 0-9 แยกแถบ หลักร้อย | หลักสิบ | หลักหน่วย เหมือนกระดาษคำตอบ -->
+                                    <div class="border-2 border-slate-800 rounded-xl overflow-hidden bg-white">
+                                        <div class="grid grid-cols-3 text-center text-[10px] font-extrabold bg-slate-100 border-b-2 border-slate-800 py-1.5 text-slate-900">
+                                            <span class="border-r border-slate-300">หลักร้อย</span>
+                                            <span class="border-r border-slate-300">หลักสิบ</span>
+                                            <span>หลักหน่วย</span>
+                                        </div>
+                                        <div class="p-2 space-y-1">
+                                            ${[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => `
+                                                <div class="grid grid-cols-3 items-center justify-items-center py-0.5 border-b border-slate-100 last:border-b-0">
+                                                    ${[0, 1, 2].map(placeIdx => {
+                                                        const isSelected = placeDigits[placeIdx] === d;
+                                                        return `
+                                                            <button type="button" onclick="setMathGridDigitKey('${qNo}', ${placeIdx}, ${d})"
+                                                                    class="w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center transition ${isSelected ? 'bg-slate-900 text-white shadow-sm ring-2 ring-indigo-400 scale-105' : 'bg-white border-2 border-slate-400 text-slate-700 hover:bg-indigo-50 hover:border-indigo-500'}">
+                                                                ${d}
+                                                            </button>
+                                                        `;
+                                                    }).join('')}
+                                                </div>
+                                            `).join('')}
+                                        </div>
                                     </div>
                                 </div>
                             `;}).join('')}
@@ -5064,45 +5199,100 @@
                 const m211 = getItemMeta(sub, '21.1');
                 const m212 = getItemMeta(sub, '21.2');
                 const m22 = getItemMeta(sub, '22');
+                const keyMap211 = normalizeThaiOrderMap(key['21.1'], 10);
+                const keyMap212 = normalizeThaiOrderMap(key['21.2'], 13);
                 html += `
-                    <div class="pt-4 border-t border-slate-200">
-                        <h4 class="font-bold text-sm text-slate-900 mb-3">${spec.part2.title} — ชุด ${formCode}</h4>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-bold text-slate-900">ข้อ 21.1 (เรียงลำดับ 1-10)</span>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[11px] text-slate-600 font-bold">คะแนน:</span>
-                                        <input type="number" step="0.5" min="0" value="${m211.points}" onchange="setItemPoints('21.1', this.value)" class="w-14 text-center font-mono text-xs font-bold py-1 rounded border bg-white text-emerald-700">
+                    <div class="pt-4 border-t border-slate-200 space-y-4">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <h4 class="font-bold text-sm text-slate-900">${spec.part2.title} — ชุด ${formCode}</h4>
+                            <span class="text-xs font-semibold text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full">คลิกเลือกวงกลมในแต่ละคำลำดับเพื่อตั้งเฉลย (คลิกซ้ำที่วงกลมเดิมเพื่อเว้นว่างคำลำดับที่ไม่ได้ใช้)</span>
+                        </div>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            <!-- ข้อ 21.1 (คำลำดับที่ 1 - 10 วงกลม 1 - 10) -->
+                            <div class="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 space-y-2.5">
+                                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                                    <span class="text-sm font-extrabold text-indigo-950">ข้อ 21.1 (แบบเรียงลำดับ 1 - 10)</span>
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" value="${m211.indicator}" placeholder="ตัวชี้วัด" onchange="setItemIndicator('21.1', this.value)" class="w-28 text-xs font-medium py-1 px-2 rounded-lg border border-slate-300 bg-white">
+                                        <div class="flex items-center gap-1">
+                                            <span class="text-[11px] text-slate-600 font-bold">คะแนน:</span>
+                                            <input type="number" step="0.5" min="0" value="${m211.points}" onchange="setItemPoints('21.1', this.value)" class="w-14 text-center font-mono text-xs font-bold py-1 rounded-lg border border-slate-300 bg-white text-emerald-700">
+                                        </div>
                                     </div>
                                 </div>
-                                <input type="text" value="${m211.indicator}" placeholder="ตัวชี้วัด" onchange="setItemIndicator('21.1', this.value)" class="w-full text-xs py-1 px-2 rounded border bg-white">
-                                <label class="block text-[10px] text-slate-600 font-semibold">คำลำดับที่ถูกต้อง (1-10):</label>
-                                <input type="number" min="1" max="10" value="${key['21.1']}" onchange="setThaiExtraKey('21.1', this.value)" class="w-full font-bold text-sm py-1.5 px-3 rounded-lg border border-slate-300 bg-white">
+                                <div class="space-y-1.5 bg-white p-2.5 rounded-xl border border-slate-200">
+                                    ${Array.from({ length: 10 }, (_, idx) => {
+                                        const r = idx + 1;
+                                        const curAns = Number(keyMap211[String(r)] || 0);
+                                        return `
+                                            <div class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg hover:bg-slate-50 border-b border-slate-100 last:border-b-0">
+                                                <span class="text-xs font-bold text-slate-800 whitespace-nowrap">คำลำดับที่ ${r}</span>
+                                                <div class="flex flex-wrap gap-1 justify-end">
+                                                    ${Array.from({ length: 10 }, (__, cIdx) => {
+                                                        const c = cIdx + 1;
+                                                        const isSel = curAns === c;
+                                                        return `
+                                                            <button type="button" onclick="setThaiOrderBubbleKey('21.1', ${r}, ${c})"
+                                                                    class="w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center transition ${isSel ? 'bg-indigo-600 text-white shadow-sm scale-105' : 'bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50'}">
+                                                                ${c}
+                                                            </button>
+                                                        `;
+                                                    }).join('')}
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
                             </div>
-                            <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-bold text-slate-900">ข้อ 21.2 (เรียงลำดับ 1-13)</span>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[11px] text-slate-600 font-bold">คะแนน:</span>
-                                        <input type="number" step="0.5" min="0" value="${m212.points}" onchange="setItemPoints('21.2', this.value)" class="w-14 text-center font-mono text-xs font-bold py-1 rounded border bg-white text-emerald-700">
+
+                            <!-- ข้อ 21.2 (คำลำดับที่ 1 - 13 วงกลม 1 - 13) -->
+                            <div class="p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 space-y-2.5">
+                                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 pb-2">
+                                    <span class="text-sm font-extrabold text-indigo-950">ข้อ 21.2 (แบบเรียงลำดับ 1 - 13)</span>
+                                    <div class="flex items-center gap-2">
+                                        <input type="text" value="${m212.indicator}" placeholder="ตัวชี้วัด" onchange="setItemIndicator('21.2', this.value)" class="w-28 text-xs font-medium py-1 px-2 rounded-lg border border-slate-300 bg-white">
+                                        <div class="flex items-center gap-1">
+                                            <span class="text-[11px] text-slate-600 font-bold">คะแนน:</span>
+                                            <input type="number" step="0.5" min="0" value="${m212.points}" onchange="setItemPoints('21.2', this.value)" class="w-14 text-center font-mono text-xs font-bold py-1 rounded-lg border border-slate-300 bg-white text-emerald-700">
+                                        </div>
                                     </div>
                                 </div>
-                                <input type="text" value="${m212.indicator}" placeholder="ตัวชี้วัด" onchange="setItemIndicator('21.2', this.value)" class="w-full text-xs py-1 px-2 rounded border bg-white">
-                                <label class="block text-[10px] text-slate-600 font-semibold">คำลำดับที่ถูกต้อง (1-13):</label>
-                                <input type="number" min="1" max="13" value="${key['21.2']}" onchange="setThaiExtraKey('21.2', this.value)" class="w-full font-bold text-sm py-1.5 px-3 rounded-lg border border-slate-300 bg-white">
+                                <div class="space-y-1 bg-white p-2.5 rounded-xl border border-slate-200">
+                                    ${Array.from({ length: 13 }, (_, idx) => {
+                                        const r = idx + 1;
+                                        const curAns = Number(keyMap212[String(r)] || 0);
+                                        return `
+                                            <div class="flex items-center justify-between gap-1.5 py-0.5 px-1.5 rounded-lg hover:bg-slate-50 border-b border-slate-100 last:border-b-0">
+                                                <span class="text-[11px] font-bold text-slate-800 whitespace-nowrap">คำลำดับที่ ${r}</span>
+                                                <div class="flex flex-wrap gap-0.5 justify-end">
+                                                    ${Array.from({ length: 13 }, (__, cIdx) => {
+                                                        const c = cIdx + 1;
+                                                        const isSel = curAns === c;
+                                                        return `
+                                                            <button type="button" onclick="setThaiOrderBubbleKey('21.2', ${r}, ${c})"
+                                                                    class="w-5 h-5 rounded-full text-[9.5px] font-bold flex items-center justify-center transition ${isSel ? 'bg-indigo-600 text-white shadow-sm scale-105' : 'bg-white border border-slate-300 text-slate-700 hover:bg-indigo-50'}">
+                                                                ${c}
+                                                            </button>
+                                                        `;
+                                                    }).join('')}
+                                                </div>
+                                            </div>
+                                        `;
+                                    }).join('')}
+                                </div>
                             </div>
-                            <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 space-y-2">
-                                <div class="flex items-center justify-between">
-                                    <span class="text-xs font-bold text-slate-900">ข้อ 22 (อัตนัย)</span>
-                                    <div class="flex items-center gap-1">
-                                        <span class="text-[11px] text-slate-600 font-bold">คะแนนเต็ม:</span>
-                                        <input type="number" step="1" min="1" value="${m22.points}" onchange="setItemPoints('22', this.value)" class="w-14 text-center font-mono text-xs font-bold py-1 rounded border bg-white text-emerald-700">
-                                    </div>
-                                </div>
-                                <input type="text" value="${m22.indicator}" placeholder="ตัวชี้วัด" onchange="setItemIndicator('22', this.value)" class="w-full text-xs py-1 px-2 rounded border bg-white">
-                                <label class="block text-[10px] text-slate-600 font-semibold">เกณฑ์การให้คะแนน:</label>
-                                <input type="text" disabled value="กรรมการระบายคะแนนตามเกณฑ์" class="w-full font-medium text-xs py-1.5 px-3 rounded-lg border border-slate-200 bg-slate-100 text-slate-600">
+                        </div>
+
+                        <!-- ข้อ 22 (อัตนัย) -->
+                        <div class="p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-wrap items-center justify-between gap-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-xs font-extrabold text-indigo-950 bg-indigo-100 px-3 py-1 rounded-lg">ตอนที่ 3 : ข้อ 22 (อัตนัยเขียนสรุปใจความสำคัญ)</span>
+                                <input type="text" value="${m22.indicator}" placeholder="ตัวชี้วัด" onchange="setItemIndicator('22', this.value)" class="w-40 text-xs py-1.5 px-2.5 rounded-lg border border-slate-300 bg-white">
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs text-slate-700 font-bold">คะแนนเต็มข้อเขียน:</span>
+                                <input type="number" step="1" min="1" value="${m22.points}" onchange="setItemPoints('22', this.value)" class="w-20 text-center font-mono text-sm font-bold py-1.5 rounded-lg border border-slate-300 bg-white text-emerald-700">
+                                <span class="text-xs text-slate-500">(ครูกรอกคะแนนในหน้าสแกนได้โดยตรง)</span>
                             </div>
                         </div>
                     </div>
@@ -5147,10 +5337,36 @@
             renderAnswerKeyEditor();
         }
 
+        function setMathGridDigitKey(qNo, placeIdx, digitVal) {
+            const fc = appState.currentKeyFormCode || '100';
+            if (!appState.answerKeys['64'][fc]) {
+                appState.answerKeys['64'][fc] = JSON.parse(JSON.stringify(BASE_DEFAULT_KEYS['64']));
+            }
+            const curDigits = String(appState.answerKeys['64'][fc][qNo] || '000').padStart(3, '0').split('');
+            curDigits[placeIdx] = String(digitVal);
+            appState.answerKeys['64'][fc][qNo] = curDigits.join('');
+            renderAnswerKeyEditor();
+        }
+
+        function setThaiOrderBubbleKey(qNo, rowOrder, choiceVal) {
+            const fc = appState.currentKeyFormCode || '100';
+            const maxVal = qNo === '21.1' ? 10 : 13;
+            if (!appState.answerKeys['61'][fc]) {
+                appState.answerKeys['61'][fc] = JSON.parse(JSON.stringify(BASE_DEFAULT_KEYS['61']));
+            }
+            const curMap = normalizeThaiOrderMap(appState.answerKeys['61'][fc][qNo], maxVal);
+            const existing = Number(curMap[String(rowOrder)] || 0);
+            curMap[String(rowOrder)] = (existing === Number(choiceVal)) ? 0 : Number(choiceVal);
+            appState.answerKeys['61'][fc][qNo] = curMap;
+            renderAnswerKeyEditor();
+        }
+
         function setThaiExtraKey(qNo, val) {
             const fc = appState.currentKeyFormCode || '100';
             const maxVal = qNo === '21.1' ? 10 : 13;
-            appState.answerKeys['61'][fc][qNo] = Math.min(maxVal, Math.max(1, Number(val)));
+            const curMap = normalizeThaiOrderMap(appState.answerKeys['61'][fc][qNo], maxVal);
+            curMap['1'] = Math.min(maxVal, Math.max(1, Number(val)));
+            appState.answerKeys['61'][fc][qNo] = curMap;
             renderAnswerKeyEditor();
         }
 
@@ -5371,6 +5587,14 @@
             if (subjectCode === '65' && (qKey === '19' || qKey === '20')) {
                 return `${raw['1'] || '-'}/${raw['2'] || '-'}/${raw['3'] || '-'}`;
             }
+            if (subjectCode === '61' && (qKey === '21.1' || qKey === '21.2')) {
+                if (typeof raw === 'object') {
+                    const maxOrd = qKey === '21.1' ? 10 : 13;
+                    const map = normalizeThaiOrderMap(raw, maxOrd);
+                    const pairs = Object.keys(map).filter(r => Number(map[r]) > 0).map(r => `ลำดับ${r}=${map[r]}`);
+                    return pairs.length > 0 ? pairs.join(' ') : 'ว่าง';
+                }
+            }
             return String(raw);
         }
 
@@ -5491,6 +5715,13 @@
                     submissions.forEach(s => { if (s.scoreDetails.itemCorrectMap[qNo]) correctCount++; });
                     const pct = (correctCount / N) * 100;
                     const avgPointsEarned = (correctCount * meta.points) / N;
+                    let keyDisp = String(key[qNo] || '-');
+                    if (qNo === '21.1' || qNo === '21.2') {
+                        const maxOrd = qNo === '21.1' ? 10 : 13;
+                        const kMap = normalizeThaiOrderMap(key[qNo], maxOrd);
+                        const kList = Object.keys(kMap).filter(r => Number(kMap[r]) > 0).map(r => `${r}->(${kMap[r]})`);
+                        keyDisp = kList.length > 0 ? kList.join(', ') : '-';
+                    }
                     rowsData.push({
                         qKey: qNo,
                         label: `ข้อที่ ${qNo}`,
@@ -5500,7 +5731,7 @@
                         avgPointsEarned,
                         correctCount,
                         totalN: N,
-                        keyDisplay: key[qNo],
+                        keyDisplay: keyDisp,
                         counts: null,
                         distributionHtml: `<span class="text-xs text-slate-700 font-medium">ตอบถูก/ผ่านเกณฑ์ ${correctCount} คน จาก ${N} คน (คิดเป็นร้อยละ ${pct.toFixed(1)}%)</span>`,
                         pct,
@@ -5854,23 +6085,23 @@
                     <div class="pt-3 border-t border-slate-200 space-y-3">
                         <div>
                             <h4 class="text-xs font-extrabold text-slate-800 mb-2 flex items-center justify-between">
-                                <span>ตอนที่ 2 : แบบเรียงลำดับ (ข้อ 21.1 - 21.2)</span>
-                                <span class="text-indigo-700">ได้ ${part2OnlyScore.toFixed(2)} คะแนน</span>
-                            </h4>
-                            <div class="grid grid-cols-2 gap-2">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 ${['21.1', '21.2'].map(qNo => {
                                     const isOk = res.scoreDetails.itemCorrectMap[qNo];
-                                    const rawVal = Number(normalizeAnswerLookup(res.answers, qNo) || 0);
-                                    const stuText = rawVal > 0 ? `ข้อความที่ ${rawVal}` : 'ว่าง';
-                                    const keyVal = normalizeAnswerLookup(activeKey, qNo);
+                                    const maxOrd = qNo === '21.1' ? 10 : 13;
+                                    const rawVal = normalizeAnswerLookup(res.answers, qNo);
+                                    const stuText = formatStudentAnswerDisplay('61', qNo, res.answers);
+                                    const keyMap = normalizeThaiOrderMap(normalizeAnswerLookup(activeKey, qNo), maxOrd);
+                                    const keyPairs = Object.keys(keyMap).filter(r => Number(keyMap[r]) > 0).map(r => `ลำดับ${r}=${keyMap[r]}`).join(' ');
                                     const pts = Number(res.scoreDetails.itemPointsEarnedMap?.[qNo] || 0);
                                     return `
-                                        <div class="p-2.5 rounded-xl border text-xs ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'}">
-                                            <div class="flex justify-between font-bold mb-0.5">
+                                        <div class="p-2.5 rounded-xl border text-xs ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'} space-y-1">
+                                            <div class="flex justify-between font-bold">
                                                 <span>ข้อ ${qNo}</span>
                                                 <span>ได้ ${pts.toFixed(2)} คะแนน</span>
                                             </div>
-                                            <div>ตอบ: ${stuText} <span class="text-[10px] font-semibold">(เฉลย ข้อความที่ ${keyVal})</span></div>
+                                            <div class="text-[11px]">ตอบ: ${stuText}</div>
+                                            <div class="text-[10px] font-semibold text-slate-600">เฉลย: ${keyPairs || '-'}</div>
                                         </div>
                                     `;
                                 }).join('')}
