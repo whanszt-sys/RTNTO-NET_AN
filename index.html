@@ -17,8 +17,8 @@
 
     <!-- สคริปต์ล็อกอินฉุกเฉินส่วนหัว (ทำงานได้ทันทีแม้ไฟล์ส่วนล่างหรือ CDN โหลดช้า) -->
     <script>
-        window.AUTH_USER_HASH = '78910';
-        window.AUTH_PASS_HASH = '78910';
+        window.AUTH_USER_HASH = '1047540063';
+        window.AUTH_PASS_HASH = 'admin789';
 
         window.togglePasswordVisibility = function() {
             var pwdInput = document.getElementById('login-password');
@@ -154,18 +154,21 @@
         .a4-sheet {
             font-family: 'Sarabun', 'Prompt', sans-serif;
             width: 210mm;
-            min-height: 297mm;
+            height: 296mm;
+            min-height: 296mm;
+            max-height: 296mm;
             background: white;
             margin: 0 auto;
-            padding: 15mm 16mm;
+            padding: 11mm 14mm 12mm 14mm;
             position: relative;
             box-sizing: border-box;
             box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.12), 0 0 1px 1px rgba(15, 23, 42, 0.05);
             border-radius: 4px;
             color: #000;
+            overflow: hidden;
         }
 
-        /* 4 Corner Fiducial Markers (วางชิดขอบนอกกระดาษ A4 ไม่ให้ทับเนื้อหาด้านใน) */
+        /* 4 Corner Fiducial Markers (วางชิดขอบนอกกระดาษ A4 และยกขอบล่างขึ้นไม่ให้ตกขอบเวลาพิมพ์) */
         .fiducial-marker {
             width: 22px;
             height: 22px;
@@ -177,8 +180,8 @@
         }
         .marker-tl { top: 6mm; left: 6mm; }
         .marker-tr { top: 6mm; right: 6mm; }
-        .marker-bl { bottom: 6mm; left: 6mm; }
-        .marker-br { bottom: 6mm; right: 6mm; }
+        .marker-bl { bottom: 12mm; left: 6mm; }
+        .marker-br { bottom: 12mm; right: 6mm; }
 
         /* 2. จุดอ้างอิงด้านข้าง (Side Timing Marks) กำกับแนวบรรทัดซ้าย-ขวา นอกกรอบตาราง */
         .side-timing-mark {
@@ -279,26 +282,41 @@
 
         /* Print Media Styles */
         @media print {
-            body {
+            html, body {
                 background: white !important;
                 margin: 0 !important;
                 padding: 0 !important;
+                width: 210mm !important;
             }
-            .no-print {
+            .no-print, #app-sidebar, header, #login-screen, #custom-modal, #toast-container {
                 display: none !important;
             }
             #main-content {
                 margin: 0 !important;
                 padding: 0 !important;
                 max-width: 100% !important;
+                width: 100% !important;
+            }
+            #view-sheets {
+                display: block !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            #printable-sheets-container {
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
             }
             .a4-sheet {
                 box-shadow: none !important;
                 border: none !important;
-                margin: 0 !important;
+                margin: 0 auto !important;
                 width: 210mm !important;
-                height: 297mm !important;
+                height: 296mm !important;
+                min-height: 296mm !important;
+                max-height: 296mm !important;
                 page-break-after: always;
+                break-after: page;
             }
             @page {
                 size: A4 portrait;
@@ -377,9 +395,10 @@
                 <button type="submit" onclick="handleLoginSubmit(event)" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-2 text-sm cursor-pointer">
                     <i class="fa-solid fa-right-to-bracket"></i> เข้าสู่ระบบ
                 </button>
+                <p class="text-xs font-semibold text-indigo-900 text-center pt-1">พัฒนาโดย นางสาวปรารถนา สุวรรณพันธ์</p>
             </form>
 
-            <div class="mt-6 pt-4 border-t border-slate-100 text-center">
+            <div class="mt-2 pt-2 border-t border-slate-100 text-center">
                 <p class="text-[11px] text-slate-500">สำหรับบุคลากรและครูผู้สอน โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</p>
             </div>
         </div>
@@ -1685,6 +1704,7 @@
             let part2Score = 0;
             let itemCorrectMap = {};
             let itemPointsEarnedMap = {};
+            let itemSubCorrectCountMap = {};
 
             for (let q = spec.part1.start; q <= spec.part1.end; q++) {
                 const stuChoice = Number(normalizeAnswerLookup(ans, q));
@@ -1699,18 +1719,37 @@
             }
 
             if (subjectCode === '65') {
+                // เกณฑ์การให้คะแนนวิชาวิทยาศาสตร์ ตอนที่ 2 (ข้อ 19 - 20):
+                // - ตอบถูกครบทั้ง 3 ข้อย่อย ได้คะแนนเต็มของข้อนั้น (เช่น 5 คะแนน หรือ 2.5 คะแนนตามที่ตั้งไว้)
+                // - ตอบถูก 2 ข้อย่อย ได้คะแนนครึ่งหนึ่งของคะแนนเต็มข้อนั้น (เช่น 2.5 คะแนน เมื่อคะแนนเต็มข้อละ 5)
+                // - ตอบถูก 1 ข้อย่อย หรือตอบผิดทั้งหมด / ไม่ตอบ ได้ 0 คะแนน
                 ['19', '20'].forEach(qNo => {
                     const stuObj = normalizeAnswerLookup(ans, qNo) || { '1': 0, '2': 0, '3': 0 };
                     const keyObj = normalizeAnswerLookup(key, qNo) || { '1': 1, '2': 2, '3': 1 };
                     const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
-                    const hasAnyAnswered = Number(stuObj['1']) > 0 || Number(stuObj['2']) > 0 || Number(stuObj['3']) > 0;
-                    const allMatch = hasAnyAnswered &&
-                                     (Number(stuObj['1']) === Number(keyObj['1'])) &&
-                                     (Number(stuObj['2']) === Number(keyObj['2'])) &&
-                                     (Number(stuObj['3']) === Number(keyObj['3']));
-                    itemCorrectMap[qNo] = allMatch;
-                    itemPointsEarnedMap[qNo] = allMatch ? itemPts : 0;
-                    if (allMatch) part2Score += itemPts;
+
+                    let correctSubCount = 0;
+                    ['1', '2', '3'].forEach(subIdx => {
+                        const sVal = Number(stuObj[subIdx] || 0);
+                        const kVal = Number(keyObj[subIdx] || 0);
+                        if (sVal > 0 && sVal === kVal) {
+                            correctSubCount++;
+                        }
+                    });
+
+                    let earnedPts = 0;
+                    if (correctSubCount === 3) {
+                        earnedPts = itemPts;
+                    } else if (correctSubCount === 2) {
+                        earnedPts = Number((itemPts * 0.5).toFixed(4));
+                    } else {
+                        earnedPts = 0;
+                    }
+
+                    itemSubCorrectCountMap[qNo] = correctSubCount;
+                    itemCorrectMap[qNo] = (correctSubCount === 3);
+                    itemPointsEarnedMap[qNo] = earnedPts;
+                    part2Score += earnedPts;
                 });
             } else if (subjectCode === '64') {
                 ['12', '13', '14', '15'].forEach(qNo => {
@@ -1757,7 +1796,8 @@
                 part2Score: Number(part2Score.toFixed(2)),
                 totalScore,
                 itemCorrectMap,
-                itemPointsEarnedMap
+                itemPointsEarnedMap,
+                itemSubCorrectCountMap
             };
         }
 
@@ -3238,11 +3278,11 @@
                 { id: 'BR', u: 1.000, v: 1.000 }
             ];
 
-            // ขยับส่วนที่ฝนคำตอบขึ้นไปให้พอดีกับใต้กล่องกรอกข้อมูลนักเรียน (ไม่เว้นช่องว่างห่างเกินไป)
-            const gridBoxTopV = sub === '61' ? 0.258 : 0.264;
-            const gridBoxBottomV = sub === '65' ? 0.518 : (sub === '64' ? 0.442 : (sub === '61' ? 0.425 : 0.622));
-            const firstRowV = gridBoxTopV + (sub === '61' ? 0.044 : 0.052);
-            const lastRowV = gridBoxBottomV - (sub === '61' ? 0.024 : 0.030);
+            // ขยับตารางฝนคำตอบขึ้นไปให้ใกล้กับกล่องกรอกข้อมูลนักเรียนอย่างพอดี (ไม่ห่างเกินไปและไม่ซ้อนทับ)
+            const gridBoxTopV = sub === '61' ? 0.238 : 0.242;
+            const gridBoxBottomV = sub === '65' ? 0.498 : (sub === '64' ? 0.422 : (sub === '61' ? 0.402 : 0.600));
+            const firstRowV = gridBoxTopV + (sub === '61' ? 0.044 : 0.050);
+            const lastRowV = gridBoxBottomV - (sub === '61' ? 0.024 : 0.028);
             const rowStepV = rowsPerCol > 1 ? (lastRowV - firstRowV) / (rowsPerCol - 1) : 0;
 
             let colStartU, colWidthU, colGapU, firstBubbleOffsetU, choiceStepU;
@@ -3322,9 +3362,9 @@
             // พิกัด ตอนที่ 2 พร้อมจุดอ้างอิงด้านข้าง (Side Marks) และจุดอ้างอิงภายใน (Internal Marks) แยกตามรายวิชา
             const part2SciBubbles = {};
             if (sub === '65') {
-                // วิทยาศาสตร์ (รหัส 65): ตอนที่ 2 ข้อ 19.1-19.3 และ 20.1-20.3 (ขยับขึ้นให้สมดุลกับตอนที่ 1)
+                // วิทยาศาสตร์ (รหัส 65): ตอนที่ 2 ข้อ 19.1-19.3 และ 20.1-20.3 (ขยับขึ้นให้ต่อเนื่องกับตอนที่ 1)
                 ['1', '2', '3'].forEach((subIdx, rIdx) => {
-                    const rowV = Number((0.648 + rIdx * 0.044).toFixed(4));
+                    const rowV = Number((0.626 + rIdx * 0.045).toFixed(4));
                     sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_L`, page: 1, section: 'part2', rowIdx: rIdx, side: 'L', u: -0.008, v: rowV });
                     sideMarks.push({ id: `P2_SCI_R${rIdx + 1}_R`, page: 1, section: 'part2', rowIdx: rIdx, side: 'R', u: 1.008, v: rowV });
                 });
@@ -3338,7 +3378,7 @@
                         boxKey: qNo,
                         pos: 'top',
                         u: Number((baseU + 0.008).toFixed(4)),
-                        v: 0.575
+                        v: 0.553
                     });
                     internalMarks.push({
                         id: `P2_SCI_${qNo}_BR`,
@@ -3347,12 +3387,12 @@
                         boxKey: qNo,
                         pos: 'bottom',
                         u: Number((baseU + 0.422).toFixed(4)),
-                        v: 0.765
+                        v: 0.746
                     });
 
                     part2SciBubbles[qNo] = {};
                     ['1', '2', '3'].forEach((subIdx, rIdx) => {
-                        const rowV = Number((0.648 + rIdx * 0.044).toFixed(4));
+                        const rowV = Number((0.626 + rIdx * 0.045).toFixed(4));
                         part2SciBubbles[qNo][subIdx] = {
                             rowIdx: rIdx,
                             labelU: Number((baseU + 0.030).toFixed(4)),
@@ -3366,26 +3406,29 @@
                 });
             }
 
-            // คณิตศาสตร์ (รหัส 64): ตอนที่ 2 ระบายตัวเลข 3 หลัก (ข้อ 12 - 15) แยกไปอยู่หน้าที่ 2 (ไม่มีช่องเขียนตัวเลข มีเฉพาะแถบหลักร้อย หลักสิบ หลักหน่วย และวงกลม 0-9)
+            // คณิตศาสตร์ (รหัส 64): ตอนที่ 2 ระบายตัวเลข 3 หลัก (ข้อ 12 - 15) บนหน้าที่ 2 รูปแบบตรงตามตัวอย่าง สทศ.
             const part2MathBubbles = {};
             if (sub === '64') {
+                const firstDigitV = 0.556;
+                const digitStepV = 0.0305;
                 for (let digit = 0; digit <= 9; digit++) {
-                    const vDigit = Number((0.345 + digit * 0.043).toFixed(4));
+                    const vDigit = Number((firstDigitV + digit * digitStepV).toFixed(4));
                     sideMarks.push({ id: `P2_MATH_D${digit}_L`, page: 2, section: 'part2', rowIdx: digit, side: 'L', u: -0.008, v: vDigit });
                     sideMarks.push({ id: `P2_MATH_D${digit}_R`, page: 2, section: 'part2', rowIdx: digit, side: 'R', u: 1.008, v: vDigit });
                 }
 
                 ['12', '13', '14', '15'].forEach((qNo, boxIdx) => {
-                    const boxLeftU = Number((0.035 + boxIdx * 0.238).toFixed(4));
-                    const boxWidthU = 0.222;
+                    const boxLeftU = Number((0.068 + boxIdx * 0.226).toFixed(4));
+                    const boxWidthU = 0.186;
+                    const colW = boxWidthU / 3; // แบ่ง 3 คอลัมน์เท่ากัน: หลักร้อย | หลักสิบ | หลักหน่วย
                     internalMarks.push({
                         id: `P2_MATH_${qNo}_TL`,
                         page: 2,
                         section: 'part2',
                         boxKey: qNo,
                         pos: 'top',
-                        u: Number((boxLeftU + 0.008).toFixed(4)),
-                        v: 0.262
+                        u: Number((boxLeftU + 0.006).toFixed(4)),
+                        v: 0.440
                     });
                     internalMarks.push({
                         id: `P2_MATH_${qNo}_BR`,
@@ -3393,8 +3436,8 @@
                         section: 'part2',
                         boxKey: qNo,
                         pos: 'bottom',
-                        u: Number((boxLeftU + boxWidthU - 0.008).toFixed(4)),
-                        v: 0.785
+                        u: Number((boxLeftU + boxWidthU - 0.006).toFixed(4)),
+                        v: 0.858
                     });
 
                     part2MathBubbles[qNo] = {
@@ -3403,14 +3446,14 @@
                         digits: {}
                     };
                     for (let digit = 0; digit <= 9; digit++) {
-                        const vDigit = Number((0.345 + digit * 0.043).toFixed(4));
+                        const vDigit = Number((firstDigitV + digit * digitStepV).toFixed(4));
                         part2MathBubbles[qNo].digits[digit] = {
                             rowIdx: digit,
                             v: vDigit,
                             places: {
-                                0: { u: Number((boxLeftU + 0.065).toFixed(4)), v: vDigit }, // หลักร้อย
-                                1: { u: Number((boxLeftU + 0.125).toFixed(4)), v: vDigit }, // หลักสิบ
-                                2: { u: Number((boxLeftU + 0.185).toFixed(4)), v: vDigit }  // หลักหน่วย
+                                0: { u: Number((boxLeftU + colW * 0.5).toFixed(4)), v: vDigit }, // หลักร้อย
+                                1: { u: Number((boxLeftU + colW * 1.5).toFixed(4)), v: vDigit }, // หลักสิบ
+                                2: { u: Number((boxLeftU + colW * 2.5).toFixed(4)), v: vDigit }  // หลักหน่วย
                             }
                         };
                     }
@@ -3422,8 +3465,8 @@
             // ข้อ 21.2 มี คำลำดับที่ 1 - 13 และวงกลม 1 - 13 ในแต่ละแถว
             const part2ThaiBubbles = {};
             if (sub === '61') {
-                const firstOrderRowV = 0.514;
-                const orderRowStepV = 0.0305;
+                const firstOrderRowV = 0.486;
+                const orderRowStepV = 0.030;
 
                 for (let rIdx = 0; rIdx < 13; rIdx++) {
                     const vRow = Number((firstOrderRowV + rIdx * orderRowStepV).toFixed(4));
@@ -3444,7 +3487,7 @@
                         boxKey: subQ,
                         pos: 'top',
                         u: Number((boxBaseU + 0.008).toFixed(4)),
-                        v: 0.464
+                        v: 0.438
                     });
                     internalMarks.push({
                         id: `P2_THAI_${subQ}_BR`,
@@ -3453,7 +3496,7 @@
                         boxKey: subQ,
                         pos: 'bottom',
                         u: Number((boxBaseU + boxWidthU - 0.008).toFixed(4)),
-                        v: 0.908
+                        v: 0.876
                     });
 
                     part2ThaiBubbles[subQ] = {
@@ -4257,20 +4300,30 @@
 
             if (sub === '65') {
                 html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2">
-                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 : เลือกตอบเชิงซ้อน (1 = ใช่, 2 = ไม่ใช่)</p>`;
+                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 : เลือกตอบเชิงซ้อน (ถูก 3 ข้อย่อย = ได้เต็ม, ถูก 2 ข้อย่อย = ได้ครึ่งหนึ่ง, ถูก 0-1 = 0 คะแนน)</p>`;
                 ['19', '20'].forEach(qNo => {
-                    const stuObj = ans[qNo] || { 1: 1, 2: 2, 3: 1 };
-                    const isOk = evalRes.itemCorrectMap[qNo];
+                    const stuObj = ans[qNo] || { 1: 0, 2: 0, 3: 0 };
+                    const ptsEarned = Number(evalRes.itemPointsEarnedMap?.[qNo] || 0);
+                    const maxItemPts = Number(getItemMeta('65', qNo).points) || 5;
+                    const subCorrectCnt = Number(evalRes.itemSubCorrectCountMap?.[qNo] || 0);
+                    const badgeColor = ptsEarned === maxItemPts
+                        ? 'bg-emerald-50 border-emerald-200'
+                        : (ptsEarned > 0 ? 'bg-amber-50 border-amber-300' : 'bg-rose-50 border-rose-200');
                     html += `
-                        <div class="p-2.5 rounded-lg border ${isOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} flex flex-wrap items-center justify-between gap-2">
-                            <span class="text-xs font-bold">ข้อ ${qNo} ${isOk ? '<i class="fa-solid fa-check text-emerald-600"></i>' : '<i class="fa-solid fa-xmark text-rose-600"></i>'}</span>
+                        <div class="p-2.5 rounded-lg border ${badgeColor} flex flex-wrap items-center justify-between gap-2">
+                            <span class="text-xs font-bold">
+                                ข้อ ${qNo}
+                                <span class="ml-1 px-1.5 py-0.5 rounded bg-white border text-[10px] font-extrabold">
+                                    ถูก ${subCorrectCnt}/3 ข้อย่อย (+${ptsEarned.toFixed(2)} คะแนน)
+                                </span>
+                            </span>
                             <div class="flex gap-3">
                                 ${['1', '2', '3'].map(subIdx => `
                                     <div class="flex items-center gap-1 text-xs">
                                         <span class="text-slate-600 font-medium">${qNo}.${subIdx}:</span>
                                         <button type="button" onclick="updateDraftSciPart2('${qNo}', '${subIdx}', ${Number(stuObj[subIdx]) === 1 ? 2 : 1})"
                                                 class="px-2 py-0.5 rounded bg-white border border-slate-300 font-bold text-[11px]">
-                                            ${Number(stuObj[subIdx]) === 1 ? '1 (ใช่)' : '2 (ไม่ใช่)'}
+                                            ${Number(stuObj[subIdx]) === 1 ? '1 (ใช่)' : (Number(stuObj[subIdx]) === 2 ? '2 (ไม่ใช่)' : 'ว่าง')}
                                         </button>
                                     </div>
                                 `).join('')}
@@ -4525,12 +4578,90 @@
            7. TAB 3: A4 ANSWER SHEET GENERATOR, PRINT & DIRECT DOWNLOAD
         -------------------------------------------------------------------------- */
         function handlePrintAnswerSheet() {
+            const container = document.getElementById('printable-sheets-container');
+            if (!container || !container.innerHTML.trim()) {
+                renderPrintableAnswerSheet();
+            }
+            const sheetsHtml = container ? container.innerHTML : '';
+            const sub = appState.currentSubject;
+            const spec = SUBJECT_SPECS[sub] || SUBJECT_SPECS['65'];
+
+            // เปิดหน้าต่างพิมพ์กระดาษ A4 โดยเฉพาะ เพื่อให้สั่งพิมพ์ได้ 100% ทั้งบน GitHub Pages และหน้าต่าง Preview
+            let printWin = null;
+            try {
+                printWin = window.open('', '_blank');
+            } catch (e) {
+                printWin = null;
+            }
+
+            if (printWin && printWin.document) {
+                const styleNodes = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+                    .map(el => el.outerHTML)
+                    .join('\n');
+
+                printWin.document.open();
+                printWin.document.write(`<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <title>พิมพ์กระดาษคำตอบ O-NET รหัสวิชา ${spec.code} (${spec.name})</title>
+    <script src="https://cdn.tailwindcss.com"><\/script>
+    ${styleNodes}
+    <style>
+        body { background: #e2e8f0; margin: 0; padding: 0; font-family: 'Sarabun', 'Prompt', sans-serif; }
+        .print-toolbar {
+            position: sticky; top: 0; z-index: 999;
+            background: #0f172a; color: #fff; padding: 10px 20px;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .sheet-wrap { padding: 16px 0; display: flex; flex-direction: column; gap: 20px; align-items: center; }
+        @media print {
+            body { background: #fff !important; }
+            .print-toolbar { display: none !important; }
+            .sheet-wrap { padding: 0 !important; gap: 0 !important; display: block !important; }
+            .a4-sheet {
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                page-break-after: always;
+                break-after: page;
+            }
+            @page { size: A4 portrait; margin: 0mm; }
+        }
+    </style>
+</head>
+<body>
+    <div class="print-toolbar">
+        <div style="font-size:14px; font-weight:700;">ตัวอย่างก่อนพิมพ์: กระดาษคำตอบวิชา${spec.name} (รหัส ${spec.code})</div>
+        <div style="display:flex; gap:8px;">
+            <button onclick="window.print()" style="background:#10b981; color:#0f172a; font-weight:800; padding:8px 16px; border-radius:8px; border:none; cursor:pointer;">
+                สั่งพิมพ์ทันที (Print)
+            </button>
+            <button onclick="window.close()" style="background:#334155; color:#fff; font-weight:600; padding:8px 14px; border-radius:8px; border:none; cursor:pointer;">
+                ปิดหน้าต่าง
+            </button>
+        </div>
+    </div>
+    <div class="sheet-wrap">${sheetsHtml}</div>
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                window.focus();
+                window.print();
+            }, 600);
+        };
+    <\/script>
+</body>
+</html>`);
+                printWin.document.close();
+                return;
+            }
+
+            // กรณีเบราว์เซอร์บล็อกหน้าต่างใหม่ ให้สั่งพิมพ์จากหน้าปัจจุบันโดยตรง
             try {
                 window.focus();
                 window.print();
-            } catch (e) {
-                showToast('กรุณากดปุ่มพิมพ์ของเบราว์เซอร์ (Ctrl+P หรือ Cmd+P)', 'info');
-                window.print();
+            } catch (err) {
+                showToast('กรุณากด Ctrl+P (หรือ Cmd+P) เพื่อสั่งพิมพ์กระดาษคำตอบ', 'info');
             }
         }
 
@@ -4624,27 +4755,27 @@
             const examDateDisplay = currentSes ? formatThaiDate(currentSes.examDate) : '.........................';
 
             return `
-                <!-- Top Header Banner: รูปแบบเดิมโดยไม่ใส่ตราโรงเรียน และจัดขนาดให้กะทัดรัดแยกออกจากส่วนฝนข้อสอบอย่างชัดเจน -->
-                <div class="flex items-center justify-between border-b-2 border-black pb-1.5 mb-2 px-2">
+                <!-- Top Header Banner: กะทัดรัดและล็อกความสูงไม่ให้ไหลลงไปซ้อนทับส่วนฝนข้อสอบเวลาสั่งพิมพ์ -->
+                <div class="flex items-center justify-between border-b-2 border-black pb-1 mb-1.5 px-2">
                     <div>
-                        <div class="text-sm font-bold leading-tight">โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</div>
-                        <div class="text-[11px] font-semibold leading-snug">กระดาษคำตอบการทดสอบทางการศึกษาระดับชาติขั้นพื้นฐาน (O-NET) ชั้นประถมศึกษาปีที่ 6</div>
+                        <div class="text-[13px] font-bold leading-tight">โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</div>
+                        <div class="text-[10.5px] font-semibold leading-snug">กระดาษคำตอบการทดสอบทางการศึกษาระดับชาติขั้นพื้นฐาน (O-NET) ชั้นประถมศึกษาปีที่ 6</div>
                     </div>
                     <div class="flex items-center gap-2 shrink-0">
-                        <div class="border-2 border-black px-2.5 py-0.5 text-center bg-slate-100">
-                            <div class="text-[9px] font-semibold">รหัสวิชา</div>
-                            <div class="text-base font-black leading-none">${spec.code}</div>
+                        <div class="border-2 border-black px-2 py-0.5 text-center bg-slate-100">
+                            <div class="text-[8.5px] font-semibold">รหัสวิชา</div>
+                            <div class="text-sm font-black leading-none">${spec.code}</div>
                         </div>
-                        <div class="border-2 border-black px-3 py-0.5 text-center">
-                            <div class="text-[9px] font-semibold">รายวิชา</div>
-                            <div class="text-xs font-extrabold leading-tight">${spec.name}</div>
+                        <div class="border-2 border-black px-2.5 py-0.5 text-center">
+                            <div class="text-[8.5px] font-semibold">รายวิชา</div>
+                            <div class="text-[11px] font-extrabold leading-tight">${spec.name}</div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Student Info & ID Grid Section (แยกส่วนชัดเจน ไม่ซ้อนทับกับตารางฝนคำตอบด้านล่าง) -->
-                <div class="grid grid-cols-12 gap-2 border-2 border-black p-2 mb-3 bg-white text-[10.5px]">
-                    <div class="col-span-5 space-y-1 pr-2 border-r border-black flex flex-col justify-between">
+                <!-- Student Info & ID Grid Section (ความสูงคงที่ ไม่ซ้อนทับส่วนฝนทำข้อสอบด้านล่าง) -->
+                <div class="grid grid-cols-12 gap-2 border-2 border-black p-1.5 bg-white text-[10px]" style="max-height:43mm; overflow:hidden;">
+                    <div class="col-span-5 space-y-0.5 pr-2 border-r border-black flex flex-col justify-between">
                         <div>
                             <div class="flex justify-between border-b border-dotted border-black pb-0.5">
                                 <span class="font-bold">ชื่อ-สกุล:</span>
@@ -4665,13 +4796,13 @@
                         </div>
 
                         <!-- Exam Set Code (รหัสชุดข้อสอบ 100 - 600) -->
-                        <div class="border border-black p-1 bg-slate-50 mt-1">
-                            <div class="font-bold text-[9.5px] mb-0.5">คำสั่ง: ระบายรหัสชุดข้อสอบวิชา${spec.name}</div>
+                        <div class="border border-black p-1 bg-slate-50 mt-0.5">
+                            <div class="font-bold text-[9px] mb-0.5">คำสั่ง: ระบายรหัสชุดข้อสอบวิชา${spec.name}</div>
                             <div class="grid grid-cols-6 gap-1 text-center">
                                 ${['100', '200', '300', '400', '500', '600'].map(code => `
                                     <div class="flex flex-col items-center">
-                                        <span class="omr-bubble" style="width:16px; height:16px; font-size:8px;"></span>
-                                        <span class="text-[8.5px] font-bold mt-0.5">${code}</span>
+                                        <span class="omr-bubble" style="width:14px; height:14px; font-size:7.5px;"></span>
+                                        <span class="text-[8px] font-bold mt-0.5">${code}</span>
                                     </div>
                                 `).join('')}
                             </div>
@@ -4682,28 +4813,28 @@
                     <div class="col-span-7 flex flex-col justify-between pl-1">
                         <div class="grid grid-cols-2 gap-2">
                             <div>
-                                <div class="font-bold text-[9.5px] text-center mb-0.5">เลขประจำตัวประชาชน 13 หลัก</div>
+                                <div class="font-bold text-[9px] text-center mb-0.5">เลขประจำตัวประชาชน 13 หลัก</div>
                                 <div class="grid grid-cols-13 gap-0.5 text-center border border-black p-0.5 bg-white" style="grid-template-columns: repeat(13, minmax(0, 1fr));">
-                                    ${citizenDigits.map(d => `<div class="border border-slate-400 h-4 text-[9.5px] font-mono font-bold flex items-center justify-center">${d}</div>`).join('')}
+                                    ${citizenDigits.map(d => `<div class="border border-slate-400 h-3.5 text-[9px] font-mono font-bold flex items-center justify-center">${d}</div>`).join('')}
                                 </div>
                             </div>
                             <div>
-                                <div class="font-bold text-[9.5px] text-center mb-0.5">เลขที่นั่งสอบ 8 หลัก</div>
+                                <div class="font-bold text-[9px] text-center mb-0.5">เลขที่นั่งสอบ 8 หลัก</div>
                                 <div class="grid grid-cols-8 gap-0.5 text-center border border-black p-0.5 bg-white">
-                                    ${seatDigits.map(d => `<div class="border border-slate-400 h-4 text-[9.5px] font-mono font-bold flex items-center justify-center">${d}</div>`).join('')}
+                                    ${seatDigits.map(d => `<div class="border border-slate-400 h-3.5 text-[9px] font-mono font-bold flex items-center justify-center">${d}</div>`).join('')}
                                 </div>
                             </div>
                         </div>
 
                         <!-- Signatures & Instructions -->
-                        <div class="grid grid-cols-2 gap-2 mt-1.5 pt-1 border-t border-slate-300 text-[9.5px]">
+                        <div class="grid grid-cols-2 gap-2 mt-1 pt-1 border-t border-slate-300 text-[9px]">
                             <div>
                                 <div>ลายมือชื่อผู้เข้าสอบ.......................................................</div>
-                                <div class="text-[8.5px] text-slate-600 mt-0.5">• ใช้ดินสอดำ 2B ระบายวงกลมให้ดำเต็มวง</div>
+                                <div class="text-[8px] text-slate-600 mt-0.5">• ใช้ดินสอดำ 2B ระบายวงกลมให้ดำเต็มวง</div>
                             </div>
                             <div>
                                 <div>ลายมือชื่อกรรมการคุมสอบ..............................................</div>
-                                <div class="text-[8.5px] font-bold text-slate-800 mt-0.5">• ห้ามขีดเขียนทับจุดสี่เหลี่ยมสีดำทั้ง 4 มุม</div>
+                                <div class="text-[8px] font-bold text-slate-800 mt-0.5">• ห้ามขีดเขียนทับจุดสี่เหลี่ยมสีดำทั้ง 4 มุม</div>
                             </div>
                         </div>
                     </div>
@@ -4777,17 +4908,20 @@
 
             let extraPartHtml = '';
             if (spec.code === '65') {
-                // วาด ตอนที่ 2 ของวิทยาศาสตร์ ด้วยพิกัด (u, v) เดียวกับกล้องมือถือ (ขยับขึ้นให้สมดุลกับตอนที่ 1)
+                // วาด ตอนที่ 2 ของวิทยาศาสตร์ ด้วยพิกัด (u, v) เดียวกับกล้องมือถือ และจัดคำว่า ใช่ (1) / ไม่ใช่ (2) ให้ตรงกับวงกลมตัวเลขเป๊ะ
                 let sciPart2Bubbles = '';
                 ['19', '20'].forEach((qNo, boxIdx) => {
                     const boxLeftPct = boxIdx === 0 ? '4.5%' : '52.5%';
+                    const u1HeaderPct = (( (boxIdx === 0 ? 0.045 : 0.525) + 0.260 ) * 100).toFixed(3);
+                    const u2HeaderPct = (( (boxIdx === 0 ? 0.045 : 0.525) + 0.370 ) * 100).toFixed(3);
                     sciPart2Bubbles += `
-                        <div style="position:absolute; left:${boxLeftPct}; top:58.3%; width:43%; height:17.5%; border:1.5px solid #000; padding:6px;">
-                            <div class="flex justify-between text-xs font-bold border-b border-black pb-1">
-                                <span>ข้อ ${qNo} คำถามย่อย</span>
-                                <div class="flex gap-5 pr-3"><span>ใช่ (1)</span><span>ไม่ใช่ (2)</span></div>
+                        <div style="position:absolute; left:${boxLeftPct}; top:55.8%; width:43%; height:18.2%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
+                            <div style="position:relative; height:24px; border-bottom:1px solid #000; background:#f8fafc;">
+                                <span style="position:absolute; left:8px; top:50%; transform:translateY(-50%); font-size:11px; font-weight:700;">ข้อ ${qNo} คำถามย่อย</span>
                             </div>
                         </div>
+                        <div style="position:absolute; left:${u1HeaderPct}%; top:57.4%; transform:translate(-50%, -50%); font-size:10.5px; font-weight:700; white-space:nowrap; z-index:15;">ใช่ (1)</div>
+                        <div style="position:absolute; left:${u2HeaderPct}%; top:57.4%; transform:translate(-50%, -50%); font-size:10.5px; font-weight:700; white-space:nowrap; z-index:15;">ไม่ใช่ (2)</div>
                     `;
                     ['1', '2', '3'].forEach(subIdx => {
                         const subMeta = canonicalMap.part2SciBubbles[qNo][subIdx];
@@ -4803,7 +4937,7 @@
                     });
                 });
                 extraPartHtml = `
-                    <div style="position:absolute; left:3.5%; top:54.5%; right:3.5%; font-size:11px; font-weight:700;">
+                    <div style="position:absolute; left:3.5%; top:52.6%; right:3.5%; font-size:11px; font-weight:700;">
                         ตอนที่ 2 : แบบปรนัยเลือกตอบเชิงซ้อน จำนวน 2 ข้อ (ข้อ 19 - 20) — หากเลือก "ใช่" ระบาย 1 หากเลือก "ไม่ใช่" ระบาย 2
                     </div>
                     ${sciPart2Bubbles}
@@ -4811,7 +4945,7 @@
             } else if (spec.code === '64') {
                 // วิชาคณิตศาสตร์ (รหัส 64): หน้าแรกแสดงเฉพาะ ตอนที่ 1 (ข้อ 1 - 11) เท่านั้น ส่วน ตอนที่ 2 (ข้อ 12 - 15) ย้ายไปอยู่หน้าที่ 2
                 extraPartHtml = `
-                    <div style="position:absolute; left:3.5%; top:48.5%; right:3.5%; border:1.5px dashed #475569; padding:10px 14px; background:#f8fafc;" class="text-center">
+                    <div style="position:absolute; left:3.5%; top:46.2%; right:3.5%; border:1.5px dashed #475569; padding:10px 14px; background:#f8fafc;" class="text-center">
                         <div class="text-xs font-bold text-slate-900">ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ จำนวน 4 ข้อ (ข้อ 12 - 15) อยู่ในกระดาษคำตอบหน้าที่ 2</div>
                         <div class="text-[10px] text-slate-600 mt-0.5">กรุณาพลิกไปทำหรือพิมพ์กระดาษคำตอบ หน้าที่ 2 สำหรับระบายคำตอบข้อ 12 - 15</div>
                     </div>
@@ -4827,7 +4961,7 @@
                     const boxLeftPct = (boxMeta.boxBaseU * 100).toFixed(2) + '%';
                     const boxWidthPct = (boxMeta.boxWidthU * 100).toFixed(2) + '%';
                     thaiPart2Bubbles += `
-                        <div style="position:absolute; left:${boxLeftPct}; top:47.2%; width:${boxWidthPct}; height:43.2%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
+                        <div style="position:absolute; left:${boxLeftPct}; top:44.5%; width:${boxWidthPct}; height:42.8%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
                             <div class="text-[11px] font-bold px-2.5 py-0.5 border-b border-black bg-slate-100 flex items-center justify-between">
                                 <span>ข้อ ${subQ}</span>
                                 <span class="text-[9px] font-semibold text-slate-700">ระบายวงกลม 1 - ${maxOrder} เพียง 1 วงในแต่ละลำดับ</span>
@@ -4851,7 +4985,7 @@
                     }
                 });
                 extraPartHtml = `
-                    <div style="position:absolute; left:2.5%; top:44.4%; right:2.5%; font-size:11px; font-weight:700;" class="flex items-center justify-between">
+                    <div style="position:absolute; left:2.5%; top:41.6%; right:2.5%; font-size:11px; font-weight:700;" class="flex items-center justify-between">
                         <span>ตอนที่ 2 : แบบเรียงลำดับ จำนวน 1 ข้อ (ข้อ 21.1 และ ข้อ 21.2)</span>
                         <span class="text-[10px] font-semibold">วิธีการตอบ : ระบาย 1 คำตอบที่เป็นคำตอบที่ถูกที่สุดในแต่ละลำดับ</span>
                     </div>
@@ -4860,17 +4994,17 @@
             }
 
             return `
-                <div class="a4-sheet flex flex-col justify-between" style="height:297mm;">
+                <div class="a4-sheet flex flex-col justify-between" style="height:296mm;">
                     <!-- 1. จุดสี่เหลี่ยมสีดำที่มุมทั้ง 4 ด้านของกระดาษ A4 (วางติดกับขอบกระดาษ .a4-sheet โดยตรง ไม่ให้ทับส่วนหัวกระดาษ) -->
                     <div class="fiducial-marker marker-tl"></div>
                     <div class="fiducial-marker marker-tr"></div>
                     <div class="fiducial-marker marker-bl"></div>
                     <div class="fiducial-marker marker-br"></div>
 
-                    <!-- พื้นที่พิกัดสัมบูรณ์ 4 ระดับ (Canonical Coordinate Frame) ที่มีมุมทั้ง 4 อยู่ตรงกับจุดศูนย์กลางของ Fiducial Markers (8.9mm จากขอบ A4) -->
-                    <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:8.9mm; pointer-events:none; z-index:10;">
-                        <!-- เส้นคั่นแยกส่วนกรอกข้อมูลนักเรียนด้านบน กับ ส่วนฝนข้อสอบด้านล่างอย่างพอดีสวยงาม -->
-                        <div style="position:absolute; left:2.5%; right:2.5%; top:${(canonicalMap.gridBoxTopV * 100 - 3.4).toFixed(2)}%; border-top:2px solid #0f172a;"></div>
+                    <!-- พื้นที่พิกัดสัมบูรณ์ 4 ระดับ (Canonical Coordinate Frame) ที่มีมุมทั้ง 4 อยู่ตรงกับจุดศูนย์กลางของ Fiducial Markers -->
+                    <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:14.9mm; pointer-events:none; z-index:10;">
+                        <!-- เส้นคั่นแยกส่วนกรอกข้อมูลนักเรียนด้านบน กับ ส่วนฝนข้อสอบด้านล่างอย่างพอดี ไม่ห่างเกินไปและไม่ซ้อนทับ -->
+                        <div style="position:absolute; left:2.5%; right:2.5%; top:${(canonicalMap.gridBoxTopV * 100 - 3.3).toFixed(2)}%; border-top:2px solid #0f172a;"></div>
                         <div style="position:absolute; left:3.5%; top:${(canonicalMap.gridBoxTopV * 100 - 2.5).toFixed(2)}%; right:3.5%;" class="flex items-center justify-between">
                             <span class="text-xs font-bold">${spec.part1.title}</span>
                             <span class="text-[10px] font-semibold">วิธีการตอบ: ระบาย 1 คำตอบที่ถูกที่สุดในแต่ละข้อ</span>
@@ -4885,7 +5019,7 @@
                     <div class="z-20">
                         ${buildCommonA4Header(spec, stu, 1)}
                     </div>
-                    <div class="z-20 flex items-center justify-between text-[10px] font-bold pt-2 border-t border-black">
+                    <div class="z-20 flex items-center justify-between text-[10px] font-bold pt-1.5 border-t border-black">
                         <span>ระบบพิกัดอ้างอิง 4 ระดับ: จุดมุม 4 จุด + จุดอ้างอิงด้านข้าง + จุดอ้างอิงภายใน + วงกลมคำตอบ</span>
                         <span>กระดาษคำตอบวิชา${spec.name} (รหัส ${spec.code}) - หน้าที่ 1</span>
                     </div>
@@ -4895,7 +5029,7 @@
 
         function buildA4SheetPage2(spec, stu) {
             if (spec.code === '64') {
-                // วิชาคณิตศาสตร์ (รหัส 64) หน้าที่ 2: แสดง ตอนที่ 2 (ข้อ 12 - 15) มีเฉพาะแถบ หลักร้อย หลักสิบ หลักหน่วย และวงกลมแนวตั้ง 0-9 (ไม่มีช่องเขียนตัวเลข)
+                // วิชาคณิตศาสตร์ (รหัส 64) หน้าที่ 2: ออกแบบตามตัวอย่างกระดาษคำตอบ สทศ. (มีคำชี้แจง + ตัวอย่าง 052 ด้านบน และกรอบข้อ 12 - 15 ด้านล่าง)
                 const canonicalMap = getCanonicalSubjectBubbleUVMap('64');
                 let sideMarksP2Html = '';
                 (canonicalMap.sideMarks || []).filter(sm => sm.page === 2).forEach(sm => {
@@ -4907,46 +5041,111 @@
                     internalMarksP2Html += `<div class="internal-ref-mark" style="left:${(im.u * 100).toFixed(3)}%; top:${(im.v * 100).toFixed(3)}%;"></div>`;
                 });
 
+                // สร้างกล่อง "ตัวอย่าง (052)" ด้านขวาบนของส่วนคำชี้แจง
+                const exRowsHtml = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map(d => {
+                    const fill0 = d === 0 ? 'filled' : '';
+                    const fill1 = d === 5 ? 'filled' : '';
+                    const fill2 = d === 2 ? 'filled' : '';
+                    return `
+                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); justify-items:center; padding:0.5px 0;">
+                            <span class="omr-bubble ${fill0}" style="width:10.5px; height:10.5px; font-size:6.5px; border-width:1px;">${d}</span>
+                            <span class="omr-bubble ${fill1}" style="width:10.5px; height:10.5px; font-size:6.5px; border-width:1px;">${d}</span>
+                            <span class="omr-bubble ${fill2}" style="width:10.5px; height:10.5px; font-size:6.5px; border-width:1px;">${d}</span>
+                        </div>
+                    `;
+                }).join('');
+
                 let mathPage2Html = '';
                 ['12', '13', '14', '15'].forEach(qNo => {
                     const boxMeta = canonicalMap.part2MathBubbles[qNo];
-                    const leftPct = (boxMeta.boxLeftU * 100).toFixed(2);
-                    const widthPct = (boxMeta.boxWidthU * 100).toFixed(2);
+                    const leftPct = (boxMeta.boxLeftU * 100).toFixed(3);
+                    const widthPct = (boxMeta.boxWidthU * 100).toFixed(3);
+                    const colW = boxMeta.boxWidthU / 3;
+                    const div1Pct = ((boxMeta.boxLeftU + colW) * 100).toFixed(3);
+                    const div2Pct = ((boxMeta.boxLeftU + colW * 2) * 100).toFixed(3);
+
                     mathPage2Html += `
-                        <div style="position:absolute; left:${leftPct}%; top:27.0%; width:${widthPct}; height:50.8%; border:1.5px solid #000; box-sizing:border-box; background:#fff;">
-                            <div class="text-xs font-bold text-center border-b border-black py-1 bg-slate-100">ข้อ ${qNo}</div>
-                            <div class="flex justify-around text-[9.5px] font-bold border-b border-black py-1.5 pl-5 bg-slate-50">
-                                <span>หลักร้อย</span><span>หลักสิบ</span><span>หลักหน่วย</span>
+                        <!-- กรอบตารางของแต่ละข้อ (ข้อ 12, ข้อ 13, ข้อ 14, ข้อ 15) เหมือนภาพตัวอย่าง -->
+                        <div style="position:absolute; left:${leftPct}%; top:44.6%; width:${widthPct}%; height:40.6%; border:1.2px solid #1e293b; box-sizing:border-box; background:#fff;">
+                            <!-- แถวหัวข้อ: ข้อ 12 -->
+                            <div style="height:6.5%; border-bottom:1px solid #1e293b; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800;">
+                                ข้อ ${qNo}
                             </div>
+                            <!-- แถวหัวหลัก: หลักร้อย | หลักสิบ | หลักหน่วย -->
+                            <div style="height:8.5%; border-bottom:1px solid #1e293b; display:grid; grid-template-columns:repeat(3, 1fr); text-align:center; font-size:9px; font-weight:700; line-height:1.05; align-items:center;">
+                                <div>หลัก<br>ร้อย</div>
+                                <div>หลัก<br>สิบ</div>
+                                <div>หลัก<br>หน่วย</div>
+                            </div>
+                            <!-- แถวช่องว่างสำหรับเขียนตัวเลข 3 หลัก -->
+                            <div style="height:7.0%; border-bottom:1px solid #1e293b; background:#fff;"></div>
                         </div>
+                        <!-- เส้นแบ่งคอลัมน์แนวตั้ง 3 หลัก ลากยาวตั้งแต่แถวคำว่า หลักร้อย/สิบ/หน่วย ลงมาจนสุดกรอบล่าง -->
+                        <div style="position:absolute; left:${div1Pct}%; top:47.24%; height:37.96%; border-left:1px solid #1e293b; z-index:11;"></div>
+                        <div style="position:absolute; left:${div2Pct}%; top:47.24%; height:37.96%; border-left:1px solid #1e293b; z-index:11;"></div>
                     `;
                     for (let d = 0; d <= 9; d++) {
                         const dMeta = boxMeta.digits[d];
                         const topPct = (dMeta.v * 100).toFixed(3);
-                        const lblPct = ((boxMeta.boxLeftU + 0.018) * 100).toFixed(3);
-                        mathPage2Html += `<div style="position:absolute; left:${lblPct}%; top:${topPct}%; transform:translateY(-50%); font-size:10px; font-weight:700;">${d}</div>`;
                         [0, 1, 2].forEach(pIdx => {
                             const uPct = (dMeta.places[pIdx].u * 100).toFixed(3);
                             mathPage2Html += `
-                                <span class="omr-bubble" style="position:absolute; left:${uPct}%; top:${topPct}%; transform:translate(-50%, -50%); width:18px; height:18px; font-size:9px;">${d}</span>
+                                <span class="omr-bubble" style="position:absolute; left:${uPct}%; top:${topPct}%; transform:translate(-50%, -50%); width:16.5px; height:16.5px; font-size:9px; z-index:12;">${d}</span>
                             `;
                         });
                     }
                 });
 
                 return `
-                    <div class="a4-sheet flex flex-col justify-between" style="height:297mm;">
+                    <div class="a4-sheet flex flex-col justify-between" style="height:296mm;">
                         <div class="fiducial-marker marker-tl"></div>
                         <div class="fiducial-marker marker-tr"></div>
                         <div class="fiducial-marker marker-bl"></div>
                         <div class="fiducial-marker marker-br"></div>
 
-                        <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:8.9mm; pointer-events:none; z-index:10;">
-                            <div style="position:absolute; left:2.5%; right:2.5%; top:23.0%; border-top:2px solid #0f172a;"></div>
-                            <div style="position:absolute; left:3.5%; top:23.8%; right:3.5%;" class="flex items-center justify-between">
-                                <span class="text-xs font-bold">ตอนที่ 2 : แบบระบายตัวเลขที่เป็นคำตอบ 3 หลัก จำนวน 4 ข้อ (ข้อ 12 - 15)</span>
-                                <span class="text-[10px] font-semibold">ระบายวงกลม 0 - 9 ให้ครบทั้งหลักร้อย หลักสิบ และหลักหน่วย (เช่น 52 ให้ระบาย 052)</span>
+                        <div style="position:absolute; left:8.9mm; right:8.9mm; top:8.9mm; bottom:14.9mm; pointer-events:none; z-index:10;">
+                            <!-- กรอบส่วนที่ 2 ทั้งหมด (คำชี้แจง + ตัวอย่าง + ตารางข้อ 12 - 15) ขยับขึ้นใกล้ส่วนข้อมูลนักเรียน -->
+                            <div style="position:absolute; left:2.5%; right:2.5%; top:20.8%; bottom:8.0%; border:1.5px solid #1e293b; padding:10px 14px; box-sizing:border-box;">
+                                <!-- ส่วนคำชี้แจงด้านซ้าย และ กล่องตัวอย่างด้านขวา -->
+                                <div class="flex items-start justify-between gap-3">
+                                    <div class="text-[11px] leading-relaxed space-y-0.5 text-slate-900 pr-2">
+                                        <div class="font-bold text-xs"><span class="underline">ตอนที่ 2 :</span> แบบระบายตัวเลขที่เป็นคำตอบ จำนวน 4 ข้อ</div>
+                                        <div class="font-bold underline text-[11px]">วิธีการตอบ</div>
+                                        <div>• ให้ใช้ปากกาหรือดินสอเขียนตัวเลขที่เป็นคำตอบลงในช่องว่าง <span class="underline font-semibold">ให้ตรงกับหลักเลข</span> ให้ครบทั้งสามหลัก</div>
+                                        <div>• ใช้ดินสอดำ 2B ระบายในวงกลม<span class="underline font-semibold">ให้ตรงกับหลักเลขครบทุกหลัก</span> เช่น คำตอบคือ 52 ต้องระบาย 052</div>
+                                        <div class="pl-2.5">คือระบายเลข 0 ที่หลักร้อย เลข 5 ที่หลักสิบ เลข 2 ที่หลักหน่วย</div>
+                                        <div>• ต้องระบายคำตอบให้ถูกต้องจึงจะได้คะแนน</div>
+                                    </div>
+
+                                    <!-- กล่องตัวอย่าง (ระบาย 052) มุมขวาบน เหมือนต้นฉบับ -->
+                                    <div style="width:94px; border:1px solid #1e293b; background:#fff; flex-shrink:0;">
+                                        <div style="text-align:center; font-size:9.5px; font-weight:800; border-bottom:1px solid #1e293b; padding:1px 0;">ตัวอย่าง</div>
+                                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); text-align:center; font-size:7px; font-weight:700; line-height:1.05; border-bottom:1px solid #1e293b;">
+                                            <div style="border-right:1px solid #1e293b; padding:1.5px 0;">หลัก<br>ร้อย</div>
+                                            <div style="border-right:1px solid #1e293b; padding:1.5px 0;">หลัก<br>สิบ</div>
+                                            <div style="padding:1.5px 0;">หลัก<br>หน่วย</div>
+                                        </div>
+                                        <div style="display:grid; grid-template-columns:repeat(3, 1fr); text-align:center; font-size:8.5px; font-weight:800; border-bottom:1px solid #1e293b;">
+                                            <div style="border-right:1px solid #1e293b;">0</div>
+                                            <div style="border-right:1px solid #1e293b;">5</div>
+                                            <div>2</div>
+                                        </div>
+                                        <div style="padding:2px 0; position:relative;">
+                                            <div style="position:absolute; left:33.33%; top:0; bottom:0; border-left:1px solid #cbd5e1;"></div>
+                                            <div style="position:absolute; left:66.66%; top:0; bottom:0; border-left:1px solid #cbd5e1;"></div>
+                                            ${exRowsHtml}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- กรอบล้อมรอบ ข้อ 12 - 15 เหมือนในตัวอย่าง -->
+                            <div style="position:absolute; left:4.2%; right:4.2%; top:40.2%; height:47.2%; border:1.2px solid #1e293b; background:#fff; box-sizing:border-box;">
+                                <div style="height:22px; border-bottom:1px solid #1e293b; padding:0 10px; display:flex; align-items:center; font-size:11px; font-weight:800;">
+                                    ข้อ 12 - 15
+                                </div>
+                            </div>
+
                             ${sideMarksP2Html}
                             ${internalMarksP2Html}
                             ${mathPage2Html}
@@ -4955,9 +5154,9 @@
                         <div class="z-20">
                             ${buildCommonA4Header(spec, stu, 2)}
                         </div>
-                        <div class="z-20 flex items-center justify-between text-[10px] font-bold pt-2 border-t border-black">
-                            <span>เลือกโหมด "สแกนตอนที่ 2" ในแอปมือถือเพื่อสแกนตรวจข้อ 12 - 15 ในหน้านี้</span>
-                            <span>กระดาษคำตอบวิชา${spec.name} (รหัส ${spec.code}) - หน้าที่ 2</span>
+                        <div class="z-20 flex items-center justify-between text-[10px] font-bold pt-1.5 border-t border-black">
+                            <span class="bg-slate-800 text-white px-2.5 py-0.5">เครื่องจะตรวจข้อมูลตามที่ท่านระบาย</span>
+                            <span>กระดาษคำตอบหน้า 2 (รหัสวิชา ${spec.code} ${spec.name})</span>
                         </div>
                     </div>
                 `;
@@ -5663,12 +5862,20 @@
 
             if (sub === '65') {
                 ['19', '20'].forEach(qNo => {
-                    let correctCount = 0;
+                    let fullCorrectCount = 0;
+                    let partialCorrectCount = 0;
+                    let totalEarnedPts = 0;
                     const meta = getItemMeta(sub, qNo);
-                    submissions.forEach(s => { if (s.scoreDetails.itemCorrectMap[qNo]) correctCount++; });
-                    const pct = (correctCount / N) * 100;
+                    submissions.forEach(s => {
+                        const pts = Number(s.scoreDetails.itemPointsEarnedMap?.[qNo] || 0);
+                        const subCnt = Number(s.scoreDetails.itemSubCorrectCountMap?.[qNo] || 0);
+                        totalEarnedPts += pts;
+                        if (subCnt === 3) fullCorrectCount++;
+                        else if (subCnt === 2) partialCorrectCount++;
+                    });
+                    const avgPointsEarned = totalEarnedPts / N;
+                    const pct = meta.points > 0 ? (avgPointsEarned / meta.points) * 100 : 0;
                     const kObj = key[qNo] || { 1: 1, 2: 2, 3: 1 };
-                    const avgPointsEarned = (correctCount * meta.points) / N;
                     rowsData.push({
                         qKey: qNo,
                         label: `ข้อที่ ${qNo}`,
@@ -5676,13 +5883,13 @@
                         type: 'เชิงซ้อน (ใช่/ไม่ใช่)',
                         maxPoints: meta.points,
                         avgPointsEarned,
-                        correctCount,
+                        correctCount: fullCorrectCount,
                         totalN: N,
                         keyDisplay: `${kObj[1]}/${kObj[2]}/${kObj[3]}`,
                         counts: null,
-                        distributionHtml: `<span class="text-xs text-slate-700 font-medium">ตอบถูกครบ 3 ข้อย่อย ${correctCount} คน จาก ${N} คน (เฉลี่ย ${avgPointsEarned.toFixed(2)}/${meta.points} คะแนน)</span>`,
+                        distributionHtml: `<span class="text-xs text-slate-700 font-medium">ถูกครบ 3 ข้อย่อย (ได้เต็ม): ${fullCorrectCount} คน | ถูก 2 ข้อย่อย (ได้ครึ่งหนึ่ง): ${partialCorrectCount} คน (เฉลี่ย ${avgPointsEarned.toFixed(2)}/${meta.points} คะแนน)</span>`,
                         pct,
-                        pVal: correctCount / N
+                        pVal: meta.points > 0 ? (avgPointsEarned / meta.points) : 0
                     });
                 });
             } else if (sub === '64') {
@@ -6028,16 +6235,20 @@
                         </h4>
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                             ${['19', '20'].map(qNo => {
-                                const isOk = res.scoreDetails.itemCorrectMap[qNo];
                                 const stuObj = normalizeAnswerLookup(res.answers, qNo) || { '1': 0, '2': 0, '3': 0 };
                                 const keyObj = normalizeAnswerLookup(activeKey, qNo) || { '1': 1, '2': 2, '3': 1 };
                                 const ptsEarned = Number(res.scoreDetails.itemPointsEarnedMap?.[qNo] || 0);
+                                const maxPts = Number(getItemMeta('65', qNo).points) || 5;
+                                const subCnt = Number(res.scoreDetails.itemSubCorrectCountMap?.[qNo] || 0);
                                 const fmtYN = (v) => Number(v) === 1 ? '1(ใช่)' : (Number(v) === 2 ? '2(ไม่ใช่)' : 'ว่าง');
+                                const boxClass = ptsEarned === maxPts
+                                    ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                                    : (ptsEarned > 0 ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-rose-50 border-rose-200 text-rose-950');
                                 return `
-                                    <div class="p-2.5 rounded-xl border text-xs ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'} space-y-1">
+                                    <div class="p-2.5 rounded-xl border text-xs ${boxClass} space-y-1">
                                         <div class="flex items-center justify-between font-bold">
-                                            <span>ข้อ ${qNo}</span>
-                                            <span>ได้ ${ptsEarned.toFixed(2)} คะแนน</span>
+                                            <span>ข้อ ${qNo} (ถูก ${subCnt}/3 ข้อย่อย)</span>
+                                            <span>ได้ ${ptsEarned.toFixed(2)} / ${maxPts} คะแนน</span>
                                         </div>
                                         <div class="text-[11px]">นักเรียนตอบ: ${qNo}.1=${fmtYN(stuObj['1'])}, ${qNo}.2=${fmtYN(stuObj['2'])}, ${qNo}.3=${fmtYN(stuObj['3'])}</div>
                                         <div class="text-[10px] text-slate-600 font-semibold">เฉลย: ${qNo}.1=${fmtYN(keyObj['1'])}, ${qNo}.2=${fmtYN(keyObj['2'])}, ${qNo}.3=${fmtYN(keyObj['3'])}</div>
