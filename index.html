@@ -398,7 +398,7 @@
                 <p class="text-xs font-semibold text-indigo-900 text-center pt-1">พัฒนาโดย นางสาวปรารถนา สุวรรณพันธ์</p>
             </form>
 
-            <div class="mt-2 pt-2 border-t border-slate-100 text-center">
+            <div class="mt-5 pt-4 border-t border-slate-100 text-center">
                 <p class="text-[11px] text-slate-500">สำหรับบุคลากรและครูผู้สอน โรงเรียนบ้านโพนก้างปลาโนนสมบูรณ์</p>
             </div>
         </div>
@@ -815,7 +815,7 @@
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                         
                         <!-- Left Column: Auto-Scan Camera Viewfinder (Full-Screen Mobile Style) -->
-                        <div id="scanner-fullscreen-wrapper" class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                        <div id="scanner-fullscreen-wrapper" class="lg:col-span-7 min-w-0 w-full max-w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                             <!-- Top Green SCANNING Header Bar (เหมือนตัวอย่างแอปสแกนข้อสอบ) -->
                             <div class="bg-[#1b6b3a] text-white px-4 py-3 flex items-center justify-between shadow-md z-30 shrink-0">
                                 <button type="button" onclick="exitFullScreenScannerMode()" class="flex items-center gap-1.5 text-sm font-bold hover:opacity-90 transition cursor-pointer">
@@ -852,14 +852,14 @@
                                 </div>
                             </div>
 
-                            <!-- Camera & Canvas Preview Container (สัดส่วน A4 แนวตั้ง ระยะห่างกรอบบน-ล่างกว้างขึ้น) -->
-                            <div id="scanner-viewport-box" class="relative bg-slate-950 overflow-hidden flex-1 min-h-[72vh] sm:min-h-[680px] w-full mx-auto flex items-center justify-center touch-none">
-                                <!-- Live Video Feed (เต็มพื้นที่หน้าจอสแกน) -->
-                                <video id="scanner-video" autoplay playsinline muted class="hidden w-full h-full object-cover"></video>
+                            <!-- Camera & Canvas Preview Container (สัดส่วน A4 แนวตั้ง ระยะห่างกรอบบน-ล่างกว้างขึ้นและสมดุลซ้าย-ขวา) -->
+                            <div id="scanner-viewport-box" class="relative bg-slate-950 overflow-hidden flex-1 min-h-[72vh] sm:min-h-[680px] w-full max-w-full min-w-0 mx-auto touch-none">
+                                <!-- Live Video Feed (เต็มพื้นที่หน้าจอสแกนแบบ absolute เพื่อไม่ให้ดันความกว้างคอนเทนเนอร์ล้นจอ) -->
+                                <video id="scanner-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover"></video>
                                 <!-- Overlay Canvas สำหรับวาดจุดตรวจจับขณะส่องกล้องสด -->
                                 <canvas id="scanner-live-contour-canvas" class="hidden absolute inset-0 w-full h-full object-cover pointer-events-none"></canvas>
                                 <!-- Processed / Captured Sheet Canvas (แสดงภาพที่ค้างไว้หลังล็อกอัตโนมัติ) -->
-                                <canvas id="scanner-canvas" class="w-full h-full object-contain cursor-crosshair"></canvas>
+                                <canvas id="scanner-canvas" class="absolute inset-0 w-full h-full object-contain cursor-crosshair"></canvas>
 
                                 <!-- แบนเนอร์แจ้งเตือน "บันทึกคะแนนเรียบร้อย" โชว์หน้ากล้องทันทีเมื่อกดบันทึก -->
                                 <div id="camera-save-success-banner" class="hidden absolute top-16 inset-x-4 z-40 pointer-events-none flex justify-center">
@@ -874,8 +874,8 @@
                                     </div>
                                 </div>
 
-                                <!-- ส่วนแสดงชื่อวิชาด้านบน + กรอบสี่เหลี่ยมมุมมน 4 มุม (วางห่างบน-ล่างตามสัดส่วนกระดาษ A4) -->
-                                <div id="scanner-live-overlay-guide" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-5">
+                                <!-- ส่วนแสดงชื่อวิชาด้านบน + กรอบสี่เหลี่ยมมุมมน 4 มุม (วางสมดุลซ้าย-ขวา และบน-ล่างตามสัดส่วนกระดาษ A4) -->
+                                <div id="scanner-live-overlay-guide" class="absolute inset-0 w-full h-full pointer-events-none flex flex-col justify-between p-3 sm:p-5 box-border overflow-hidden">
                                     
                                     <!-- Top Translucent Subject & Form Info Card (ลอยตรงกลางด้านบนเหมือนภาพตัวอย่าง) -->
                                     <div class="relative z-20 flex flex-col items-center mt-1 pointer-events-auto">
@@ -897,19 +897,19 @@
                                         </div>
                                     </div>
 
-                                    <!-- 4 Corner Viewfinder Squares (แยกมุมบนและมุมล่างให้ห่างกันเต็มความสูงกระดาษ A4) -->
-                                    <div id="large-registration-boxes" class="absolute inset-0 pointer-events-none">
-                                        <!-- มุมบนซ้าย (TL) - วางสูงขึ้นเพื่อให้รับกับสัดส่วนความสูง A4 -->
-                                        <div id="vf-box-tl" class="absolute top-[13%] left-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
+                                    <!-- 4 Corner Viewfinder Squares (แยก 4 มุมชัดเจน บน-ล่าง และ ซ้าย-ขวา ตามเดิม) -->
+                                    <div id="large-registration-boxes" class="absolute inset-0 w-full h-full pointer-events-none box-border">
+                                        <!-- มุมบนซ้าย (TL) -->
+                                        <div id="vf-box-tl" style="top: 13%; left: 6%;" class="absolute w-[72px] h-[72px] sm:w-20 sm:h-20 border-[3px] border-slate-950 ring-2 ring-white/80 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
                                         </div>
                                         <!-- มุมบนขวา (TR) -->
-                                        <div id="vf-box-tr" class="absolute top-[13%] right-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
+                                        <div id="vf-box-tr" style="top: 13%; right: 6%;" class="absolute w-[72px] h-[72px] sm:w-20 sm:h-20 border-[3px] border-slate-950 ring-2 ring-white/80 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
                                         </div>
-                                        <!-- มุมล่างซ้าย (BL) - ขยับลงมาด้านล่างสุดเพื่อให้ระยะห่างบน-ล่างไกลกัน ส่อง A4 ทั้งแผ่นได้ง่าย -->
-                                        <div id="vf-box-bl" class="absolute bottom-[5%] left-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
+                                        <!-- มุมล่างซ้าย (BL) -->
+                                        <div id="vf-box-bl" style="bottom: 5%; left: 6%;" class="absolute w-[72px] h-[72px] sm:w-20 sm:h-20 border-[3px] border-slate-950 ring-2 ring-white/80 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
                                         </div>
                                         <!-- มุมล่างขวา (BR) -->
-                                        <div id="vf-box-br" class="absolute bottom-[5%] right-[5%] w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
+                                        <div id="vf-box-br" style="bottom: 5%; right: 6%;" class="absolute w-[72px] h-[72px] sm:w-20 sm:h-20 border-[3px] border-slate-950 ring-2 ring-white/80 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md">
                                         </div>
                                     </div>
                                 </div>
@@ -1881,13 +1881,14 @@
             if (!wrapper || !viewport) return;
 
             if (isFull) {
-                wrapper.className = 'fixed inset-0 z-50 bg-slate-950 flex flex-col overflow-hidden';
-                viewport.className = 'relative bg-slate-950 overflow-hidden flex-1 w-full h-full flex items-center justify-center touch-none';
+                window.scrollTo(0, 0);
+                wrapper.className = 'fixed inset-0 left-0 right-0 top-0 bottom-0 w-screen max-w-[100vw] h-[100dvh] z-50 bg-slate-950 flex flex-col overflow-hidden m-0';
+                viewport.className = 'relative bg-slate-950 overflow-hidden flex-1 w-full max-w-full min-w-0 h-full touch-none';
                 if (bottomBar) bottomBar.classList.add('hidden');
                 if (icon) icon.className = 'fa-solid fa-compress';
             } else {
-                wrapper.className = 'lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col';
-                viewport.className = 'relative bg-slate-950 overflow-hidden flex-1 min-h-[72vh] sm:min-h-[680px] w-full mx-auto flex items-center justify-center touch-none';
+                wrapper.className = 'lg:col-span-7 min-w-0 w-full max-w-full bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col';
+                viewport.className = 'relative bg-slate-950 overflow-hidden flex-1 min-h-[72vh] sm:min-h-[680px] w-full max-w-full min-w-0 mx-auto touch-none';
                 if (bottomBar) bottomBar.classList.remove('hidden');
                 if (icon) icon.className = 'fa-solid fa-expand';
             }
@@ -2901,20 +2902,21 @@
         }
 
         function updateViewfinderCornerBoxesUI(flags = [false, false, false, false], lockProgressPct = 0) {
-            const posClasses = [
-                'top-[13%] left-[5%]',
-                'top-[13%] right-[5%]',
-                'bottom-[5%] left-[5%]',
-                'bottom-[5%] right-[5%]'
+            const inlinePositions = [
+                'top: 13%; left: 6%;',
+                'top: 13%; right: 6%;',
+                'bottom: 5%; left: 6%;',
+                'bottom: 5%; right: 6%;'
             ];
             const ids = ['vf-box-tl', 'vf-box-tr', 'vf-box-bl', 'vf-box-br'];
             ids.forEach((id, idx) => {
                 const el = document.getElementById(id);
                 if (!el) return;
+                el.setAttribute('style', inlinePositions[idx]);
                 if (flags[idx]) {
-                    el.className = `absolute ${posClasses[idx]} w-20 h-20 sm:w-24 sm:h-24 border-[4px] border-emerald-400 ring-4 ring-emerald-500/40 rounded-2xl bg-emerald-500/25 transition-all duration-150 flex items-center justify-center shadow-lg`;
+                    el.className = 'absolute w-[72px] h-[72px] sm:w-20 sm:h-20 border-[4px] border-emerald-400 ring-4 ring-emerald-500/40 rounded-2xl bg-emerald-500/25 transition-all duration-150 flex items-center justify-center shadow-lg';
                 } else {
-                    el.className = `absolute ${posClasses[idx]} w-20 h-20 sm:w-24 sm:h-24 border-[3px] border-slate-950 ring-2 ring-white/70 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md`;
+                    el.className = 'absolute w-[72px] h-[72px] sm:w-20 sm:h-20 border-[3px] border-slate-950 ring-2 ring-white/80 rounded-2xl bg-white/10 transition-all duration-150 flex items-center justify-center shadow-md';
                 }
             });
             const bar = document.getElementById('auto-lock-progress-bar');
