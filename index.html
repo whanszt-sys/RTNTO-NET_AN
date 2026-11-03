@@ -981,13 +981,9 @@
 
                             <!-- Camera Control Footer -->
                             <div id="scanner-bottom-bar" class="p-4 bg-white border-t border-slate-200 flex flex-wrap items-center justify-between gap-2 shrink-0">
-                                <button type="button" onclick="handleMobileScanButtonClick()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-sm flex items-center justify-center gap-2 text-xs sm:text-sm transition cursor-pointer">
+                                <button type="button" onclick="openFullScreenScannerAndStart()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-sm flex items-center justify-center gap-2 text-sm transition cursor-pointer">
                                     <i class="fa-solid fa-camera"></i>
                                     <span id="btn-primary-mobile-scan-text">เริ่มสแกนอัตโนมัติ</span>
-                                </button>
-                                <button type="button" onclick="openFullScreenScannerAndStart()" class="px-4 py-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold rounded-xl text-xs sm:text-sm flex items-center gap-1.5 transition cursor-pointer">
-                                    <i class="fa-solid fa-expand"></i>
-                                    <span>ขยายเต็มจอมือถือ</span>
                                 </button>
                             </div>
                         </div>
@@ -2281,7 +2277,10 @@
         function quickScanForStudent(studentId) {
             switchTab('scanner');
             const sel = document.getElementById('scan-student-select');
+            const ovSel = document.getElementById('overlay-student-select');
             if (sel) sel.value = studentId;
+            if (ovSel) ovSel.value = studentId;
+            openFullScreenScannerAndStart();
         }
 
         /* --------------------------------------------------------------------------
@@ -2996,6 +2995,9 @@
         }
 
         async function startLiveAutoScanner() {
+            // ขยายหน้าจอสแกนให้เต็มจอมือถือทันทีเมื่อเริ่มสแกน
+            enterFullScreenScannerMode();
+
             const video = document.getElementById('scanner-video');
             const canvas = document.getElementById('scanner-canvas');
             const btnText = document.getElementById('btn-primary-mobile-scan-text');
@@ -3028,7 +3030,7 @@
                 if (btnText) btnText.textContent = 'ล็อกภาพทันที';
                 startAutoScanLoop();
             } catch (err) {
-                if (btnText) btnText.textContent = 'เปิดกล้องสแกนอัตโนมัติ';
+                if (btnText) btnText.textContent = 'เริ่มสแกนอัตโนมัติ';
             }
         }
 
@@ -3038,6 +3040,7 @@
                 captureLiveFrameAndGrade();
                 return;
             }
+            enterFullScreenScannerMode();
             await startLiveAutoScanner();
         }
 
