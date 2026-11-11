@@ -960,10 +960,10 @@
                                             <i class="fa-solid fa-pen-clip mr-1"></i> ตอนที่ 3 ข้อเขียน (ข้อ 22):
                                         </span>
                                         <div class="flex items-center gap-1.5">
-                                            <input type="number" id="overlay-thai-essay-input" min="0" max="20" step="0.5" value="0"
+                                            <input type="number" id="overlay-thai-essay-input" min="0" max="15" step="0.5" value="0"
                                                    oninput="updateDraftThaiPart2('22', this.value)"
                                                    class="w-16 text-center font-extrabold text-xs py-1 px-1.5 rounded-lg bg-white text-slate-900 border border-amber-400 focus:outline-none">
-                                            <span class="text-[11px] font-bold text-amber-100">/ 20 คะแนน</span>
+                                            <span class="text-[11px] font-bold text-amber-100">/ 15 คะแนน</span>
                                         </div>
                                     </div>
 
@@ -1076,10 +1076,10 @@
                                             <p class="text-[11px] text-amber-800">เขียนสรุปใจความสำคัญของบทอ่าน (กรอกคะแนนที่ได้)</p>
                                         </div>
                                         <div class="flex items-center gap-1.5">
-                                            <input type="number" id="scan-thai-essay-input" min="0" max="20" step="0.5" value="0"
+                                            <input type="number" id="scan-thai-essay-input" min="0" max="15" step="0.5" value="0"
                                                    oninput="updateDraftThaiPart2('22', this.value)"
                                                    class="w-20 text-center font-bold text-base py-1.5 px-2 rounded-xl border-2 border-amber-400 bg-white text-indigo-950 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                                            <span id="scan-thai-essay-max" class="text-xs font-bold text-amber-900">/ 20 คะแนน</span>
+                                            <span id="scan-thai-essay-max" class="text-xs font-bold text-amber-900">/ 15 คะแนน</span>
                                         </div>
                                     </div>
                                 </div>
@@ -1358,7 +1358,7 @@
                     title: 'ตอนที่ 2 : แบบเรียงลำดับ (ข้อ 21.1 - 21.2) และ ตอนที่ 3 : แบบอัตนัย (ข้อ 22)',
                     count: 2,
                     items: ['21.1', '21.2', '22'],
-                    pointsMap: { '21.1': 2, '21.2': 3, '22': 20 },
+                    pointsMap: { '21.1': 2, '21.2': 3, '22': 15 },
                     type: 'thai_mixed'
                 }
             }
@@ -1388,7 +1388,7 @@
                 11: 3, 12: 4, 13: 2, 14: 1, 15: 3, 16: 4, 17: 1, 18: 2, 19: 3, 20: 4,
                 '21.1': { '1': 3, '2': 1, '3': 4, '4': 2, '5': 5, '6': 7, '7': 6, '8': 9, '9': 8, '10': 10 },
                 '21.2': { '1': 2, '2': 4, '3': 1, '4': 5, '5': 3, '6': 6, '7': 8, '8': 7, '9': 10, '10': 9, '11': 11, '12': 13, '13': 12 },
-                '22': 20
+                '22': 15
             }
         };
 
@@ -1451,7 +1451,7 @@
             }
             meta['61']['21.1'] = { indicator: 'ท 2.1 ป.6/2', points: 2 };
             meta['61']['21.2'] = { indicator: 'ท 2.1 ป.6/2', points: 3 };
-            meta['61']['22'] = { indicator: 'ท 1.1 ป.6/4', points: 20 };
+            meta['61']['22'] = { indicator: 'ท 1.1 ป.6/4', points: 15 };
 
             return meta;
         }
@@ -1570,6 +1570,9 @@
                                 }
                                 if (parsedMeta['21.2'] && Number(parsedMeta['21.2'].points) === 5) {
                                     parsedMeta['21.2'].points = 3;
+                                }
+                                if (parsedMeta['22'] && Number(parsedMeta['22'].points) === 20) {
+                                    parsedMeta['22'].points = 15;
                                 }
                             }
                             appState.itemMetadata[sc] = parsedMeta;
@@ -1690,7 +1693,7 @@
                 if (subjectCode === '64' && ['12', '13', '14', '15'].includes(String(qKey))) defaultPts = 7.125;
                 if (subjectCode === '61' && qKey === '21.1') defaultPts = 2;
                 if (subjectCode === '61' && qKey === '21.2') defaultPts = 3;
-                if (subjectCode === '61' && qKey === '22') defaultPts = 20;
+                if (subjectCode === '61' && qKey === '22') defaultPts = 15;
                 appState.itemMetadata[subjectCode][qKey] = { indicator: '-', points: defaultPts };
             }
             return appState.itemMetadata[subjectCode][qKey];
@@ -1926,7 +1929,7 @@
                     itemPointsEarnedMap[qNo] = earnedPts;
                     part2Score += earnedPts;
                 });
-                const maxEssayPts = Number(getItemMeta(subjectCode, '22').points) || 20;
+                const maxEssayPts = Number(getItemMeta(subjectCode, '22').points) || 15;
                 const essayScore = Math.min(maxEssayPts, Math.max(0, Number(normalizeAnswerLookup(ans, '22') || 0)));
                 itemCorrectMap['22'] = essayScore >= (maxEssayPts * 0.5);
                 itemPointsEarnedMap['22'] = essayScore;
@@ -4788,7 +4791,7 @@
             if (thaiManualBox) {
                 if (sub === '61') {
                     thaiManualBox.classList.remove('hidden');
-                    const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
+                    const maxEssayPts = Number(getItemMeta('61', '22').points) || 15;
                     const essayInput = document.getElementById('scan-thai-essay-input');
                     const essayMaxEl = document.getElementById('scan-thai-essay-max');
                     if (essayInput) {
@@ -4897,7 +4900,7 @@
                 });
                 html += `</div></div>`;
             } else if (sub === '61') {
-                const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
+                const maxEssayPts = Number(getItemMeta('61', '22').points) || 15;
                 html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2.5">
                     <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 เต็ม 2 คะแนน, ข้อ 21.2 เต็ม 3 คะแนน) & ตอนที่ 3 อัตนัย (ข้อ 22)</p>
                     ${['21.1', '21.2'].map(subQ => {
@@ -5711,7 +5714,7 @@
                             <span class="text-xs font-bold">ตอนที่ 3 : แบบอัตนัย จำนวน 1 ข้อ (ข้อ 22)</span>
                             <span class="text-[10px] font-semibold">เขียนด้วยปากกาหรือดินสอด้วยลายมือตัวบรรจง (ครูกรอกคะแนนในระบบได้โดยตรง)</span>
                         </div>
-                        <div class="text-xs font-bold">22. จงเขียนสรุปใจความสำคัญของบทอ่าน (20 คะแนน)</div>
+                        <div class="text-xs font-bold">22. จงเขียนสรุปใจความสำคัญของบทอ่าน (15 คะแนน)</div>
                         <div class="space-y-6 py-4 px-2 border border-slate-400">
                             ${Array.from({ length: 10 }, () => `<div class="border-b border-dotted border-black h-6"></div>`).join('')}
                         </div>
@@ -6967,7 +6970,7 @@
                 const pts21_2 = Number(res.scoreDetails.itemPointsEarnedMap?.['21.2'] || 0);
                 const part2OnlyScore = pts21_1 + pts21_2;
                 const essayScore = Number(res.scoreDetails.itemPointsEarnedMap?.['22'] || 0);
-                const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
+                const maxEssayPts = Number(getItemMeta('61', '22').points) || 15;
 
                 detailsHtml += `
                     <div class="pt-3 border-t border-slate-200 space-y-3">
