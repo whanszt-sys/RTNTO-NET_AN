@@ -4318,21 +4318,38 @@
                             let maxDigitDrop = 0;
                             let secondDigitDrop = 0;
                             const placePts = {};
+                            const bubbleRadius = Math.max(5, Math.round(5.8 * dotScale));
 
                             for (let d = 0; d <= 9; d++) {
                                 const uv = boxMeta.digits[d].places[placeIdx];
-                                const pt = calib.getPart2CalibratedXY(qNo, d, uv.u, uv.v);
-                                placePts[d] = pt;
+                                const basePt = calib.getPart2CalibratedXY(qNo, d, uv.u, uv.v);
+                                let bestPt = basePt;
+                                let localBestDrop = sampleBubbleDarknessContrast(sourceCtx, basePt.x, basePt.y, bubbleRadius);
+
                                 if (!preserveManualAnswers) {
-                                    const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(5, Math.round(5.8 * dotScale)));
-                                    if (dVal > maxDigitDrop) {
+                                    const stepShift = Math.max(1, Math.round(2 * dotScale));
+                                    const offsets = [
+                                        [-stepShift, 0], [stepShift, 0],
+                                        [0, -stepShift], [0, stepShift]
+                                    ];
+                                    for (let k = 0; k < offsets.length; k++) {
+                                        const sx = basePt.x + offsets[k][0];
+                                        const sy = basePt.y + offsets[k][1];
+                                        const dVal = sampleBubbleDarknessContrast(sourceCtx, sx, sy, bubbleRadius);
+                                        if (dVal > localBestDrop) {
+                                            localBestDrop = dVal;
+                                            bestPt = { x: sx, y: sy };
+                                        }
+                                    }
+                                    if (localBestDrop > maxDigitDrop) {
                                         secondDigitDrop = maxDigitDrop;
-                                        maxDigitDrop = dVal;
+                                        maxDigitDrop = localBestDrop;
                                         bestDigit = d;
-                                    } else if (dVal > secondDigitDrop) {
-                                        secondDigitDrop = dVal;
+                                    } else if (localBestDrop > secondDigitDrop) {
+                                        secondDigitDrop = localBestDrop;
                                     }
                                 }
+                                placePts[d] = bestPt;
                             }
 
                             if (!preserveManualAnswers) {
@@ -4347,25 +4364,39 @@
                                 if (d === chosenD && chosenD === rightD) {
                                     ctx.save();
                                     ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                    ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
                                     ctx.fillStyle = 'rgba(16, 185, 129, 0.55)';
                                     ctx.fill();
-                                    ctx.lineWidth = Math.round(2 * dotScale);
+                                    ctx.lineWidth = Math.round(2.5 * dotScale);
                                     ctx.strokeStyle = '#059669';
                                     ctx.stroke();
                                     ctx.restore();
                                 } else if (d === chosenD && chosenD !== rightD) {
                                     ctx.save();
                                     ctx.beginPath();
-                                    ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                    ctx.arc(pt.x, pt.y, Math.round(8 * dotScale), 0, Math.PI * 2);
                                     ctx.fillStyle = 'rgba(239, 68, 68, 0.50)';
                                     ctx.fill();
+                                    ctx.lineWidth = Math.round(2 * dotScale);
+                                    ctx.strokeStyle = '#dc2626';
+                                    ctx.stroke();
+                                    ctx.restore();
+                                } else if (d === rightD && chosenD !== rightD) {
+                                    // วาดวงกลมเส้นประสีเหลืองแสดงตำแหน่งเฉลยที่ถูกต้องในแต่ละหลัก (หลักร้อย/สิบ/หน่วย) เหมือนตอนที่ 1
+                                    ctx.save();
+                                    ctx.beginPath();
+                                    ctx.setLineDash([Math.round(3 * dotScale), Math.round(2 * dotScale)]);
+                                    ctx.arc(pt.x, pt.y, Math.round(7.5 * dotScale), 0, Math.PI * 2);
+                                    ctx.lineWidth = Math.round(2 * dotScale);
+                                    ctx.strokeStyle = '#f59e0b';
+                                    ctx.stroke();
                                     ctx.restore();
                                 } else {
                                     ctx.save();
                                     ctx.beginPath();
                                     ctx.arc(pt.x, pt.y, Math.round(3.5 * dotScale), 0, Math.PI * 2);
-                                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.45)';
+                                    ctx.strokeStyle = 'rgba(56, 189, 248, 0.55)';
+                                    ctx.lineWidth = Math.max(1, Math.round(1.2 * dotScale));
                                     ctx.stroke();
                                     ctx.restore();
                                 }
