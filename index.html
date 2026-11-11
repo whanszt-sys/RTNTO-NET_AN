@@ -602,15 +602,28 @@
 
                     <!-- Overall 4-Subject Statistical Comparison & Distribution -->
                     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-                        <div class="lg:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                        <div id="dashboard-overview-card-wrapper" class="lg:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 transition-all duration-300">
+                            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
                                 <div>
                                     <h3 class="font-bold text-slate-900 text-base flex items-center gap-2">
-                                        <i class="fa-solid fa-table-list text-indigo-600"></i> ตารางสรุปค่าสถิติโดยภาพรวมทั้ง 4 รายวิชา
+                                        <i class="fa-solid fa-chart-column text-indigo-600"></i> แผนภูมิแท่งค่าเฉลี่ย (Mean) และตารางสรุปค่าสถิติโดยภาพรวมทั้ง 4 รายวิชา
                                     </h3>
-                                    <p class="text-xs text-slate-600">คลิกที่แถวรายวิชาเพื่อสลับดูรายละเอียดและผลการตรวจของวิชานั้น</p>
+                                    <p class="text-xs text-slate-600">แสดงคะแนนเฉลี่ย (Mean) ของทั้ง 4 วิชา (คลิกที่กราฟหรือตารางเพื่อสลับวิชา)</p>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2.5">
+                                    <div class="flex flex-wrap items-center gap-3 text-[11px] font-bold">
+                                        <span class="flex items-center gap-1.5 text-indigo-700"><span class="w-3 h-3 rounded-sm bg-indigo-600 inline-block"></span> ค่าเฉลี่ย (Mean)</span>
+                                    </div>
+                                    <button type="button" id="btn-dashboard-overview-fullscreen" onclick="toggleDashboardOverviewFullscreen()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 transition cursor-pointer">
+                                        <i id="icon-dashboard-overview-fullscreen" class="fa-solid fa-expand"></i>
+                                        <span id="text-dashboard-overview-fullscreen">ขยายเต็มจอ</span>
+                                    </button>
                                 </div>
                             </div>
+
+                            <!-- แผนภูมิแท่งแสดงเฉพาะค่าเฉลี่ย (Mean) ทั้ง 4 รายวิชา -->
+                            <div id="dashboard-subjects-barchart" class="mb-5 p-4 bg-slate-50 rounded-2xl border border-slate-200"></div>
+
                             <div class="overflow-x-auto">
                                 <table class="w-full text-left border-collapse">
                                     <thead>
@@ -633,11 +646,19 @@
                         <!-- Score Distribution Histogram -->
                         <div class="lg:col-span-4 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
                             <div>
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="font-bold text-slate-900 text-base">การกระจายช่วงคะแนน</h3>
-                                    <span id="dash-subject-badge" class="text-xs font-bold bg-indigo-100 text-indigo-800 px-2.5 py-0.5 rounded-full">รหัสวิชา 65</span>
+                                <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                    <h3 class="font-bold text-slate-900 text-base flex items-center gap-1.5">
+                                        <i class="fa-solid fa-chart-pie text-indigo-600"></i> การกระจายช่วงคะแนน
+                                    </h3>
+                                    <select id="dist-subject-filter" onchange="handleDistSubjectFilterChange(this.value)" class="text-xs font-bold bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 px-2.5 py-1.5 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+                                        <option value="all">ทั้งหมดทุกวิชา (4 วิชา)</option>
+                                        <option value="65">รหัส 65 : วิทยาศาสตร์</option>
+                                        <option value="64">รหัส 64 : คณิตศาสตร์</option>
+                                        <option value="63">รหัส 63 : ภาษาอังกฤษ</option>
+                                        <option value="61">รหัส 61 : ภาษาไทย</option>
+                                    </select>
                                 </div>
-                                <p id="dash-session-badge" class="text-xs text-slate-600 font-medium mb-4">-</p>
+                                <p id="dash-session-badge" class="text-xs text-slate-600 font-medium mb-3">-</p>
                                 <div id="score-distribution-bars" class="space-y-3"></div>
                             </div>
                             <div class="pt-4 border-t border-slate-200 mt-4 flex gap-2">
@@ -1220,6 +1241,43 @@
                             </div>
                         </div>
 
+                        <!-- แผนภูมิแท่งวิเคราะห์สถิติรายข้อ & รายตัวชี้วัด -->
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-6">
+                            <div id="item-difficulty-card-wrapper" class="lg:col-span-8 p-5 rounded-2xl bg-slate-50 border border-slate-200 transition-all duration-200">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                                    <div>
+                                        <h4 class="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
+                                            <i class="fa-solid fa-chart-bar text-indigo-600"></i> แผนภูมิแท่งแสดงร้อยละผู้ตอบถูกรายข้อ (Item Difficulty Chart)
+                                        </h4>
+                                        <p class="text-[11px] text-slate-600">แสดงความสูงของแท่งกราฟตามร้อยละของนักเรียนที่ตอบถูกในแต่ละข้อ</p>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2.5">
+                                        <div class="flex flex-wrap items-center gap-2 text-[10px] font-bold">
+                                            <span class="flex items-center gap-1 text-emerald-700"><span class="w-2.5 h-2.5 rounded-sm bg-emerald-500 inline-block"></span> ง่าย (≥80%)</span>
+                                            <span class="flex items-center gap-1 text-indigo-700"><span class="w-2.5 h-2.5 rounded-sm bg-indigo-500 inline-block"></span> เหมาะสม (50-79%)</span>
+                                            <span class="flex items-center gap-1 text-amber-700"><span class="w-2.5 h-2.5 rounded-sm bg-amber-500 inline-block"></span> ค่อนข้างยาก (20-49%)</span>
+                                            <span class="flex items-center gap-1 text-rose-700"><span class="w-2.5 h-2.5 rounded-sm bg-rose-500 inline-block"></span> ยากมาก (&lt;20%)</span>
+                                        </div>
+                                        <button type="button" id="btn-item-chart-fullscreen" onclick="toggleItemChartFullscreen()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 transition cursor-pointer">
+                                            <i id="icon-item-chart-fullscreen" class="fa-solid fa-expand"></i>
+                                            <span id="text-item-chart-fullscreen">ขยายเต็มจอ</span>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="item-stats-barchart" class="overflow-x-auto pb-2"></div>
+                            </div>
+
+                            <div class="lg:col-span-4 p-5 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col justify-between">
+                                <div>
+                                    <h4 class="font-bold text-slate-900 text-sm flex items-center gap-2 mb-1">
+                                        <i class="fa-solid fa-layer-group text-emerald-600"></i> แผนภูมิแท่งสรุปรายตัวชี้วัด
+                                    </h4>
+                                    <p class="text-[11px] text-slate-600 mb-4">เปรียบเทียบร้อยละความสำเร็จแยกตามมาตรฐาน/ตัวชี้วัด</p>
+                                    <div id="indicator-stats-barchart" class="space-y-3 max-h-64 overflow-y-auto pr-1"></div>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Item Analysis Table -->
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
@@ -1300,7 +1358,7 @@
                     title: 'ตอนที่ 2 : แบบเรียงลำดับ (ข้อ 21.1 - 21.2) และ ตอนที่ 3 : แบบอัตนัย (ข้อ 22)',
                     count: 2,
                     items: ['21.1', '21.2', '22'],
-                    pointsMap: { '21.1': 5, '21.2': 5, '22': 20 },
+                    pointsMap: { '21.1': 2, '21.2': 3, '22': 20 },
                     type: 'thai_mixed'
                 }
             }
@@ -1328,8 +1386,8 @@
             '61': {
                 1: 2, 2: 1, 3: 4, 4: 3, 5: 2, 6: 4, 7: 1, 8: 3, 9: 2, 10: 1,
                 11: 3, 12: 4, 13: 2, 14: 1, 15: 3, 16: 4, 17: 1, 18: 2, 19: 3, 20: 4,
-                '21.1': { '1': 3, '2': 1, '3': 4, '4': 2, '5': 5 },
-                '21.2': { '1': 2, '2': 4, '3': 1, '4': 5, '5': 3 },
+                '21.1': { '1': 3, '2': 1, '3': 4, '4': 2, '5': 5, '6': 7, '7': 6, '8': 9, '9': 8, '10': 10 },
+                '21.2': { '1': 2, '2': 4, '3': 1, '4': 5, '5': 3, '6': 6, '7': 8, '8': 7, '9': 10, '10': 9, '11': 11, '12': 13, '13': 12 },
                 '22': 20
             }
         };
@@ -1391,8 +1449,8 @@
             for (let q = 1; q <= 20; q++) {
                 meta['61'][q] = { indicator: sampleThaiInd[(q - 1) % sampleThaiInd.length], points: 3.5 };
             }
-            meta['61']['21.1'] = { indicator: 'ท 2.1 ป.6/2', points: 5 };
-            meta['61']['21.2'] = { indicator: 'ท 2.1 ป.6/2', points: 5 };
+            meta['61']['21.1'] = { indicator: 'ท 2.1 ป.6/2', points: 2 };
+            meta['61']['21.2'] = { indicator: 'ท 2.1 ป.6/2', points: 3 };
             meta['61']['22'] = { indicator: 'ท 1.1 ป.6/4', points: 20 };
 
             return meta;
@@ -1401,6 +1459,7 @@
         const appState = {
             currentTab: 'dashboard',
             currentSubject: '65',
+            distSubjectFilter: 'all',
             currentSessionId: '',
             currentKeyFormCode: '100',
             supabaseClient: null,
@@ -1504,6 +1563,14 @@
                         if (parsedMeta) {
                             if (parsedMeta._gridCalibration) {
                                 appState.gridCalibration[sc] = parsedMeta._gridCalibration;
+                            }
+                            if (sc === '61') {
+                                if (parsedMeta['21.1'] && Number(parsedMeta['21.1'].points) === 5) {
+                                    parsedMeta['21.1'].points = 2;
+                                }
+                                if (parsedMeta['21.2'] && Number(parsedMeta['21.2'].points) === 5) {
+                                    parsedMeta['21.2'].points = 3;
+                                }
                             }
                             appState.itemMetadata[sc] = parsedMeta;
                         }
@@ -1621,7 +1688,8 @@
                 let defaultPts = spec.part1.pointsEach || 5;
                 if (subjectCode === '65' && (qKey === '19' || qKey === '20')) defaultPts = 5;
                 if (subjectCode === '64' && ['12', '13', '14', '15'].includes(String(qKey))) defaultPts = 7.125;
-                if (subjectCode === '61' && (qKey === '21.1' || qKey === '21.2')) defaultPts = 5;
+                if (subjectCode === '61' && qKey === '21.1') defaultPts = 2;
+                if (subjectCode === '61' && qKey === '21.2') defaultPts = 3;
                 if (subjectCode === '61' && qKey === '22') defaultPts = 20;
                 appState.itemMetadata[subjectCode][qKey] = { indicator: '-', points: defaultPts };
             }
@@ -1760,24 +1828,103 @@
                     if (isCorrect) part2Score += itemPts;
                 });
             } else if (subjectCode === '61') {
+                // เกณฑ์การให้คะแนนวิชาภาษาไทย ตอนที่ 2 แบบเรียงลำดับ (ข้อ 21.1 และ 21.2):
+                // - ข้อ 21.1 (10 ลำดับ, คะแนนเต็ม 2 คะแนน):
+                //   * เรียงถูกทั้งหมด (ลำดับที่ 1-10) = 2 คะแนน (เต็ม)
+                //   * ลำดับที่ 1-5 ถูกทั้งหมด แต่ 6-10 ผิด 1-2 ลำดับ หรือ ลำดับที่ 1-5 ผิด 1-2 ลำดับ แต่ 6-10 ถูกทั้งหมด = 1 คะแนน
+                //   * กรณีอื่น ๆ = 0 คะแนน
+                // - ข้อ 21.2 (13 ลำดับ, คะแนนเต็ม 3 คะแนน):
+                //   * เรียงถูกทั้งหมด (ลำดับที่ 1-13) = 3 คะแนน (เต็ม)
+                //   * ตอบทุกลำดับ (ฝนครบทุกลำดับ) แต่เรียงผิด 1-2 คำ = 2 คะแนน
+                //   * ลำดับที่ 1-6 ถูกทั้งหมด แต่ 7-13 ผิด 1-2 ลำดับ หรือ ลำดับที่ 1-6 ผิด 1-2 ลำดับ แต่ 7-13 ถูกทั้งหมด = 1 คะแนน
+                //   * กรณีอื่น ๆ = 0 คะแนน
                 ['21.1', '21.2'].forEach(qNo => {
-                    const maxOrd = qNo === '21.1' ? 10 : 13;
+                    const is21_1 = (qNo === '21.1');
+                    const maxOrd = is21_1 ? 10 : 13;
+                    const firstHalfEnd = is21_1 ? 5 : 6;
+                    const defaultMaxPts = is21_1 ? 2 : 3;
+                    const itemPts = Number(getItemMeta(subjectCode, qNo).points) || defaultMaxPts;
+
                     const rawKey = normalizeAnswerLookup(key, qNo);
                     const rawStu = normalizeAnswerLookup(ans, qNo);
                     const keyMap = normalizeThaiOrderMap(rawKey, maxOrd);
-                    const activeRows = Object.keys(keyMap).filter(r => Number(keyMap[r]) > 0);
-                    const itemPts = Number(getItemMeta(subjectCode, qNo).points) || 0;
+                    const stuMap = normalizeThaiOrderMap(rawStu, maxOrd);
 
-                    let isCorrect = false;
-                    if (typeof rawStu === 'number' && activeRows.length === 1) {
-                        isCorrect = rawStu > 0 && rawStu === Number(keyMap[activeRows[0]]);
-                    } else {
-                        const stuMap = normalizeThaiOrderMap(rawStu, maxOrd);
-                        isCorrect = activeRows.length > 0 && activeRows.every(r => Number(stuMap[r]) === Number(keyMap[r]));
+                    let activeFirstHalf = 0;
+                    let activeSecondHalf = 0;
+                    let wrongFirstHalf = 0;
+                    let wrongSecondHalf = 0;
+                    let filledCount = 0;
+
+                    for (let r = 1; r <= maxOrd; r++) {
+                        const kVal = Number(keyMap[String(r)] || 0);
+                        const sVal = Number(stuMap[String(r)] || 0);
+                        if (kVal > 0) {
+                            if (sVal > 0) filledCount++;
+                            if (r <= firstHalfEnd) {
+                                activeFirstHalf++;
+                                if (sVal !== kVal) wrongFirstHalf++;
+                            } else {
+                                activeSecondHalf++;
+                                if (sVal !== kVal) wrongSecondHalf++;
+                            }
+                        }
                     }
-                    itemCorrectMap[qNo] = isCorrect;
-                    itemPointsEarnedMap[qNo] = isCorrect ? itemPts : 0;
-                    if (isCorrect) part2Score += itemPts;
+
+                    const totalActive = activeFirstHalf + activeSecondHalf;
+                    const totalWrong = wrongFirstHalf + wrongSecondHalf;
+                    const isAllFilled = (totalActive > 0 && filledCount === totalActive);
+
+                    let earnedPts = 0;
+                    let tierReason = 'ไม่ผ่านเกณฑ์ (0 คะแนน)';
+
+                    if (totalActive > 0) {
+                        if (is21_1) {
+                            if (wrongFirstHalf === 0 && wrongSecondHalf === 0) {
+                                earnedPts = itemPts;
+                                tierReason = 'เรียงถูกครบทุกลำดับ (ได้เต็ม)';
+                            } else if (
+                                (activeFirstHalf > 0 && wrongFirstHalf === 0 && wrongSecondHalf >= 1 && wrongSecondHalf <= 2) ||
+                                (activeSecondHalf > 0 && wrongSecondHalf === 0 && wrongFirstHalf >= 1 && wrongFirstHalf <= 2)
+                            ) {
+                                earnedPts = Number((itemPts * (1 / 2)).toFixed(4));
+                                tierReason = `ถูกครึ่งหนึ่งและอีกครึ่งผิด 1-2 ลำดับ (1-5 ผิด ${wrongFirstHalf}, 6-10 ผิด ${wrongSecondHalf})`;
+                            } else {
+                                earnedPts = 0;
+                                tierReason = `1-5 ผิด ${wrongFirstHalf} ลำดับ, 6-10 ผิด ${wrongSecondHalf} ลำดับ`;
+                            }
+                        } else {
+                            if (wrongFirstHalf === 0 && wrongSecondHalf === 0) {
+                                earnedPts = itemPts;
+                                tierReason = 'เรียงถูกครบทั้ง 13 ลำดับ (ได้เต็ม)';
+                            } else if (isAllFilled && totalWrong >= 1 && totalWrong <= 2) {
+                                earnedPts = Number((itemPts * (2 / 3)).toFixed(4));
+                                tierReason = `ฝนครบทุกลำดับแต่เรียงผิด ${totalWrong} คำ`;
+                            } else if (
+                                (activeFirstHalf > 0 && wrongFirstHalf === 0 && wrongSecondHalf >= 1 && wrongSecondHalf <= 2) ||
+                                (activeSecondHalf > 0 && wrongSecondHalf === 0 && wrongFirstHalf >= 1 && wrongFirstHalf <= 2)
+                            ) {
+                                earnedPts = Number((itemPts * (1 / 3)).toFixed(4));
+                                tierReason = `1-6 ผิด ${wrongFirstHalf} ลำดับ, 7-13 ผิด ${wrongSecondHalf} ลำดับ`;
+                            } else {
+                                earnedPts = 0;
+                                tierReason = `1-6 ผิด ${wrongFirstHalf} ลำดับ, 7-13 ผิด ${wrongSecondHalf} ลำดับ (ฝน ${filledCount}/${totalActive})`;
+                            }
+                        }
+                    }
+
+                    itemSubCorrectCountMap[qNo] = {
+                        wrongFirstHalf,
+                        wrongSecondHalf,
+                        totalWrong,
+                        filledCount,
+                        totalActive,
+                        isAllFilled,
+                        tierReason
+                    };
+                    itemCorrectMap[qNo] = (totalActive > 0 && totalWrong === 0);
+                    itemPointsEarnedMap[qNo] = earnedPts;
+                    part2Score += earnedPts;
                 });
                 const maxEssayPts = Number(getItemMeta(subjectCode, '22').points) || 20;
                 const essayScore = Math.min(maxEssayPts, Math.max(0, Number(normalizeAnswerLookup(ans, '22') || 0)));
@@ -1929,6 +2076,93 @@
         function handleSessionChange(sessionId) {
             appState.currentSessionId = sessionId;
             refreshCurrentView();
+        }
+
+        function handleDistSubjectFilterChange(filterVal) {
+            appState.distSubjectFilter = filterVal || 'all';
+            renderDashboard();
+        }
+
+        let isDashboardOverviewFullscreen = false;
+
+        function toggleDashboardOverviewFullscreen() {
+            const wrapper = document.getElementById('dashboard-overview-card-wrapper');
+            const icon = document.getElementById('icon-dashboard-overview-fullscreen');
+            const text = document.getElementById('text-dashboard-overview-fullscreen');
+            const btn = document.getElementById('btn-dashboard-overview-fullscreen');
+            if (!wrapper) return;
+
+            isDashboardOverviewFullscreen = !isDashboardOverviewFullscreen;
+
+            if (isDashboardOverviewFullscreen) {
+                wrapper.className = 'fixed inset-0 z-50 bg-white p-6 sm:p-8 overflow-y-auto shadow-2xl transition-all duration-300';
+                if (icon) icon.className = 'fa-solid fa-compress';
+                if (text) text.textContent = 'ย่อกลับขนาดปกติ';
+                if (btn) btn.className = 'px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition cursor-pointer';
+            } else {
+                wrapper.className = 'lg:col-span-8 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 transition-all duration-300';
+                if (icon) icon.className = 'fa-solid fa-expand';
+                if (text) text.textContent = 'ขยายเต็มจอ';
+                if (btn) btn.className = 'px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 transition cursor-pointer';
+            }
+
+            renderDashboard();
+        }
+
+        let progressiveChartAnimTimer = null;
+
+        function triggerProgressiveDashboardAnimations() {
+            if (progressiveChartAnimTimer) {
+                cancelAnimationFrame(progressiveChartAnimTimer);
+            }
+
+            // เริ่มต้นที่ 0 แล้วค่อย ๆ วิ่งขึ้นไปยังค่าเป้าหมายเมื่อเปลี่ยนชุดข้อมูล
+            requestAnimationFrame(() => {
+                progressiveChartAnimTimer = requestAnimationFrame(() => {
+                    // 1. แท่งกราฟแนวตั้ง (Vertical Progressive Bars)
+                    document.querySelectorAll('.prog-vbar').forEach((el, idx) => {
+                        const targetH = el.getAttribute('data-target-h') || '0';
+                        el.style.transition = `height 750ms cubic-bezier(0.22, 1, 0.36, 1) ${idx * 35}ms`;
+                        el.style.height = `${targetH}%`;
+                    });
+
+                    // 2. แถบแนวนอนในตารางและช่วงคะแนน (Horizontal Progressive Bars)
+                    document.querySelectorAll('.prog-hbar').forEach((el, idx) => {
+                        const targetW = el.getAttribute('data-target-w') || '0';
+                        el.style.transition = `width 750ms cubic-bezier(0.22, 1, 0.36, 1) ${idx * 45}ms`;
+                        el.style.width = `${targetW}%`;
+                    });
+
+                    // 3. วงกลม Donut Chart (SVG Stroke-dasharray Progressive Draw)
+                    document.querySelectorAll('.prog-donut-seg').forEach((el, idx) => {
+                        const targetDash = el.getAttribute('data-target-dash') || '0 100';
+                        el.style.transition = `stroke-dasharray 850ms cubic-bezier(0.22, 1, 0.36, 1) ${idx * 70}ms`;
+                        el.setAttribute('stroke-dasharray', targetDash);
+                    });
+
+                    // 4. ตัวเลขวิ่งตามข้อมูล (Animated Number Counter)
+                    document.querySelectorAll('.prog-num').forEach(el => {
+                        const targetVal = parseFloat(el.getAttribute('data-target-num') || '0');
+                        const decimals = parseInt(el.getAttribute('data-decimals') || '0', 10);
+                        const suffix = el.getAttribute('data-suffix') || '';
+                        const duration = 680;
+                        const startTime = performance.now();
+
+                        const stepNum = (now) => {
+                            const progress = Math.min(1, (now - startTime) / duration);
+                            const eased = 1 - Math.pow(1 - progress, 3);
+                            const currentVal = targetVal * eased;
+                            el.textContent = currentVal.toFixed(decimals) + suffix;
+                            if (progress < 1) {
+                                requestAnimationFrame(stepNum);
+                            } else {
+                                el.textContent = targetVal.toFixed(decimals) + suffix;
+                            }
+                        };
+                        requestAnimationFrame(stepNum);
+                    });
+                });
+            });
         }
 
         function handleSubjectChange(subjectCode) {
@@ -2133,6 +2367,7 @@
             let passTotal = 0;
             let bestSubName = '-';
             let bestSubMean = -1;
+            const subjectChartMetrics = [];
 
             const summaryRowsHtml = ['65', '64', '63', '61'].map(sc => {
                 const sp = SUBJECT_SPECS[sc];
@@ -2146,6 +2381,19 @@
                 const minSc = n > 0 ? Math.min(...scores) : 0;
                 const passCnt = scores.filter(s => s >= 50).length;
                 const passPct = n > 0 ? (passCnt / n) * 100 : 0;
+
+                subjectChartMetrics.push({
+                    code: sp.code,
+                    name: sp.name,
+                    n,
+                    mean,
+                    sd,
+                    maxSc,
+                    minSc,
+                    passCnt,
+                    passPct,
+                    isCurrent: sc === sub
+                });
 
                 if (n > 0) {
                     allScores.push(...scores);
@@ -2173,8 +2421,8 @@
                             </span>
                         </td>
                         <td class="py-3 px-3">
-                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                                <div class="bg-indigo-600 h-full" style="width:${Math.min(100, mean)}%"></div>
+                            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden">
+                                <div class="prog-hbar bg-gradient-to-r from-indigo-600 to-teal-500 h-full rounded-full" style="width:0%" data-target-w="${Math.min(100, mean).toFixed(1)}"></div>
                             </div>
                         </td>
                     </tr>
@@ -2183,6 +2431,50 @@
 
             const sumTbody = document.getElementById('dashboard-stats-summary-tbody');
             if (sumTbody) sumTbody.innerHTML = summaryRowsHtml;
+
+            // วาดแผนภูมิแท่งแสดงเฉพาะค่าเฉลี่ย (Mean) ทั้ง 4 รายวิชา (Single Vertical Progressive Bar Chart รองรับโหมดขยายเต็มจอ)
+            const subChartEl = document.getElementById('dashboard-subjects-barchart');
+            if (subChartEl) {
+                const outerGridHeight = isDashboardOverviewFullscreen ? 'h-80' : 'h-48';
+                const innerBarsHeight = isDashboardOverviewFullscreen ? 'h-64' : 'h-36';
+                const barMaxW = isDashboardOverviewFullscreen ? 'max-w-[64px]' : 'max-w-[40px]';
+                const numFontClass = isDashboardOverviewFullscreen ? 'text-sm' : 'text-xs';
+                const subTitleFontClass = isDashboardOverviewFullscreen ? 'text-base' : 'text-xs';
+
+                subChartEl.innerHTML = `
+                    <div class="relative pt-6 pb-2 px-2">
+                        <!-- เส้นเกณฑ์มาตรฐาน 50% -->
+                        <div class="absolute inset-x-2 border-t border-dashed border-rose-400/70 pointer-events-none flex justify-end" style="bottom: calc(50% + 28px);">
+                            <span class="text-[9.5px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded -mt-2.5 border border-rose-200 shadow-sm">เกณฑ์ 50%</span>
+                        </div>
+                        <div class="grid grid-cols-4 gap-4 sm:gap-6 items-end ${outerGridHeight} pt-4 border-b-2 border-slate-300 px-2">
+                            ${subjectChartMetrics.map(m => {
+                                const meanH = Math.max(4, Math.min(100, m.mean));
+                                return `
+                                    <div onclick="handleSubjectChange('${m.code}')" class="flex flex-col items-center h-full justify-end cursor-pointer group px-2 py-1 rounded-xl transition ${m.isCurrent ? 'bg-indigo-100/60 ring-2 ring-indigo-500/40' : 'hover:bg-slate-200/50'}">
+                                        <div class="flex items-end justify-center w-full ${innerBarsHeight} px-1">
+                                            <!-- แท่งค่าเฉลี่ย (Mean) เดี่ยว ๆ -->
+                                            <div class="flex flex-col items-center justify-end h-full w-full ${barMaxW}">
+                                                <span class="prog-num ${numFontClass} font-extrabold text-indigo-800 mb-1" data-target-num="${m.mean.toFixed(2)}" data-decimals="2" data-suffix="">0.00</span>
+                                                <div class="prog-vbar w-full bg-gradient-to-t from-indigo-700 to-indigo-500 rounded-t-lg shadow-sm group-hover:brightness-110" style="height:0%" data-target-h="${meanH.toFixed(1)}" title="ค่าเฉลี่ย (Mean): ${m.mean.toFixed(2)}"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <!-- ป้ายชื่อวิชาใต้แกน X -->
+                        <div class="grid grid-cols-4 gap-4 sm:gap-6 pt-2.5 text-center">
+                            ${subjectChartMetrics.map(m => `
+                                <div onclick="handleSubjectChange('${m.code}')" class="cursor-pointer">
+                                    <div class="${subTitleFontClass} font-extrabold ${m.isCurrent ? 'text-indigo-700' : 'text-slate-800'}">${m.name} (${m.code})</div>
+                                    <div class="text-[10.5px] font-semibold text-slate-500">เข้าสอบ ${m.n} คน | S.D. ${m.sd.toFixed(2)}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
 
             const totalN = allScores.length;
             const overallMean = totalN > 0 ? allScores.reduce((a, b) => a + b, 0) / totalN : 0;
@@ -2200,34 +2492,115 @@
             document.getElementById('kpi-scanned-count').textContent = `${totalN} ใบ`;
             document.getElementById('kpi-total-students').textContent = `นักเรียนในระบบ ${appState.students.length} คน`;
 
-            // Score Distribution Bars for Active Subject
+            // แผนภูมิวงกลมแสดงการกระจายช่วงคะแนน (เลือกดูได้ทั้งรวมทุกวิชา หรือรายวิชา และวางช่วงคะแนนไว้ด้านล่างแผนภูมิวงกลม)
+            const distFilter = appState.distSubjectFilter || 'all';
+            const distFilterSelect = document.getElementById('dist-subject-filter');
+            if (distFilterSelect && distFilterSelect.value !== distFilter) {
+                distFilterSelect.value = distFilter;
+            }
+
+            let subScores = [];
+            let distScopeTitle = 'รวมทั้งหมด 4 รายวิชา';
+            let countUnitLabel = 'ชุด';
+            if (distFilter === 'all') {
+                subScores = [...allScores];
+                distScopeTitle = 'ข้อมูลรวมทั้งหมดทุกวิชา (4 รายวิชา)';
+                countUnitLabel = 'ชุด';
+            } else {
+                const distSpec = SUBJECT_SPECS[distFilter] || SUBJECT_SPECS['65'];
+                const activeResMapForDist = getActiveSessionResults(distFilter);
+                subScores = Object.values(activeResMapForDist).map(r => Number(r.scoreDetails?.totalScore || 0));
+                distScopeTitle = `รหัสวิชา ${distSpec.code} : วิชา${distSpec.name}`;
+                countUnitLabel = 'คน';
+            }
+
             const activeResMap = getActiveSessionResults(sub);
-            const subScores = Object.values(activeResMap).map(r => Number(r.scoreDetails?.totalScore || 0));
             const subN = subScores.length;
             const ranges = [
-                { label: '80 - 100 คะแนน (ดีเยี่ยม)', min: 80, max: 100, color: 'bg-emerald-500' },
-                { label: '60 - 79 คะแนน (ดี)', min: 60, max: 79.99, color: 'bg-indigo-500' },
-                { label: '50 - 59 คะแนน (ผ่านเกณฑ์)', min: 50, max: 59.99, color: 'bg-amber-500' },
-                { label: 'ต่ำกว่า 50 คะแนน (ควรเสริม)', min: 0, max: 49.99, color: 'bg-rose-500' }
+                { shortLabel: '80 - 100 คะแนน', subLabel: 'ดีเยี่ยม', label: '80 - 100 คะแนน (ดีเยี่ยม)', min: 80, max: 100, hex: '#10b981', dotBg: 'bg-emerald-500', textCol: 'text-emerald-700', badgeBg: 'bg-emerald-50/90 border-emerald-200' },
+                { shortLabel: '60 - 79 คะแนน', subLabel: 'ดี', label: '60 - 79 คะแนน (ดี)', min: 60, max: 79.99, hex: '#4f46e5', dotBg: 'bg-indigo-600', textCol: 'text-indigo-700', badgeBg: 'bg-indigo-50/90 border-indigo-200' },
+                { shortLabel: '50 - 59 คะแนน', subLabel: 'ผ่านเกณฑ์', label: '50 - 59 คะแนน (ผ่านเกณฑ์)', min: 50, max: 59.99, hex: '#f59e0b', dotBg: 'bg-amber-500', textCol: 'text-amber-700', badgeBg: 'bg-amber-50/90 border-amber-200' },
+                { shortLabel: 'ต่ำกว่า 50 คะแนน', subLabel: 'ควรเสริม', label: 'ต่ำกว่า 50 คะแนน (ควรเสริม)', min: 0, max: 49.99, hex: '#f43f5e', dotBg: 'bg-rose-500', textCol: 'text-rose-700', badgeBg: 'bg-rose-50/90 border-rose-200' }
             ];
             const distContainer = document.getElementById('score-distribution-bars');
             if (distContainer) {
-                distContainer.innerHTML = ranges.map(rg => {
+                const distMetrics = ranges.map(rg => {
                     const cnt = subScores.filter(s => s >= rg.min && s <= rg.max).length;
-                    const pct = subN > 0 ? Math.round((cnt / subN) * 100) : 0;
-                    return `
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-xs font-semibold text-slate-700">
-                                <span>${rg.label}</span>
-                                <span>${cnt} คน (${pct}%)</span>
-                            </div>
-                            <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                                <div class="${rg.color} h-full transition-all" style="width:${pct}%"></div>
+                    const exactPct = subN > 0 ? (cnt / subN) * 100 : 0;
+                    const pct = Math.round(exactPct);
+                    return { ...rg, cnt, exactPct, pct };
+                });
+
+                const passSubCnt = subScores.filter(s => s >= 50).length;
+                const passSubPct = subN > 0 ? Math.round((passSubCnt / subN) * 100) : 0;
+
+                // สร้างวงกลม SVG Donut Chart แบบ Progressive Draw Animation (เริ่มที่ 0 100 แล้วค่อย ๆ วาดตามสัดส่วนจริง)
+                const radius = 15.91549430918954; // เส้นรอบวง = 100 พอดี
+                let cumulativePct = 0;
+                const svgSegments = subN > 0
+                    ? distMetrics.filter(d => d.cnt > 0).map(d => {
+                        const targetDasharray = `${d.exactPct.toFixed(2)} ${(100 - d.exactPct).toFixed(2)}`;
+                        const strokeDashoffset = (25 - cumulativePct).toFixed(2);
+                        cumulativePct += d.exactPct;
+                        return `<circle class="prog-donut-seg" cx="21" cy="21" r="${radius}" fill="transparent" stroke="${d.hex}" stroke-width="6.4" stroke-dasharray="0 100" data-target-dash="${targetDasharray}" stroke-dashoffset="${strokeDashoffset}"><title>${d.label}: ${d.cnt} ${countUnitLabel} (${d.exactPct.toFixed(1)}%)</title></circle>`;
+                    }).join('')
+                    : `<circle cx="21" cy="21" r="${radius}" fill="transparent" stroke="#e2e8f0" stroke-width="6.4"></circle>`;
+
+                distContainer.innerHTML = `
+                    <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 flex flex-col items-center gap-4">
+                        <div class="text-[11px] font-bold text-indigo-900 bg-indigo-100/80 border border-indigo-200 px-3 py-1 rounded-full transition-all">
+                            ${distScopeTitle}
+                        </div>
+
+                        <!-- แผนภูมิวงกลม (Progressive Donut Pie Chart) ด้านบน -->
+                        <div class="relative w-44 h-44 flex items-center justify-center">
+                            <svg viewBox="0 0 42 42" class="w-full h-full drop-shadow-sm">
+                                <circle cx="21" cy="21" r="${radius}" fill="#ffffff"></circle>
+                                <circle cx="21" cy="21" r="${radius}" fill="transparent" stroke="#f1f5f9" stroke-width="6.4"></circle>
+                                ${svgSegments}
+                            </svg>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+                                <span class="text-[10px] font-bold text-slate-400 uppercase leading-none">จำนวนที่ตรวจ</span>
+                                <span class="text-2xl font-black text-slate-900 leading-tight mt-0.5">
+                                    <span class="prog-num" data-target-num="${subN}" data-decimals="0" data-suffix="">0</span>
+                                    <span class="text-xs font-bold text-slate-600">${countUnitLabel}</span>
+                                </span>
+                                <span class="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full mt-1">
+                                    ผ่านเกณฑ์ <span class="prog-num" data-target-num="${passSubPct}" data-decimals="0" data-suffix="%">0%</span>
+                                </span>
                             </div>
                         </div>
-                    `;
-                }).join('');
+
+                        <!-- รายละเอียดช่วงคะแนน วางอยู่ด้านล่างแผนภูมิวงกลม พร้อม Progressive Bar -->
+                        <div class="w-full space-y-2 pt-1 border-t border-slate-200/80">
+                            ${distMetrics.map(d => `
+                                <div class="px-3 py-2 rounded-xl border ${d.badgeBg} flex items-center justify-between gap-2 transition hover:brightness-95">
+                                    <div class="flex items-center gap-2.5 min-w-0 flex-1">
+                                        <span class="w-3.5 h-3.5 rounded-full ${d.dotBg} shrink-0 shadow-sm"></span>
+                                        <div class="min-w-0 flex-1">
+                                            <div class="text-xs font-extrabold text-slate-800 leading-tight">${d.shortLabel} <span class="text-[10px] font-bold ${d.textCol}">(${d.subLabel})</span></div>
+                                            <div class="w-full max-w-[140px] bg-white/90 h-1.5 rounded-full overflow-hidden mt-1 border border-slate-200/60">
+                                                <div class="prog-hbar ${d.dotBg} h-full rounded-full" style="width:0%" data-target-w="${d.pct}"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right shrink-0">
+                                        <div class="text-xs font-black ${d.textCol}">
+                                            <span class="prog-num" data-target-num="${d.cnt}" data-decimals="0" data-suffix=" ${countUnitLabel}">0 ${countUnitLabel}</span>
+                                        </div>
+                                        <div class="text-[10px] font-bold text-slate-500">
+                                            <span class="prog-num" data-target-num="${d.exactPct.toFixed(1)}" data-decimals="1" data-suffix="%">0.0%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
             }
+
+            // เรียกใช้งานเอฟเฟกต์ Progressive Chart Animation ทุกครั้งที่มีการเรนเดอร์หรือเปลี่ยนชุดข้อมูล
+            triggerProgressiveDashboardAnimations();
 
             // Individual Student Table
             const recentTbody = document.getElementById('dashboard-recent-tbody');
@@ -4376,17 +4749,30 @@
             } else if (sub === '61') {
                 const maxEssayPts = Number(getItemMeta('61', '22').points) || 20;
                 html += `<div class="mt-3 pt-2 border-t border-slate-200 space-y-2.5">
-                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 - 21.2) & ตอนที่ 3 อัตนัย (ข้อ 22)</p>
+                    <p class="text-xs font-bold text-slate-800">ตอนที่ 2 เรียงลำดับ (ข้อ 21.1 เต็ม 2 คะแนน, ข้อ 21.2 เต็ม 3 คะแนน) & ตอนที่ 3 อัตนัย (ข้อ 22)</p>
                     ${['21.1', '21.2'].map(subQ => {
                         const maxOrd = subQ === '21.1' ? 10 : 13;
                         const stuMap = normalizeThaiOrderMap(ans[subQ], maxOrd);
                         const keyMap = normalizeThaiOrderMap(key[subQ], maxOrd);
-                        const isOk = evalRes.itemCorrectMap[subQ];
+                        const ptsEarned = Number(evalRes.itemPointsEarnedMap?.[subQ] || 0);
+                        const maxItemPts = Number(getItemMeta('61', subQ).points) || (subQ === '21.1' ? 2 : 3);
+                        const diag = evalRes.itemSubCorrectCountMap?.[subQ] || {};
+                        const boxStyle = ptsEarned === maxItemPts
+                            ? 'bg-emerald-50 border-emerald-200'
+                            : (ptsEarned > 0 ? 'bg-amber-50 border-amber-300' : 'bg-rose-50 border-rose-200');
+                        const badgeStyle = ptsEarned === maxItemPts
+                            ? 'text-emerald-700 bg-emerald-100 border-emerald-300'
+                            : (ptsEarned > 0 ? 'text-amber-800 bg-amber-100 border-amber-300' : 'text-rose-600 bg-rose-100 border-rose-200');
                         return `
-                            <div class="p-2.5 rounded-xl border ${isOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'} space-y-1.5">
-                                <div class="flex items-center justify-between">
+                            <div class="p-2.5 rounded-xl border ${boxStyle} space-y-1.5">
+                                <div class="flex flex-wrap items-center justify-between gap-1">
                                     <span class="text-xs font-bold text-slate-900">ข้อ ${subQ} (คำลำดับที่ 1 - ${maxOrd})</span>
-                                    <span class="text-[10px] font-bold ${isOk ? 'text-emerald-700' : 'text-rose-600'}">${isOk ? 'ถูกต้องครบ' : 'คลิกวงกลมเพื่อแก้ไข'}</span>
+                                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full border ${badgeStyle}">
+                                        ได้ +${ptsEarned.toFixed(2)} / ${maxItemPts} คะแนน
+                                    </span>
+                                </div>
+                                <div class="text-[10px] font-semibold text-slate-600">
+                                    ${diag.tierReason || 'คลิกวงกลมเพื่อแก้ไขคำตอบ'}
                                 </div>
                                 <div class="space-y-1 max-h-36 overflow-y-auto pr-1">
                                     ${Array.from({ length: maxOrd }, (_, idx) => {
@@ -5424,13 +5810,19 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="p-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200 text-[11px] text-indigo-950 space-y-0.5 leading-relaxed">
+                                    <div class="font-extrabold text-indigo-900"><i class="fa-solid fa-star text-amber-500 mr-1"></i>เกณฑ์การให้คะแนน ข้อ 21.1 (เต็ม ${m211.points} คะแนน):</div>
+                                    <div>• <strong>ได้ ${m211.points} คะแนน:</strong> เรียงถูกทั้งหมดในลำดับที่ 1 - 10</div>
+                                    <div>• <strong>ได้ ${(m211.points * 0.5).toFixed(0)} คะแนน:</strong> ลำดับที่ 1-5 ถูกทั้งหมด แต่ 6-10 ผิด 1-2 ลำดับ <u>หรือ</u> ลำดับที่ 1-5 ผิด 1-2 ลำดับ แต่ 6-10 ถูกทั้งหมด</div>
+                                    <div>• <strong>ได้ 0 คะแนน:</strong> หากไม่เป็นไปตามที่กำหนดข้างต้น</div>
+                                </div>
                                 <div class="space-y-1.5 bg-white p-2.5 rounded-xl border border-slate-200">
                                     ${Array.from({ length: 10 }, (_, idx) => {
                                         const r = idx + 1;
                                         const curAns = Number(keyMap211[String(r)] || 0);
                                         return `
-                                            <div class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg hover:bg-slate-50 border-b border-slate-100 last:border-b-0">
-                                                <span class="text-xs font-bold text-slate-800 whitespace-nowrap">คำลำดับที่ ${r}</span>
+                                            <div class="flex items-center justify-between gap-2 py-1 px-2 rounded-lg hover:bg-slate-50 border-b border-slate-100 last:border-b-0 ${r === 5 ? 'border-b-2 border-indigo-200 pb-2 mb-1' : ''}">
+                                                <span class="text-xs font-bold text-slate-800 whitespace-nowrap">คำลำดับที่ ${r} <span class="text-[10px] font-semibold text-slate-400">(${r <= 5 ? 'ครึ่งแรก 1-5' : 'ครึ่งหลัง 6-10'})</span></span>
                                                 <div class="flex flex-wrap gap-1 justify-end">
                                                     ${Array.from({ length: 10 }, (__, cIdx) => {
                                                         const c = cIdx + 1;
@@ -5461,13 +5853,20 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="p-2.5 rounded-xl bg-indigo-50/80 border border-indigo-200 text-[11px] text-indigo-950 space-y-0.5 leading-relaxed">
+                                    <div class="font-extrabold text-indigo-900"><i class="fa-solid fa-star text-amber-500 mr-1"></i>เกณฑ์การให้คะแนน ข้อ 21.2 (เต็ม ${m212.points} คะแนน):</div>
+                                    <div>• <strong>ได้ ${m212.points} คะแนน:</strong> เรียงถูกทั้งหมดในลำดับที่ 1 - 13</div>
+                                    <div>• <strong>ได้ ${(m212.points * (2 / 3)).toFixed(0)} คะแนน:</strong> ตอบทุกลำดับ (ฝนครบ) แต่เรียงผิด 1-2 คำ</div>
+                                    <div>• <strong>ได้ ${(m212.points * (1 / 3)).toFixed(0)} คะแนน:</strong> ลำดับที่ 1-6 ถูกทั้งหมด แต่ 7-13 ผิด 1-2 ลำดับ <u>หรือ</u> ลำดับที่ 1-6 ผิด 1-2 ลำดับ แต่ 7-13 ถูกทั้งหมด</div>
+                                    <div>• <strong>ได้ 0 คะแนน:</strong> หากไม่เป็นไปตามที่กำหนดข้างต้น</div>
+                                </div>
                                 <div class="space-y-1 bg-white p-2.5 rounded-xl border border-slate-200">
                                     ${Array.from({ length: 13 }, (_, idx) => {
                                         const r = idx + 1;
                                         const curAns = Number(keyMap212[String(r)] || 0);
                                         return `
-                                            <div class="flex items-center justify-between gap-1.5 py-0.5 px-1.5 rounded-lg hover:bg-slate-50 border-b border-slate-100 last:border-b-0">
-                                                <span class="text-[11px] font-bold text-slate-800 whitespace-nowrap">คำลำดับที่ ${r}</span>
+                                            <div class="flex items-center justify-between gap-1.5 py-0.5 px-1.5 rounded-lg hover:bg-slate-50 border-b border-slate-100 last:border-b-0 ${r === 6 ? 'border-b-2 border-indigo-200 pb-1.5 mb-1' : ''}">
+                                                <span class="text-[11px] font-bold text-slate-800 whitespace-nowrap">คำลำดับที่ ${r} <span class="text-[9.5px] font-semibold text-slate-400">(${r <= 6 ? '1-6' : '7-13'})</span></span>
                                                 <div class="flex flex-wrap gap-0.5 justify-end">
                                                     ${Array.from({ length: 13 }, (__, cIdx) => {
                                                         const c = cIdx + 1;
@@ -5853,8 +6252,14 @@
                                 const cPct = Math.round((counts[c] / N) * 100);
                                 const isKey = Number(key[q]) === c;
                                 return `
-                                    <div class="px-2 py-1 rounded border ${isKey ? 'bg-emerald-50 border-emerald-300 font-bold text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-700'}">
-                                        (${c}) ${counts[c]} คน (${cPct}%)
+                                    <div class="p-1.5 rounded-lg border ${isKey ? 'bg-emerald-50 border-emerald-300 font-bold text-emerald-950' : 'bg-slate-50 border-slate-200 text-slate-700'}">
+                                        <div class="flex items-center justify-between text-[10px] mb-1">
+                                            <span>ตัวเลือก (${c})</span>
+                                            <span>${counts[c]} คน (${cPct}%)</span>
+                                        </div>
+                                        <div class="w-full bg-slate-200/80 h-1.5 rounded-full overflow-hidden">
+                                            <div class="${isKey ? 'bg-emerald-600' : 'bg-slate-500'} h-full transition-all" style="width:${cPct}%"></div>
+                                        </div>
                                     </div>
                                 `;
                             }).join('')}
@@ -5922,11 +6327,21 @@
                 });
             } else if (sub === '61') {
                 ['21.1', '21.2', '22'].forEach(qNo => {
-                    let correctCount = 0;
+                    let fullCorrectCount = 0;
+                    let partialCorrectCount = 0;
+                    let totalEarnedPts = 0;
                     const meta = getItemMeta(sub, qNo);
-                    submissions.forEach(s => { if (s.scoreDetails.itemCorrectMap[qNo]) correctCount++; });
-                    const pct = (correctCount / N) * 100;
-                    const avgPointsEarned = (correctCount * meta.points) / N;
+                    submissions.forEach(s => {
+                        const pts = Number(s.scoreDetails.itemPointsEarnedMap?.[qNo] || 0);
+                        totalEarnedPts += pts;
+                        if (s.scoreDetails.itemCorrectMap[qNo]) {
+                            fullCorrectCount++;
+                        } else if (pts > 0) {
+                            partialCorrectCount++;
+                        }
+                    });
+                    const avgPointsEarned = totalEarnedPts / N;
+                    const pct = meta.points > 0 ? (avgPointsEarned / meta.points) * 100 : 0;
                     let keyDisp = String(key[qNo] || '-');
                     if (qNo === '21.1' || qNo === '21.2') {
                         const maxOrd = qNo === '21.1' ? 10 : 13;
@@ -5934,6 +6349,9 @@
                         const kList = Object.keys(kMap).filter(r => Number(kMap[r]) > 0).map(r => `${r}->(${kMap[r]})`);
                         keyDisp = kList.length > 0 ? kList.join(', ') : '-';
                     }
+                    const distText = (qNo === '21.1' || qNo === '21.2')
+                        ? `ได้เต็ม (${meta.points} คะแนน): ${fullCorrectCount} คน | ได้คะแนนบางส่วน: ${partialCorrectCount} คน (เฉลี่ย ${avgPointsEarned.toFixed(2)}/${meta.points} คะแนน)`
+                        : `ผ่านเกณฑ์ ${fullCorrectCount} คน จาก ${N} คน (เฉลี่ย ${avgPointsEarned.toFixed(2)}/${meta.points} คะแนน)`;
                     rowsData.push({
                         qKey: qNo,
                         label: `ข้อที่ ${qNo}`,
@@ -5941,13 +6359,13 @@
                         type: qNo === '22' ? 'อัตนัยเขียนสรุป' : 'เรียงลำดับ',
                         maxPoints: meta.points,
                         avgPointsEarned,
-                        correctCount,
+                        correctCount: fullCorrectCount,
                         totalN: N,
                         keyDisplay: keyDisp,
                         counts: null,
-                        distributionHtml: `<span class="text-xs text-slate-700 font-medium">ตอบถูก/ผ่านเกณฑ์ ${correctCount} คน จาก ${N} คน (คิดเป็นร้อยละ ${pct.toFixed(1)}%)</span>`,
+                        distributionHtml: `<span class="text-xs text-slate-700 font-medium">${distText}</span>`,
                         pct,
-                        pVal: correctCount / N
+                        pVal: meta.points > 0 ? (avgPointsEarned / meta.points) : 0
                     });
                 });
             }
@@ -5955,14 +6373,44 @@
             return { N, rowsData };
         }
 
+        let isItemChartFullscreen = false;
+
+        function toggleItemChartFullscreen() {
+            const wrapper = document.getElementById('item-difficulty-card-wrapper');
+            const icon = document.getElementById('icon-item-chart-fullscreen');
+            const text = document.getElementById('text-item-chart-fullscreen');
+            const btn = document.getElementById('btn-item-chart-fullscreen');
+            if (!wrapper) return;
+
+            isItemChartFullscreen = !isItemChartFullscreen;
+
+            if (isItemChartFullscreen) {
+                wrapper.className = 'fixed inset-0 z-50 bg-white p-6 sm:p-8 flex flex-col justify-between overflow-y-auto shadow-2xl';
+                if (icon) icon.className = 'fa-solid fa-compress';
+                if (text) text.textContent = 'ย่อกลับขนาดปกติ';
+                if (btn) btn.className = 'px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md flex items-center gap-1.5 transition cursor-pointer';
+            } else {
+                wrapper.className = 'lg:col-span-8 p-5 rounded-2xl bg-slate-50 border border-slate-200 transition-all duration-200';
+                if (icon) icon.className = 'fa-solid fa-expand';
+                if (text) text.textContent = 'ขยายเต็มจอ';
+                if (btn) btn.className = 'px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm flex items-center gap-1.5 transition cursor-pointer';
+            }
+
+            renderItemStatistics();
+        }
+
         function renderItemStatistics() {
             const { N, rowsData } = buildItemStatisticsData();
             document.getElementById('stat-sample-size').textContent = `N = ${N} คน`;
             const tbody = document.getElementById('item-stats-tbody');
+            const itemChartEl = document.getElementById('item-stats-barchart');
+            const indChartEl = document.getElementById('indicator-stats-barchart');
 
             if (N === 0) {
                 document.getElementById('stat-easiest-item').textContent = 'ยังไม่มีข้อมูลผลสอบในวิชานี้';
                 document.getElementById('stat-hardest-item').textContent = 'ยังไม่มีข้อมูลผลสอบในวิชานี้';
+                if (itemChartEl) itemChartEl.innerHTML = `<div class="text-center py-10 text-xs text-slate-500">ยังไม่มีข้อมูลผลสอบสำหรับสร้างแผนภูมิแท่งรายข้อ</div>`;
+                if (indChartEl) indChartEl.innerHTML = `<div class="text-center py-10 text-xs text-slate-500">ยังไม่มีข้อมูลตัวชี้วัด</div>`;
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-500">ยังไม่มีข้อมูลผลสอบของวิชานี้ในฐานข้อมูล Supabase</td></tr>`;
                 return;
             }
@@ -5973,6 +6421,80 @@
                 const hardest = sortedByDifficulty[sortedByDifficulty.length - 1];
                 document.getElementById('stat-easiest-item').textContent = `${easiest.label} [${easiest.indicator}] (ตอบถูก ${easiest.correctCount}/${N} คน = ${easiest.pct.toFixed(1)}%)`;
                 document.getElementById('stat-hardest-item').textContent = `${hardest.label} [${hardest.indicator}] (ตอบถูก ${hardest.correctCount}/${N} คน = ${hardest.pct.toFixed(1)}%)`;
+            }
+
+            // 1. วาดแผนภูมิแท่งเปรียบเทียบร้อยละผู้ตอบถูกรายข้อ (Vertical Bar Chart รองรับโหมดขยายเต็มจอ)
+            if (itemChartEl) {
+                const perBarWidth = isItemChartFullscreen ? 46 : 36;
+                const minWidthPx = Math.max(isItemChartFullscreen ? 760 : 540, rowsData.length * perBarWidth);
+                const chartHeightClass = isItemChartFullscreen ? 'h-[62vh]' : 'h-48';
+                const maxBarW = isItemChartFullscreen ? 'max-w-[34px]' : 'max-w-[24px]';
+                const bottomOffsetPx = isItemChartFullscreen ? '42px' : '26px';
+
+                itemChartEl.innerHTML = `
+                    <div class="relative pt-8 pb-2" style="min-width:${minWidthPx}px;">
+                        <!-- เส้นเกณฑ์ 50% -->
+                        <div class="absolute inset-x-0 border-t-2 border-dashed border-slate-400/70 pointer-events-none flex justify-end" style="bottom: calc(50% + ${bottomOffsetPx});">
+                            <span class="text-[10px] font-bold text-slate-700 bg-white px-2 py-0.5 rounded -mt-3 border border-slate-300 shadow-sm">เกณฑ์ 50%</span>
+                        </div>
+                        <div class="flex items-end gap-1.5 sm:gap-2.5 ${chartHeightClass} pt-4 border-b-2 border-slate-300 px-2">
+                            ${rowsData.map(r => {
+                                const hPct = Math.max(4, Math.min(100, r.pct));
+                                let barColor = 'from-indigo-600 to-indigo-400';
+                                let txtColor = 'text-indigo-700';
+                                if (r.pct >= 80) {
+                                    barColor = 'from-emerald-600 to-emerald-400';
+                                    txtColor = 'text-emerald-700';
+                                } else if (r.pct < 20) {
+                                    barColor = 'from-rose-600 to-rose-400';
+                                    txtColor = 'text-rose-700';
+                                } else if (r.pct < 50) {
+                                    barColor = 'from-amber-500 to-amber-400';
+                                    txtColor = 'text-amber-700';
+                                }
+                                return `
+                                    <div class="flex-1 flex flex-col items-center justify-end h-full group min-w-[26px]" title="${r.label} (${r.indicator}): ตอบถูก ${r.correctCount}/${N} คน (${r.pct.toFixed(1)}%)">
+                                        <span class="${isItemChartFullscreen ? 'text-xs' : 'text-[9px]'} font-extrabold ${txtColor} mb-1">${r.pct.toFixed(isItemChartFullscreen ? 1 : 0)}%</span>
+                                        <div class="w-full ${maxBarW} bg-gradient-to-t ${barColor} rounded-t-lg shadow-sm transition-all duration-300 group-hover:brightness-110" style="height:${hPct}%"></div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                        <div class="flex items-start gap-1.5 sm:gap-2.5 pt-2 px-2 text-center">
+                            ${rowsData.map(r => `
+                                <div class="flex-1 min-w-[26px]">
+                                    <div class="${isItemChartFullscreen ? 'text-xs' : 'text-[10px]'} font-extrabold text-slate-900 truncate">ข้อ ${r.qKey}</div>
+                                    <div class="${isItemChartFullscreen ? 'text-[10px]' : 'text-[8.5px]'} font-semibold text-slate-600 truncate">${r.correctCount}/${N} คน</div>
+                                    ${isItemChartFullscreen ? `<div class="text-[9.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1 py-0.5 mt-1 truncate" title="${r.indicator}">${r.indicator}</div>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // 2. วาดแผนภูมิแท่งสรุปรายตัวชี้วัด (Horizontal Bar Chart)
+            if (indChartEl) {
+                const indSummary = buildIndicatorSummaryRows(rowsData, N);
+                indChartEl.innerHTML = indSummary.map(ind => {
+                    const pct = Math.min(100, Math.max(0, ind.pctCorrect));
+                    const barCol = pct >= 80 ? 'bg-emerald-500' : (pct >= 50 ? 'bg-indigo-600' : (pct >= 20 ? 'bg-amber-500' : 'bg-rose-500'));
+                    return `
+                        <div class="p-2.5 rounded-xl bg-white border border-slate-200 space-y-1">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-extrabold text-indigo-950">${ind.indicator} <span class="text-[10px] font-medium text-slate-500">(${ind.questionsText})</span></span>
+                                <span class="font-extrabold text-slate-900">${pct.toFixed(1)}%</span>
+                            </div>
+                            <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                                <div class="${barCol} h-full rounded-full transition-all duration-300" style="width:${pct}%"></div>
+                            </div>
+                            <div class="flex justify-between text-[10px] text-slate-500 font-medium">
+                                <span>ตอบถูกเฉลี่ย ${ind.avgCorrectStudents.toFixed(1)} / ${ind.totalN} คน</span>
+                                <span>คะแนนเฉลี่ย ${ind.sumAvgPoints.toFixed(2)} / ${ind.totalMaxPoints}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
             }
 
             tbody.innerHTML = rowsData.map(row => {
@@ -5998,7 +6520,7 @@
                         <td class="py-3 px-3 text-center"><span class="text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg">${row.keyDisplay}</span></td>
                         <td class="py-3 px-3">${row.distributionHtml}</td>
                         <td class="py-3 px-3 text-center">
-                            <div class="w-full bg-slate-200 h-2 rounded-full overflow-hidden mb-1">
+                            <div class="w-full bg-slate-200 h-2.5 rounded-full overflow-hidden mb-1">
                                 <div class="bg-emerald-500 h-full" style="width:${row.pct}%"></div>
                             </div>
                             <span class="text-xs font-bold text-slate-800">${row.correctCount} คน (${row.pct.toFixed(1)}%)</span>
@@ -6301,21 +6823,28 @@
                     <div class="pt-3 border-t border-slate-200 space-y-3">
                         <div>
                             <h4 class="text-xs font-extrabold text-slate-800 mb-2 flex items-center justify-between">
+                                <span>ตอนที่ 2 : แบบเรียงลำดับ (ข้อ 21.1 เต็ม 2 คะแนน, ข้อ 21.2 เต็ม 3 คะแนน)</span>
+                                <span class="text-indigo-700">ได้ ${part2OnlyScore.toFixed(2)} / 5.00 คะแนน</span>
+                            </h4>
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                 ${['21.1', '21.2'].map(qNo => {
-                                    const isOk = res.scoreDetails.itemCorrectMap[qNo];
                                     const maxOrd = qNo === '21.1' ? 10 : 13;
-                                    const rawVal = normalizeAnswerLookup(res.answers, qNo);
+                                    const maxPts = Number(getItemMeta('61', qNo).points) || (qNo === '21.1' ? 2 : 3);
                                     const stuText = formatStudentAnswerDisplay('61', qNo, res.answers);
                                     const keyMap = normalizeThaiOrderMap(normalizeAnswerLookup(activeKey, qNo), maxOrd);
                                     const keyPairs = Object.keys(keyMap).filter(r => Number(keyMap[r]) > 0).map(r => `ลำดับ${r}=${keyMap[r]}`).join(' ');
                                     const pts = Number(res.scoreDetails.itemPointsEarnedMap?.[qNo] || 0);
+                                    const diag = res.scoreDetails.itemSubCorrectCountMap?.[qNo] || {};
+                                    const boxClass = pts === maxPts
+                                        ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
+                                        : (pts > 0 ? 'bg-amber-50 border-amber-300 text-amber-950' : 'bg-rose-50 border-rose-200 text-rose-950');
                                     return `
-                                        <div class="p-2.5 rounded-xl border text-xs ${isOk ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : 'bg-rose-50 border-rose-200 text-rose-950'} space-y-1">
+                                        <div class="p-2.5 rounded-xl border text-xs ${boxClass} space-y-1">
                                             <div class="flex justify-between font-bold">
                                                 <span>ข้อ ${qNo}</span>
-                                                <span>ได้ ${pts.toFixed(2)} คะแนน</span>
+                                                <span>ได้ ${pts.toFixed(2)} / ${maxPts} คะแนน</span>
                                             </div>
+                                            ${diag.tierReason ? `<div class="text-[10.5px] font-bold text-indigo-900 bg-white/70 px-2 py-0.5 rounded border border-slate-200">${diag.tierReason}</div>` : ''}
                                             <div class="text-[11px]">ตอบ: ${stuText}</div>
                                             <div class="text-[10px] font-semibold text-slate-600">เฉลย: ${keyPairs || '-'}</div>
                                         </div>
