@@ -2966,6 +2966,102 @@
             return darkFillRatio < 0.28 ? rawContrast * 0.45 : rawContrast;
         }
 
+        // ฟังก์ชันตรวจจับรอยระบายดินสอเฉพาะสำหรับวงกลมขนาดเล็กในวิชาภาษาไทย ตอนที่ 2 (ข้อ 21.1 และ 21.2)
+        // ป้องกันปัญหาตัวเลขพิมพ์ 2 หลัก (เช่น 10) และพื้นที่ว่างใต้แถวคำลำดับที่ 10 ทำให้ระบบเข้าใจผิดว่ามีการฝนคำตอบ
+        function evaluateSmallOrderingBubble(ctx, cx, cy, radius = 5, isTwoDigitChoice = false) {
+            const w = ctx.canvas.width;
+            const h = ctx.canvas.height;
+            const r = Math.max(4, Math.round(radius));
+            // วัดเฉพาะแกนกลางวงกลมเพื่อไม่ให้ไปโดนเส้นขอบวงกลมที่พิมพ์ไว้
+            const coreR = Math.max(3, Math.round(r * 0.72));
+            const outerR = Math.round(r * 2.15);
+
+            const x0 = Math.max(0, Math.round(cx - outerR));
+            const y0 = Math.max(0, Math.round(cy - outerR));
+            const x1 = Math.min(w - 1, Math.round(cx + outerR));
+            const y1 = Math.min(h - 1, Math.round(cy + outerR));
+            const bw = x1 - x0 + 1;
+            const bh = y1 - y0 + 1;
+            if (bw <= 2 || bh <= 2) {
+                return { isFilledCandidate: false, score: 0, shadedRatio: 0, whiteCoreRatio: 1, p55Drop: 0 };
+            }
+
+            const imgData = ctx.getImageData(x0, y0, bw, bh).data;
+            const innerLums = [];
+            const outerLums = [];
+            const coreRSq = coreR * coreR;
+            const ringMinSq = (r * 1.45) * (r * 1.45);
+            const ringMaxSq = outerR * outerR;
+
+            for (let py = y0; py <= y1; py++) {
+                for (let px = x0; px <= x1; px++) {
+                    const dx = px - cx;
+                    const dy = py - cy;
+                    const distSq = dx * dx + dy * dy;
+                    const idx = ((py - y0) * bw + (px - x0)) * 4;
+                    const lum = 0.299 * imgData[idx] + 0.587 * imgData[idx + 1] + 0.114 * imgData[idx + 2];
+
+                    if (distSq <= coreRSq) {
+                        innerLums.push(lum);
+                    } else if (distSq >= ringMinSq && distSq <= ringMaxSq) {
+                        outerLums.push(lum);
+                    }
+                }
+            }
+
+            if (innerLums.length === 0 || outerLums.length === 0) {
+                return { isFilledCandidate: false, score: 0, shadedRatio: 0, whiteCoreRatio: 1, p55Drop: 0 };
+            }
+
+            innerLums.sort((a, b) => a - b);
+            outerLums.sort((a, b) => a - b);
+
+            // ใช้ค่าเปอร์เซ็นไทล์ที่ 80 ของพื้นหลังรอบนอก เพื่อให้แถวที่ 10 (ที่มีพื้นที่ว่างด้านล่าง) มีค่าอ้างอิงพื้นกระดาษเท่ากับแถวที่ 1-9
+            const paperBgLum = outerLums[Math.min(outerLums.length - 1, Math.floor(outerLums.length * 0.80))];
+            const innerAvg = innerLums.reduce((a, b) => a + b, 0) / innerLums.length;
+
+            // ค่าความสว่างที่เปอร์เซ็นไทล์ที่ 55 ของแกนกลางวงกลม:
+            // หากไม่ได้ฝน (มีแค่ตัวเลขพิมพ์ 1-10) พิกเซลส่วนใหญ่มากกว่า 60% จะยังเป็นกระดาษสีขาว ทำให้ p55Lum สว่างใกล้เคียงพื้นกระดาษ
+            const p55Lum = innerLums[Math.min(innerLums.length - 1, Math.floor(innerLums.length * 0.55))];
+
+            let shadedCnt = 0;
+            let whitePaperCnt = 0;
+            for (let i = 0; i < innerLums.length; i++) {
+                const l = innerLums[i];
+                if (l < paperBgLum - 32 && l < 150) shadedCnt++;
+                if (l >= paperBgLum - 20) whitePaperCnt++;
+            }
+
+            // ชดเชยความเข้มของหมึกตัวเลข 2 หลัก (10, 11, 12, 13) ไม่ให้สูงกว่าเลขหลักเดียว (1-9) เวลาเป็นช่องว่าง
+            const twoDigitBiasDrop = isTwoDigitChoice ? 5.5 : 0;
+            const twoDigitBiasRatio = isTwoDigitChoice ? 0.08 : 0;
+
+            const shadedRatio = Math.max(0, (shadedCnt / innerLums.length) - twoDigitBiasRatio);
+            const whiteCoreRatio = whitePaperCnt / innerLums.length;
+            const meanDrop = Math.max(0, (paperBgLum - innerAvg) - twoDigitBiasDrop);
+            const p55Drop = Math.max(0, (paperBgLum - p55Lum) - (twoDigitBiasDrop * 0.7));
+
+            // เงื่อนไขคัดกรองช่องว่าง: ต้องมีพื้นที่ระบายดินสอทึบเกิน 52%, มีพื้นที่กระดาษขาวเหลือในแกนกลางไม่เกิน 40%, และค่ามัธยฐานมืดลงชัดเจน
+            const isFilledCandidate = (
+                shadedRatio >= 0.52 &&
+                whiteCoreRatio <= 0.40 &&
+                p55Drop >= 25 &&
+                meanDrop >= 30
+            );
+
+            const score = isFilledCandidate
+                ? (meanDrop * 0.55 + p55Drop * 0.45) * Math.min(1.15, shadedRatio + 0.35)
+                : (p55Drop * 0.30);
+
+            return {
+                isFilledCandidate,
+                score,
+                shadedRatio,
+                whiteCoreRatio,
+                p55Drop
+            };
+        }
+
         // 1. ตรวจจับจุดมุม 4 จุด (4 Corner Registration Marks) ภายในกรอบเล็งของหน้าจอโดยตรง + หาจุดศูนย์กลางมวลของสี่เหลี่ยมดำ
         function detectFourFiducialCorners(ctx, width, height, strictViewfinderROI = true) {
             const imgData = ctx.getImageData(0, 0, width, height).data;
@@ -4027,15 +4123,17 @@
             });
 
             const avgArr = (arr) => (arr && arr.length > 0) ? (arr.reduce((a, b) => a + b, 0) / arr.length) : 0;
+            const maxRowShiftPx = Math.round(4.2 * dotScale);
+            const clampShift = (val, lim) => Math.max(-lim, Math.min(lim, val));
 
             return {
                 sideFoundCount,
                 internalFoundCount,
                 getPart1CalibratedXY: (colIdx, rowIdx, u, v) => {
                     const base = mapNormalizedUVToSheetXY(safeCorners, u, v);
-                    const dySide = avgArr(part1RowShiftY[rowIdx]);
-                    const dxCol = avgArr(part1ColShift[colIdx]?.dx);
-                    const dyCol = avgArr(part1ColShift[colIdx]?.dy);
+                    const dySide = clampShift(avgArr(part1RowShiftY[rowIdx]), maxRowShiftPx);
+                    const dxCol = clampShift(avgArr(part1ColShift[colIdx]?.dx), maxRowShiftPx);
+                    const dyCol = clampShift(avgArr(part1ColShift[colIdx]?.dy), maxRowShiftPx);
                     const finalDy = part1RowShiftY[rowIdx]?.length ? dySide : ( dyCol * 0.5 );
                     return {
                         x: Math.round(base.x + dxCol * 0.65),
@@ -4044,9 +4142,9 @@
                 },
                 getPart2CalibratedXY: (boxKey, rowIdx, u, v) => {
                     const base = mapNormalizedUVToSheetXY(safeCorners, u, v);
-                    const dySide = avgArr(part2RowShiftY[rowIdx]);
-                    const dxBox = avgArr(part2BoxShift[boxKey]?.dx);
-                    const dyBox = avgArr(part2BoxShift[boxKey]?.dy);
+                    const dySide = clampShift(avgArr(part2RowShiftY[rowIdx]), maxRowShiftPx);
+                    const dxBox = clampShift(avgArr(part2BoxShift[boxKey]?.dx), maxRowShiftPx);
+                    const dyBox = clampShift(avgArr(part2BoxShift[boxKey]?.dy), maxRowShiftPx);
                     const finalDy = part2RowShiftY[rowIdx]?.length ? dySide : ( dyBox * 0.5 );
                     return {
                         x: Math.round(base.x + dxBox * 0.65),
@@ -4416,13 +4514,16 @@
                         const maxOrder = qMap.maxOrder || (subQ === '21.1' ? 10 : 13);
                         const keyMap = normalizeThaiOrderMap(key[subQ], maxOrder);
                         const detectedRowMap = normalizeThaiOrderMap(detected[subQ], maxOrder);
+                        const smallBubbleRadius = Math.max(4, Math.round(4.6 * dotScale));
 
                         for (let rowOrder = 1; rowOrder <= maxOrder; rowOrder++) {
                             const rMeta = qMap.rows[rowOrder];
                             if (!rMeta) continue;
                             let bestChoiceInRow = 0;
-                            let maxRowDrop = 0;
-                            let secondRowDrop = 0;
+                            let bestCandidateMetric = null;
+                            let maxRowScore = 0;
+                            let secondRowScore = 0;
+                            const rowScores = [];
                             const rowPts = {};
 
                             for (let c = 1; c <= maxOrder; c++) {
@@ -4431,19 +4532,37 @@
                                 const pt = calib.getPart2CalibratedXY(subQ, rMeta.rowIdx, uv.u, uv.v);
                                 rowPts[c] = pt;
                                 if (!preserveManualAnswers) {
-                                    const dVal = sampleBubbleDarknessContrast(sourceCtx, pt.x, pt.y, Math.max(4, Math.round(4.8 * dotScale)));
-                                    if (dVal > maxRowDrop) {
-                                        secondRowDrop = maxRowDrop;
-                                        maxRowDrop = dVal;
+                                    const metric = evaluateSmallOrderingBubble(sourceCtx, pt.x, pt.y, smallBubbleRadius, c >= 10);
+                                    rowScores.push(metric.score);
+                                    if (metric.score > maxRowScore) {
+                                        secondRowScore = maxRowScore;
+                                        maxRowScore = metric.score;
                                         bestChoiceInRow = c;
-                                    } else if (dVal > secondRowDrop) {
-                                        secondRowDrop = dVal;
+                                        bestCandidateMetric = metric;
+                                    } else if (metric.score > secondRowScore) {
+                                        secondRowScore = metric.score;
                                     }
                                 }
                             }
 
                             if (!preserveManualAnswers) {
-                                detectedRowMap[String(rowOrder)] = (maxRowDrop >= 28 && (maxRowDrop - secondRowDrop >= 7)) ? bestChoiceInRow : 0;
+                                const sortedRowScores = [...rowScores].sort((a, b) => a - b);
+                                const rowMedianScore = sortedRowScores.length > 0
+                                    ? sortedRowScores[Math.floor(sortedRowScores.length * 0.5)]
+                                    : 0;
+
+                                // จะนับว่ามีการฝนคำตอบก็ต่อเมื่อ:
+                                // 1) วงกลมนั้นผ่านเกณฑ์รอยดินสอทึบจริง (isFilledCandidate === true)
+                                // 2) คะแนนความทึบสูงกว่าเกณฑ์ขั้นต่ำ (>= 32)
+                                // 3) แตกต่างจากตัวเลือกอันดับ 2 และค่ามัธยฐานของแถวเดียวกันอย่างชัดเจน (ป้องกันแถวว่างหรือลำดับที่ 10 ถูกตรวจผิด)
+                                const isValidFilledRow = (
+                                    bestCandidateMetric &&
+                                    bestCandidateMetric.isFilledCandidate &&
+                                    maxRowScore >= 32 &&
+                                    (maxRowScore - secondRowScore >= 11) &&
+                                    (maxRowScore - rowMedianScore >= 20)
+                                );
+                                detectedRowMap[String(rowOrder)] = isValidFilledRow ? bestChoiceInRow : 0;
                             }
 
                             const chosenC = Number(detectedRowMap[String(rowOrder)] || 0);
