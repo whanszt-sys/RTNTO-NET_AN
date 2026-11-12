@@ -2438,33 +2438,34 @@
             // วาดแผนภูมิแท่งแสดงเฉพาะค่าเฉลี่ย (Mean) ทั้ง 4 รายวิชา (Single Vertical Progressive Bar Chart รองรับโหมดขยายเต็มจอ)
             const subChartEl = document.getElementById('dashboard-subjects-barchart');
             if (subChartEl) {
-                const outerGridHeight = isDashboardOverviewFullscreen ? 'h-80' : 'h-48';
-                const innerBarsHeight = isDashboardOverviewFullscreen ? 'h-64' : 'h-36';
-                const barMaxW = isDashboardOverviewFullscreen ? 'max-w-[64px]' : 'max-w-[40px]';
+                const plotHeightClass = isDashboardOverviewFullscreen ? 'h-64' : 'h-40';
+                const barMaxW = isDashboardOverviewFullscreen ? 'max-w-[64px]' : 'max-w-[42px]';
                 const numFontClass = isDashboardOverviewFullscreen ? 'text-sm' : 'text-xs';
                 const subTitleFontClass = isDashboardOverviewFullscreen ? 'text-base' : 'text-xs';
 
                 subChartEl.innerHTML = `
-                    <div class="relative pt-6 pb-2 px-2">
-                        <!-- เส้นเกณฑ์มาตรฐาน 50% -->
-                        <div class="absolute inset-x-2 border-t border-dashed border-rose-400/70 pointer-events-none flex justify-end" style="bottom: calc(50% + 28px);">
-                            <span class="text-[9.5px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded -mt-2.5 border border-rose-200 shadow-sm">เกณฑ์ 50%</span>
-                        </div>
-                        <div class="grid grid-cols-4 gap-4 sm:gap-6 items-end ${outerGridHeight} pt-4 border-b-2 border-slate-300 px-2">
-                            ${subjectChartMetrics.map(m => {
-                                const meanH = Math.max(4, Math.min(100, m.mean));
-                                return `
-                                    <div onclick="handleSubjectChange('${m.code}')" class="flex flex-col items-center h-full justify-end cursor-pointer group px-2 py-1 rounded-xl transition ${m.isCurrent ? 'bg-indigo-100/60 ring-2 ring-indigo-500/40' : 'hover:bg-slate-200/50'}">
-                                        <div class="flex items-end justify-center w-full ${innerBarsHeight} px-1">
-                                            <!-- แท่งค่าเฉลี่ย (Mean) เดี่ยว ๆ -->
-                                            <div class="flex flex-col items-center justify-end h-full w-full ${barMaxW}">
-                                                <span class="prog-num ${numFontClass} font-extrabold text-indigo-800 mb-1" data-target-num="${m.mean.toFixed(2)}" data-decimals="2" data-suffix="">0.00</span>
-                                                <div class="prog-vbar w-full bg-gradient-to-t from-indigo-700 to-indigo-500 rounded-t-lg shadow-sm group-hover:brightness-110" style="height:0%" data-target-h="${meanH.toFixed(1)}" title="ค่าเฉลี่ย (Mean): ${m.mean.toFixed(2)}"></div>
+                    <div class="pt-7 pb-2 px-2">
+                        <!-- พื้นที่วาดแท่งกราฟ (0% - 100%) ให้เส้นเกณฑ์ 50% ตรงกับความสูงแท่งกราฟ 50% พอดี -->
+                        <div class="relative ${plotHeightClass} border-b-2 border-slate-300 px-2">
+                            <!-- เส้นเกณฑ์มาตรฐาน 50% -->
+                            <div class="absolute inset-x-0 border-t-2 border-dashed border-rose-400/80 pointer-events-none flex justify-end z-10" style="bottom: 50%;">
+                                <span class="text-[9.5px] font-bold text-rose-600 bg-rose-50 px-2 py-0.5 rounded -mt-2.5 border border-rose-200 shadow-sm">เกณฑ์ 50%</span>
+                            </div>
+                            <div class="grid grid-cols-4 gap-4 sm:gap-6 items-end h-full">
+                                ${subjectChartMetrics.map(m => {
+                                    const meanH = Math.max(2, Math.min(100, m.mean));
+                                    return `
+                                        <div onclick="handleSubjectChange('${m.code}')" class="flex flex-col items-center h-full justify-end cursor-pointer group px-2 rounded-t-xl transition ${m.isCurrent ? 'bg-indigo-100/50' : 'hover:bg-slate-200/40'}">
+                                            <div class="relative flex items-end justify-center w-full h-full px-1">
+                                                <!-- แท่งค่าเฉลี่ย (Mean) เดี่ยว ๆ เทียบสัดส่วน 0-100% ของกรอบกราฟโดยตรง -->
+                                                <div class="prog-vbar relative w-full ${barMaxW} bg-gradient-to-t from-indigo-700 to-indigo-500 rounded-t-lg shadow-sm group-hover:brightness-110" style="height:0%" data-target-h="${meanH.toFixed(1)}" title="ค่าเฉลี่ย (Mean): ${m.mean.toFixed(2)}">
+                                                    <span class="prog-num absolute -top-6 left-1/2 -translate-x-1/2 ${numFontClass} font-extrabold text-indigo-800 whitespace-nowrap" data-target-num="${m.mean.toFixed(2)}" data-decimals="2" data-suffix="">0.00</span>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                `;
-                            }).join('')}
+                                    `;
+                                }).join('')}
+                            </div>
                         </div>
                         <!-- ป้ายชื่อวิชาใต้แกน X -->
                         <div class="grid grid-cols-4 gap-4 sm:gap-6 pt-2.5 text-center">
